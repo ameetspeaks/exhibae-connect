@@ -50,7 +50,7 @@ const Signup = () => {
         password: data.password,
         options: {
           data: metadata,
-          emailRedirectTo: `${window.location.origin}/login`,
+          emailRedirectTo: `${window.location.origin}/auth/login`,
         },
       });
 
@@ -71,7 +71,7 @@ const Signup = () => {
 
       // Wait a moment before redirecting
       setTimeout(() => {
-        navigate('/login');
+        navigate('/auth/login');
       }, 2000);
 
     } catch (error: any) {
@@ -197,7 +197,7 @@ const Signup = () => {
             </Button>
             <p className="text-sm text-center text-gray-600">
               Already have an account?{' '}
-              <Link to="/login" className="text-exhibae-navy hover:underline">
+              <Link to="/auth/login" className="text-exhibae-navy hover:underline">
                 Sign in
               </Link>
             </p>
