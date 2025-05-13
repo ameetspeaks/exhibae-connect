@@ -34,29 +34,56 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # Get the server's host key and add it to known_hosts
-          ssh-keyscan -H 69.62.77.142 >> ~/.ssh/known_hosts 2>/dev/null
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/deploy_key
+          
+          # Debug SSH key
+          echo "Checking SSH key format..."
+          ssh-keygen -l -f ~/.ssh/deploy_key
+          
+          # Add server to known hosts
+          ssh-keyscan -H 69.62.77.142 >> ~/.ssh/known_hosts
+          
+          # Test SSH connection with verbose output
+          echo "Testing SSH connection..."
+          ssh -v -o StrictHostKeyChecking=no deployer@69.62.77.142 "pwd"
           
       - name: Deploy to server
         env:
           DEPLOY_PATH: /var/www/exhibae
         run: |
+          echo "Starting deployment process..."
+          
           # Create deploy directory
           mkdir -p deploy
           
+          # Debug directory contents
+          echo "Checking build files..."
+          ls -la dist/
+          
           # Copy build files
           cp -r dist/* deploy/
-          cp .htaccess deploy/
-          cp .env.production deploy/.env
+          cp .htaccess deploy/ || echo "No .htaccess file found"
+          cp .env.production deploy/.env || echo "No .env.production file found"
+          
+          echo "Checking deployment files..."
+          ls -la deploy/
           
           # Create backup of current deployment
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new deployer@69.62.77.142 "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${DEPLOY_PATH}_backup_$(date +%Y%m%d_%H%M%S); fi"
+          echo "Creating backup..."
+          ssh -v deployer@69.62.77.142 "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${DEPLOY_PATH}_backup_$(date +%Y%m%d_%H%M%S); fi"
           
-          # Deploy using rsync with custom SSH command
-          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" deploy/ deployer@69.62.77.142:$DEPLOY_PATH
+          # Deploy using rsync with progress
+          echo "Deploying files..."
+          rsync -avz --progress --delete deploy/ deployer@69.62.77.142:$DEPLOY_PATH
           
           # Set proper permissions
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new deployer@69.62.77.142 "chown -R www-data:www-data $DEPLOY_PATH && chmod -R 755 $DEPLOY_PATH"
+          echo "Setting permissions..."
+          ssh deployer@69.62.77.142 "sudo chown -R www-data:www-data $DEPLOY_PATH && sudo chmod -R 755 $DEPLOY_PATH"
+          
+          # Verify deployment
+          echo "Verifying deployment..."
+          ssh deployer@69.62.77.142 "ls -la $DEPLOY_PATH"
           
           # Cleanup local
           rm -rf deploy 
