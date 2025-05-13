@@ -20,6 +20,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         run: npm ci
 
@@ -29,59 +37,125 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Install SSH key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          name: id_ed25519
-          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-          if_key_exists: replace
-          config: |
-            Host exhibae
-              HostName 69.62.77.142
-              User deployer
-              IdentityFile ~/.ssh/id_ed25519
-              StrictHostKeyChecking no
+      - name: Verify build
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Build directory 'dist' not found!"
+            exit 1
+          fi
+          
+          if [ ! -f "dist/index.html" ]; then
+            echo "index.html not found in build!"
+            exit 1
+          fi
+          
+          echo "Build verification successful"
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          
+          # Update SSH config
+          cat > ~/.ssh/config << EOF
+          Host exhibae
+            HostName 69.62.77.142
+            User deployer
+            IdentityFile ~/.ssh/id_ed25519
+            ServerAliveInterval 30
+            ServerAliveCountMax 6
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+          EOF
+          chmod 600 ~/.ssh/config
               
       - name: Test SSH Connection
-        run: ssh exhibae "echo 'SSH connection test successful'"
+        run: |
+          if ! ssh exhibae "echo 'SSH connection test successful' && test -d /var/www/exhibae"; then
+            echo "SSH connection failed or deployment directory missing!"
+            exit 1
+          fi
           
       - name: Deploy to server
         env:
           DEPLOY_PATH: /var/www/exhibae
+          BACKUP_DIR: /var/www/exhibae_backups
+          DEPLOY_TIMESTAMP: $(date +%Y%m%d_%H%M%S)
         run: |
           echo "Starting deployment process..."
           
           # Create deploy directory
           mkdir -p deploy
           
-          # Debug directory contents
-          echo "Checking build files..."
-          ls -la dist/
-          
           # Copy build files
+          echo "Preparing deployment files..."
           cp -r dist/* deploy/
-          cp .htaccess deploy/ || echo "No .htaccess file found"
-          cp .env.production deploy/.env || echo "No .env.production file found"
+          if [ -f ".htaccess" ]; then
+            cp .htaccess deploy/
+          else
+            echo "Warning: No .htaccess file found"
+          fi
           
-          echo "Checking deployment files..."
-          ls -la deploy/
+          if [ -f ".env.production" ]; then
+            cp .env.production deploy/.env
+          else
+            echo "Warning: No .env.production file found"
+          fi
           
-          # Create backup of current deployment
+          # Create backups directory and backup current deployment
           echo "Creating backup..."
-          ssh exhibae "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${DEPLOY_PATH}_backup_$(date +%Y%m%d_%H%M%S); fi"
+          if ! ssh exhibae "mkdir -p $BACKUP_DIR && \
+                          if [ -d $DEPLOY_PATH ]; then \
+                            cp -r $DEPLOY_PATH ${BACKUP_DIR}/backup_${DEPLOY_TIMESTAMP} || exit 1; \
+                          fi"; then
+            echo "Backup creation failed!"
+            exit 1
+          fi
           
-          # Deploy using rsync with progress
+          # Deploy using rsync with progress and error checking
           echo "Deploying files..."
-          rsync -avz --progress --delete deploy/ exhibae:$DEPLOY_PATH
+          if ! rsync -avz --progress --delete deploy/ exhibae:$DEPLOY_PATH; then
+            echo "Deployment failed! Rolling back to previous version..."
+            ssh exhibae "if [ -d ${BACKUP_DIR}/backup_${DEPLOY_TIMESTAMP} ]; then \
+                          rm -rf $DEPLOY_PATH/* && \
+                          cp -r ${BACKUP_DIR}/backup_${DEPLOY_TIMESTAMP}/* $DEPLOY_PATH/; \
+                        fi"
+            exit 1
+          fi
           
           # Set proper permissions
           echo "Setting permissions..."
-          ssh exhibae "sudo chown -R www-data:www-data $DEPLOY_PATH && sudo chmod -R 755 $DEPLOY_PATH"
+          if ! ssh exhibae "sudo chown -R www-data:www-data $DEPLOY_PATH && \
+                          sudo chmod -R 755 $DEPLOY_PATH && \
+                          sudo chmod -R g+w $DEPLOY_PATH/assets"; then
+            echo "Failed to set permissions!"
+            exit 1
+          fi
           
           # Verify deployment
           echo "Verifying deployment..."
-          ssh exhibae "ls -la $DEPLOY_PATH"
+          if ! ssh exhibae "test -f $DEPLOY_PATH/index.html && \
+                          test -d $DEPLOY_PATH/assets"; then
+            echo "Deployment verification failed!"
+            exit 1
+          fi
+          
+          # Health check
+          echo "Performing health check..."
+          HEALTH_CHECK_URL="https://exhibae.com"
+          if ! curl -sSf "$HEALTH_CHECK_URL" > /dev/null; then
+            echo "Health check failed! Site may be down."
+            exit 1
+          fi
+          
+          # Cleanup old backups (keep last 5)
+          echo "Cleaning up old backups..."
+          ssh exhibae "cd $BACKUP_DIR && ls -t | tail -n +6 | xargs -r rm -rf"
           
           # Cleanup local
-          rm -rf deploy 
+          rm -rf deploy
+          
+          echo "Deployment completed successfully!" 
