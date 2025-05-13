@@ -29,23 +29,22 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          # Decode and save the SSH key
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          
-          # Start SSH agent and add key
-          eval $(ssh-agent -s)
-          ssh-add ~/.ssh/deploy_key
-          
-          # Add server to known hosts
-          ssh-keyscan -H 69.62.77.142 >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-          
-          # Test SSH connection
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts deployer@69.62.77.142 "echo 'SSH connection test successful'"
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          name: id_ed25519
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          if_key_exists: replace
+          config: |
+            Host exhibae
+              HostName 69.62.77.142
+              User deployer
+              IdentityFile ~/.ssh/id_ed25519
+              StrictHostKeyChecking no
+              
+      - name: Test SSH Connection
+        run: ssh exhibae "echo 'SSH connection test successful'"
           
       - name: Deploy to server
         env:
@@ -70,19 +69,19 @@ jobs:
           
           # Create backup of current deployment
           echo "Creating backup..."
-          ssh deployer@69.62.77.142 "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${DEPLOY_PATH}_backup_$(date +%Y%m%d_%H%M%S); fi"
+          ssh exhibae "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${DEPLOY_PATH}_backup_$(date +%Y%m%d_%H%M%S); fi"
           
           # Deploy using rsync with progress
           echo "Deploying files..."
-          rsync -avz --progress --delete deploy/ deployer@69.62.77.142:$DEPLOY_PATH
+          rsync -avz --progress --delete deploy/ exhibae:$DEPLOY_PATH
           
           # Set proper permissions
           echo "Setting permissions..."
-          ssh deployer@69.62.77.142 "sudo chown -R www-data:www-data $DEPLOY_PATH && sudo chmod -R 755 $DEPLOY_PATH"
+          ssh exhibae "sudo chown -R www-data:www-data $DEPLOY_PATH && sudo chmod -R 755 $DEPLOY_PATH"
           
           # Verify deployment
           echo "Verifying deployment..."
-          ssh deployer@69.62.77.142 "ls -la $DEPLOY_PATH"
+          ssh exhibae "ls -la $DEPLOY_PATH"
           
           # Cleanup local
           rm -rf deploy 
