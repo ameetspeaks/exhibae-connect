@@ -11,11 +11,11 @@ const Layout = () => {
   const { toast } = useToast();
 
   const handleLogin = () => {
-    navigate('/login');
+    navigate('/auth/login');
   };
 
   const handleSignUp = () => {
-    navigate('/signup');
+    navigate('/auth/register');
   };
 
   const handleLogout = async () => {

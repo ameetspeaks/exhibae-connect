@@ -4,6 +4,7 @@ import DashboardSidebar from './DashboardSidebar';
 import DashboardHeader from './DashboardHeader';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 interface DashboardLayoutProps {
   role: 'admin' | 'organiser' | 'brand';
@@ -12,12 +13,13 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ role, title }: DashboardLayoutProps) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     const checkUserRole = async () => {
       if (!user) {
-        navigate('/login');
+        navigate('/auth/login');
         return;
       }
 
@@ -35,13 +37,30 @@ const DashboardLayout = ({ role, title }: DashboardLayoutProps) => {
     checkUserRole();
   }, [user, role, navigate]);
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out.",
+      });
+      navigate('/');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!user) {
     return null;
   }
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <DashboardSidebar role={role} />
+      <DashboardSidebar role={role} onLogout={handleLogout} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader role={role} title={title} />
         <div className="flex-1 overflow-auto p-6">
