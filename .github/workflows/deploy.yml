@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
   workflow_dispatch:
 
 jobs:
@@ -13,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for git diff
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -51,6 +56,11 @@ jobs:
           
           echo "Build verification successful"
 
+      - name: Get changed files
+        id: changed-files
+        run: |
+          echo "::set-output name=files::$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | tr '\n' ' ')"
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -71,15 +81,16 @@ jobs:
             UserKnownHostsFile ~/.ssh/known_hosts
           EOF
           chmod 600 ~/.ssh/config
-              
+
       - name: Test SSH Connection
         run: |
           if ! ssh exhibae "echo 'SSH connection test successful' && test -d /var/www/exhibae"; then
             echo "SSH connection failed or deployment directory missing!"
             exit 1
           fi
-          
+
       - name: Deploy to server
+        id: deploy
         env:
           DEPLOY_PATH: /var/www/exhibae
           BACKUP_DIR: /var/www/exhibae_backups
@@ -96,13 +107,13 @@ jobs:
           if [ -f ".htaccess" ]; then
             cp .htaccess deploy/
           else
-            echo "Warning: No .htaccess file found"
+            echo "Warning: No .htaccess found"
           fi
           
           if [ -f ".env.production" ]; then
             cp .env.production deploy/.env
           else
-            echo "Warning: No .env.production file found"
+            echo "Warning: No .env.production found"
           fi
           
           # Create backups directory and backup current deployment
@@ -117,7 +128,7 @@ jobs:
           
           # Deploy using rsync with progress and error checking
           echo "Deploying files..."
-          if ! rsync -avz --progress --delete deploy/ exhibae:$DEPLOY_PATH; then
+          if ! rsync -avz --progress --delete deploy/ exhibae:$DEPLOY_PATH/; then
             echo "Deployment failed! Rolling back to previous version..."
             ssh exhibae "if [ -d ${BACKUP_DIR}/backup_${DEPLOY_TIMESTAMP} ]; then \
                           rm -rf $DEPLOY_PATH/* && \
@@ -158,4 +169,24 @@ jobs:
           # Cleanup local
           rm -rf deploy
           
-          echo "Deployment completed successfully!" 
+          echo "Deployment completed successfully!"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          COMMIT_MSG=$(git log --format=%B -n 1 ${{ github.sha }})
+          AUTHOR=$(git log --format=%an -n 1 ${{ github.sha }})
+          
+          if [ "$STATUS" = "success" ]; then
+            MESSAGE="✅ Deployment successful!\nCommit: ${COMMIT_MSG}\nAuthor: ${AUTHOR}\nChanged files: ${{ steps.changed-files.outputs.files }}"
+          else
+            MESSAGE="❌ Deployment failed!\nCommit: ${COMMIT_MSG}\nAuthor: ${AUTHOR}\nSee logs for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+          
+          # If you have a webhook URL configured
+          if [ ! -z "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
+            curl -X POST -H "Content-Type: application/json" \
+              -d "{\"text\":\"${MESSAGE}\"}" \
+              ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          fi 
