@@ -1,4 +1,39 @@
-# Welcome to your Lovable project
+# Exhibae Connect
+
+A modern web application for managing exhibitions and connecting brands with organizers.
+
+## Features
+- Brand Management
+- Exhibition Organization
+- User Dashboard
+- Secure Authentication
+- Real-time Updates
+
+## Deployment
+The application is automatically deployed via GitHub Actions when changes are pushed to the master branch.
+
+## Development
+To run the application locally:
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+## Production Build
+```bash
+npm run build
+```
+
+## Tech Stack
+- React
+- Vite
+- TypeScript
+- Supabase
+- Tailwind CSS
 
 ## Project info
 
@@ -49,20 +84,6 @@ npm run dev
 - Select the "Codespaces" tab.
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/2d68534a-e1c6-439b-af4f-8951f5064751) and click on Share -> Publish.
 
 ## Can I connect a custom domain to my Lovable project?
 
