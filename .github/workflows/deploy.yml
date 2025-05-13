@@ -3,7 +3,7 @@ name: Deploy to Production
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -29,16 +29,17 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-          if_key_exists: replace
-
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Get the server's host key and add it to known_hosts
+          ssh-keyscan -H 69.62.77.142 >> ~/.ssh/known_hosts 2>/dev/null
+          
       - name: Deploy to server
         env:
-          DEPLOY_PATH: /var/www/exhibae-connect
+          DEPLOY_PATH: /var/www/exhibae
         run: |
           # Create deploy directory
           mkdir -p deploy
@@ -49,13 +50,13 @@ jobs:
           cp .env.production deploy/.env
           
           # Create backup of current deployment
-          ssh deployer@69.62.77.142 "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${DEPLOY_PATH}_backup_$(date +%Y%m%d_%H%M%S); fi"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new deployer@69.62.77.142 "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${DEPLOY_PATH}_backup_$(date +%Y%m%d_%H%M%S); fi"
           
-          # Deploy using rsync
-          rsync -avz --delete deploy/ deployer@69.62.77.142:$DEPLOY_PATH
+          # Deploy using rsync with custom SSH command
+          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" deploy/ deployer@69.62.77.142:$DEPLOY_PATH
           
           # Set proper permissions
-          ssh deployer@69.62.77.142 "chown -R www-data:www-data $DEPLOY_PATH && chmod -R 755 $DEPLOY_PATH"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new deployer@69.62.77.142 "chown -R www-data:www-data $DEPLOY_PATH && chmod -R 755 $DEPLOY_PATH"
           
           # Cleanup local
           rm -rf deploy 
