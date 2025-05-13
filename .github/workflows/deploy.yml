@@ -32,21 +32,25 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           eval $(ssh-agent -s)
-          ssh-add ~/.ssh/deploy_key
           
-          # Debug SSH key
-          echo "Checking SSH key format..."
-          ssh-keygen -l -f ~/.ssh/deploy_key
+          # Debug key content
+          echo "Key file permissions:"
+          ls -la ~/.ssh/deploy_key
+          
+          echo "Key file content format:"
+          head -n 1 ~/.ssh/deploy_key
+          
+          # Add key to agent
+          ssh-add ~/.ssh/deploy_key
           
           # Add server to known hosts
           ssh-keyscan -H 69.62.77.142 >> ~/.ssh/known_hosts
           
-          # Test SSH connection with verbose output
-          echo "Testing SSH connection..."
-          ssh -v -o StrictHostKeyChecking=no deployer@69.62.77.142 "pwd"
+          # Test connection
+          ssh -v -o StrictHostKeyChecking=no deployer@69.62.77.142 "echo 'SSH connection test successful'"
           
       - name: Deploy to server
         env:
@@ -71,7 +75,7 @@ jobs:
           
           # Create backup of current deployment
           echo "Creating backup..."
-          ssh -v deployer@69.62.77.142 "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${DEPLOY_PATH}_backup_$(date +%Y%m%d_%H%M%S); fi"
+          ssh deployer@69.62.77.142 "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${DEPLOY_PATH}_backup_$(date +%Y%m%d_%H%M%S); fi"
           
           # Deploy using rsync with progress
           echo "Deploying files..."
