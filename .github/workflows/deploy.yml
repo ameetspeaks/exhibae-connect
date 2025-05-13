@@ -32,25 +32,20 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
+          # Decode and save the SSH key
           echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          
+          # Start SSH agent and add key
           eval $(ssh-agent -s)
-          
-          # Debug key content
-          echo "Key file permissions:"
-          ls -la ~/.ssh/deploy_key
-          
-          echo "Key file content format:"
-          head -n 1 ~/.ssh/deploy_key
-          
-          # Add key to agent
           ssh-add ~/.ssh/deploy_key
           
           # Add server to known hosts
           ssh-keyscan -H 69.62.77.142 >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
           
-          # Test connection
-          ssh -v -o StrictHostKeyChecking=no deployer@69.62.77.142 "echo 'SSH connection test successful'"
+          # Test SSH connection
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts deployer@69.62.77.142 "echo 'SSH connection test successful'"
           
       - name: Deploy to server
         env:
