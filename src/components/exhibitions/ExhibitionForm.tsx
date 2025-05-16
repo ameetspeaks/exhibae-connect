@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -25,56 +25,111 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
-import { ExhibitionFormData, ExhibitionCategory, VenueType } from '@/types/exhibition-management';
+import { ExhibitionFormData, ExhibitionCategory, VenueType, MeasuringUnit, EventType } from '@/types/exhibition-management';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
-  start_date: z.date(),
-  end_date: z.date(),
   address: z.string().min(1, 'Address is required'),
   city: z.string().min(1, 'City is required'),
   state: z.string().min(1, 'State is required'),
   country: z.string().min(1, 'Country is required'),
-  postal_code: z.string()
-    .min(1, 'Postal code is required')
-    .regex(/^\d+$/, 'Postal code must contain only numbers')
-    .length(6, 'Postal code must be exactly 6 digits'),
+  postal_code: z.string().min(1, 'Postal code is required'),
+  organiser_id: z.string(),
+  status: z.string(),
+  start_date: z.string(),
+  end_date: z.string(),
+  start_time: z.string().min(1, 'Start time is required'),
+  end_time: z.string().min(1, 'End time is required'),
   category_id: z.string().min(1, 'Category is required'),
-  venue_type_id: z.string().min(1, 'Venue type is required')
+  venue_type_id: z.string().min(1, 'Venue type is required'),
+  event_type_id: z.string().min(1, 'Event type is required'),
+  measuring_unit_id: z.string().optional()
 });
 
-interface ExhibitionFormProps {
-  onSubmit: (data: ExhibitionFormData) => void;
+type FormData = z.infer<typeof formSchema>;
+
+export interface ExhibitionFormProps {
+  onSubmit: (data: ExhibitionFormData) => Promise<void>;
   categories: ExhibitionCategory[];
   venueTypes: VenueType[];
-  isLoading?: boolean;
+  eventTypes: EventType[];
+  measuringUnits: MeasuringUnit[];
+  isLoading: boolean;
+  initialData?: ExhibitionFormData;
 }
 
 const ExhibitionForm: React.FC<ExhibitionFormProps> = ({ 
   onSubmit, 
   categories, 
   venueTypes,
-  isLoading 
+  eventTypes,
+  measuringUnits,
+  isLoading,
+  initialData 
 }) => {
-  const form = useForm<ExhibitionFormData>({
+  console.log('Event types in form:', eventTypes);
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: '',
       description: '',
-      address: '221B South Ex Delhi',
-      city: 'New Delhi',
-      state: 'New Delhi',
-      country: 'India',
-      postal_code: '110001',
+      address: '',
+      city: '',
+      state: '',
+      country: '',
+      postal_code: '',
+      organiser_id: '',
+      status: 'draft',
+      start_date: '',
+      end_date: '',
+      start_time: '11:00',
+      end_time: '17:00',
       category_id: '',
-      venue_type_id: ''
+      venue_type_id: '',
+      event_type_id: '',
+      measuring_unit_id: ''
     }
   });
 
+  // Set form values when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      console.log('Setting form initial data:', {
+        initialData,
+        venue_type_id: initialData.venue_type_id,
+        event_type_id: initialData.event_type_id
+      });
+
+      form.reset({
+        title: initialData.title,
+        description: initialData.description,
+        address: initialData.address || '',
+        city: initialData.city || '',
+        state: initialData.state || '',
+        country: initialData.country || '',
+        postal_code: initialData.postal_code || '',
+        organiser_id: initialData.organiser_id,
+        status: initialData.status,
+        start_date: initialData.start_date,
+        end_date: initialData.end_date,
+        start_time: initialData.start_time || '11:00',
+        end_time: initialData.end_time || '17:00',
+        category_id: initialData.category_id || '',
+        venue_type_id: initialData.venue_type_id || '',
+        event_type_id: initialData.event_type_id || '',
+        measuring_unit_id: initialData.measuring_unit_id || ''
+      });
+    }
+  }, [initialData, form]);
+
+  const handleSubmit = async (data: FormData) => {
+    await onSubmit(data as ExhibitionFormData);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="title"
@@ -103,6 +158,82 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
           )}
         />
 
+        <div className="space-y-4">
+          <FormField
+            control={form.control}
+            name="address"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Address</FormLabel>
+                <FormControl>
+                  <Input placeholder="Street address" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Input placeholder="City" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>State</FormLabel>
+                  <FormControl>
+                    <Input placeholder="State" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Country" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="postal_code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Postal Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Postal code" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
@@ -114,14 +245,14 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
-                        variant="outline"
+                        variant={"outline"}
                         className={cn(
                           "w-full pl-3 text-left font-normal",
                           !field.value && "text-muted-foreground"
                         )}
                       >
                         {field.value ? (
-                          format(field.value, "PPP")
+                          format(new Date(field.value), "PPP")
                         ) : (
                           <span>Pick a date</span>
                         )}
@@ -132,8 +263,8 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
+                      selected={field.value ? new Date(field.value) : undefined}
+                      onSelect={(date) => field.onChange(date?.toISOString())}
                       disabled={(date) =>
                         date < new Date()
                       }
@@ -156,14 +287,14 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
-                        variant="outline"
+                        variant={"outline"}
                         className={cn(
                           "w-full pl-3 text-left font-normal",
                           !field.value && "text-muted-foreground"
                         )}
                       >
                         {field.value ? (
-                          format(field.value, "PPP")
+                          format(new Date(field.value), "PPP")
                         ) : (
                           <span>Pick a date</span>
                         )}
@@ -174,10 +305,10 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
+                      selected={field.value ? new Date(field.value) : undefined}
+                      onSelect={(date) => field.onChange(date?.toISOString())}
                       disabled={(date) =>
-                        date < form.getValues("start_date")
+                        date < new Date(form.getValues("start_date"))
                       }
                       initialFocus
                     />
@@ -192,13 +323,14 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
-            name="address"
+            name="start_time"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Address</FormLabel>
+                <FormLabel>Daily Opening Time</FormLabel>
                 <FormControl>
-                  <Input placeholder="Full venue address" {...field} />
+                  <Input type="time" {...field} />
                 </FormControl>
+                <p className="text-sm text-muted-foreground">Time when exhibition opens each day</p>
                 <FormMessage />
               </FormItem>
             )}
@@ -206,66 +338,14 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
 
           <FormField
             control={form.control}
-            name="postal_code"
+            name="end_time"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Postal Code</FormLabel>
+                <FormLabel>Daily Closing Time</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="text" 
-                    placeholder="Postal code" 
-                    maxLength={6}
-                    {...field}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                      field.onChange(value);
-                    }}
-                  />
+                  <Input type="time" {...field} />
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <FormField
-            control={form.control}
-            name="city"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>City</FormLabel>
-                <FormControl>
-                  <Input placeholder="City" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="state"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>State</FormLabel>
-                <FormControl>
-                  <Input placeholder="State" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="country"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Country</FormLabel>
-                <FormControl>
-                  <Input placeholder="Country" {...field} />
-                </FormControl>
+                <p className="text-sm text-muted-foreground">Time when exhibition closes each day</p>
                 <FormMessage />
               </FormItem>
             )}
@@ -279,7 +359,7 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a category" />
@@ -300,18 +380,18 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
 
           <FormField
             control={form.control}
-            name="venue_type_id"
+            name="event_type_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Venue Type</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormLabel>Event Type</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a venue type" />
+                      <SelectValue placeholder="Select an event type" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {venueTypes.map((type) => (
+                    {eventTypes.map((type) => (
                       <SelectItem key={type.id} value={type.id}>
                         {type.name}
                       </SelectItem>
@@ -324,9 +404,34 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
           />
         </div>
 
+        <FormField
+          control={form.control}
+          name="venue_type_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Venue Type</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a venue type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {venueTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <Button type="submit" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Create Exhibition
+          {initialData ? 'Update Exhibition' : 'Create Exhibition'}
         </Button>
       </form>
     </Form>

@@ -63,6 +63,20 @@ CREATE INDEX IF NOT EXISTS idx_stall_applications_exhibition_id ON stall_applica
 -- Enable RLS on stall_applications
 ALTER TABLE stall_applications ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies on stall_applications
+DO $$ 
+DECLARE
+    pol record;
+BEGIN
+    FOR pol IN 
+        SELECT policyname 
+        FROM pg_policies 
+        WHERE tablename = 'stall_applications' 
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON stall_applications', pol.policyname);
+    END LOOP;
+END $$;
+
 -- Create RLS policies for stall_applications
 CREATE POLICY "organizers_can_view_applications"
     ON stall_applications FOR SELECT
@@ -97,9 +111,9 @@ CREATE POLICY "brands_can_create_applications"
     WITH CHECK (
         auth.uid() = brand_id
         AND EXISTS (
-            SELECT 1 FROM stalls s
-            WHERE s.id = stall_id
-            AND s.status = 'available'
+            SELECT 1 FROM stall_instances si
+            WHERE si.stall_id = stall_id
+            AND si.status = 'available'
         )
     );
 

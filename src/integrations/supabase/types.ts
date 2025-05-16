@@ -80,6 +80,7 @@ export type Database = {
           title: string
           updated_at: string
           venue_type_id: string | null
+          event_type_id: string | null
         }
         Insert: {
           address: string
@@ -100,6 +101,7 @@ export type Database = {
           title: string
           updated_at?: string
           venue_type_id?: string | null
+          event_type_id?: string | null
         }
         Update: {
           address?: string
@@ -120,6 +122,7 @@ export type Database = {
           title?: string
           updated_at?: string
           venue_type_id?: string | null
+          event_type_id?: string | null
         }
         Relationships: [
           {
@@ -136,6 +139,13 @@ export type Database = {
             referencedRelation: "venue_types"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "exhibitions_event_type_id_fkey"
+            columns: ["event_type_id"]
+            isOneToOne: false
+            referencedRelation: "event_types"
+            referencedColumns: ["id"]
+          }
         ]
       }
       gallery_images: {
@@ -354,6 +364,29 @@ export type Database = {
           company_name?: string | null
           phone?: string | null
           avatar_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      event_types: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
           created_at?: string
           updated_at?: string
         }

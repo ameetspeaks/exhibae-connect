@@ -1,26 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ExhibitionForm from '@/components/exhibitions/ExhibitionForm';
-import StallForm from '@/components/exhibitions/StallForm';
-import StallList from '@/components/exhibitions/StallList';
-import StallLayout from '@/components/exhibitions/StallLayout';
+import StallConfiguration from '@/components/exhibitions/StallConfiguration';
 import GalleryUpload from '@/components/exhibitions/GalleryUpload';
+import LayoutUpload from '@/components/exhibitions/LayoutUpload';
+import StallList from '@/components/exhibitions/StallList';
 import { 
   useExhibition,
   useUpdateExhibition,
   useCategories,
-  useVenueTypes
+  useVenueTypes,
+  useMeasuringUnits,
+  useEventTypes
 } from '@/hooks/useExhibitionsData';
-import { useStalls, useCreateStall, useUpdateStall, useDeleteStall } from '@/hooks/useStallsData';
 import { useGalleryImages } from '@/hooks/useGalleryData';
-import { useMeasuringUnits } from '@/hooks/useExhibitionsData';
 import { useAmenities } from '@/hooks/useAmenitiesData';
 import { useToast } from '@/hooks/use-toast';
-import { ExhibitionFormData, Stall, StallFormData } from '@/types/exhibition-management';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ExhibitionFormData, Stall, StallFormData, StallInstance } from '@/types/exhibition-management';
+import { ArrowLeft, Save, Grid, Loader2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { StallLayout } from '@/components/exhibitions/StallLayout';
+import {
+  useStalls,
+  useStallInstances,
+  useCreateStall,
+  useUpdateStall,
+  useDeleteStall,
+  useGenerateLayout,
+  useUpdateStallInstance
+} from '@/hooks/useStallsData';
 
 const ExhibitionEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +39,8 @@ const ExhibitionEdit = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('basic-details');
   const [editingStall, setEditingStall] = useState<Stall | null>(null);
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Fetch exhibition data
   const {
@@ -36,11 +49,27 @@ const ExhibitionEdit = () => {
     error: exhibitionError
   } = useExhibition(id || '');
 
-  // Fetch stalls
+  // Add debug logging
+  useEffect(() => {
+    if (exhibition) {
+      console.log('Exhibition data:', {
+        exhibition,
+        venue_type_id: exhibition.venue_type_id,
+        event_type_id: exhibition.event_type_id
+      });
+    }
+  }, [exhibition]);
+
+  // Fetch stalls and stall instances
   const {
     data: stalls,
     isLoading: isLoadingStalls
   } = useStalls(id || '');
+
+  const {
+    data: stallInstances,
+    isLoading: isLoadingInstances
+  } = useStallInstances(id || '');
 
   // Fetch gallery images
   const {
@@ -51,6 +80,7 @@ const ExhibitionEdit = () => {
   // Fetch other required data
   const { data: categories = [], isLoading: isLoadingCategories } = useCategories();
   const { data: venueTypes = [], isLoading: isLoadingVenueTypes } = useVenueTypes();
+  const { data: eventTypes = [], isLoading: isLoadingEventTypes } = useEventTypes();
   const { data: measuringUnits = [], isLoading: isLoadingUnits } = useMeasuringUnits();
   const { data: amenities = [], isLoading: isLoadingAmenities } = useAmenities();
 
@@ -59,6 +89,8 @@ const ExhibitionEdit = () => {
   const createStallMutation = useCreateStall(id || '');
   const updateStallMutation = useUpdateStall(id || '');
   const deleteStallMutation = useDeleteStall(id || '');
+  const generateLayoutMutation = useGenerateLayout(id || '');
+  const updateStallInstanceMutation = useUpdateStallInstance(id || '');
 
   if (isLoadingExhibition) {
     return <div className="text-center py-8">Loading exhibition details...</div>;
@@ -74,7 +106,7 @@ const ExhibitionEdit = () => {
 
   const handleUpdateExhibition = async (data: ExhibitionFormData) => {
     try {
-      await updateExhibitionMutation.mutateAsync({ id: id || '', ...data });
+      await updateExhibitionMutation.mutateAsync({ ...data, exhibitionId: id || '' });
       toast({
         title: 'Exhibition updated',
         description: 'Exhibition details have been saved successfully.',
@@ -92,7 +124,7 @@ const ExhibitionEdit = () => {
   const handleCreateStall = async (data: StallFormData) => {
     try {
       if (editingStall) {
-        await updateStallMutation.mutateAsync({ id: editingStall.id, ...data });
+        await updateStallMutation.mutateAsync({ ...data, id: editingStall.id });
         setEditingStall(null);
       } else {
         await createStallMutation.mutateAsync(data);
@@ -112,24 +144,67 @@ const ExhibitionEdit = () => {
     }
   };
 
-  const handleDeleteStall = async (stallId: string) => {
+  const handleEditStall = async (stallId: string, data: StallFormData) => {
     try {
-      await deleteStallMutation.mutateAsync(stallId);
+      await updateStallMutation.mutateAsync({ ...data, id: stallId });
       toast({
-        title: 'Stall deleted',
-        description: 'The stall has been removed from your exhibition.',
+        title: 'Stall updated',
+        description: 'The stall has been updated successfully.',
       });
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete stall',
+        description: error instanceof Error ? error.message : 'Failed to update stall',
         variant: 'destructive',
       });
     }
   };
 
-  const handleEditStall = (stall: Stall) => {
-    setEditingStall(stall);
+  const handleDeleteStall = async (stallId: string) => {
+    try {
+      await deleteStallMutation.mutateAsync(stallId);
+      
+      // Refetch stalls and instances after deletion
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['stalls', id] }),
+        queryClient.invalidateQueries({ queryKey: ['stall_instances', id] })
+      ]);
+
+      toast({
+        title: 'Success',
+        description: 'The stall has been removed successfully.',
+      });
+    } catch (error) {
+      console.error('Error deleting stall:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error 
+          ? error.message 
+          : 'Failed to delete stall. Please try again.',
+        variant: 'destructive',
+      });
+      throw error; // Re-throw to let StallConfiguration component handle the error state
+    }
+  };
+
+  const handleGenerateLayout = async () => {
+    try {
+      await generateLayoutMutation.mutateAsync();
+      toast({
+        title: 'Layout generated',
+        description: 'The stall layout has been updated successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to generate layout',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleStallSelect = (instance: StallInstance) => {
+    setSelectedInstanceId(instance.id);
   };
 
   const handleFinish = () => {
@@ -140,18 +215,102 @@ const ExhibitionEdit = () => {
     navigate('/dashboard/organiser/exhibitions');
   };
 
+  const handleUpdateStallPrice = async (instanceId: string, newPrice: number) => {
+    try {
+      const instance = stallInstances?.find(i => i.id === instanceId);
+      if (!instance) throw new Error('Stall instance not found');
+
+      // Update the stall instance price
+      await updateStallInstanceMutation.mutateAsync({
+        id: instanceId,
+        price: newPrice
+      });
+
+      toast({
+        title: 'Price updated',
+        description: 'The stall price has been updated successfully.',
+      });
+
+      // Refetch instances
+      await queryClient.invalidateQueries({ queryKey: ['stall_instances', id] });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update price',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleUpdateStallStatus = async (instanceId: string, newStatus: string) => {
+    try {
+      console.log('Updating stall status:', { instanceId, newStatus });
+
+      // Update in database
+      const updatedInstance = await updateStallInstanceMutation.mutateAsync({
+        id: instanceId,
+        status: newStatus
+      });
+
+      console.log('Updated instance from mutation:', updatedInstance);
+
+      // Update the local state to reflect the change immediately
+      if (stallInstances) {
+        const updatedInstances = stallInstances.map(instance => 
+          instance.id === instanceId 
+            ? { ...instance, status: newStatus }
+            : instance
+        );
+        
+        // Use correct query key
+        queryClient.setQueryData(['stall_instances', id], updatedInstances);
+      }
+
+      // Force a refetch to ensure data is fresh
+      await queryClient.invalidateQueries({ 
+        queryKey: ['stall_instances', id],
+        exact: true,
+        refetchType: 'all'
+      });
+
+      toast({
+        title: 'Status updated',
+        description: 'Stall status has been updated successfully.'
+      });
+
+      // Log the current state after update
+      console.log('Status update completed:', {
+        newStatus,
+        instanceId,
+        currentInstances: queryClient.getQueryData(['stall_instances', id])
+      });
+    } catch (error) {
+      console.error('Error updating stall status:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update stall status',
+        variant: 'destructive'
+      });
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => navigate('/dashboard/organiser/exhibitions')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Exhibitions
           </Button>
-          <h2 className="text-2xl font-bold">Edit Exhibition</h2>
+          <h1 className="text-2xl font-bold">Edit Exhibition</h1>
         </div>
         <Button onClick={handleFinish}>
           <Save className="h-4 w-4 mr-2" />
-          Save Changes
+          Finish Editing
         </Button>
       </div>
 
@@ -166,66 +325,68 @@ const ExhibitionEdit = () => {
           <Card>
             <CardHeader>
               <CardTitle>Exhibition Details</CardTitle>
+              <CardDescription>
+                Update your exhibition's basic information
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <ExhibitionForm 
+              <ExhibitionForm
                 onSubmit={handleUpdateExhibition}
-                initialData={exhibition}
                 categories={categories}
                 venueTypes={venueTypes}
-                isLoading={updateExhibitionMutation.isPending || isLoadingCategories || isLoadingVenueTypes}
+                eventTypes={eventTypes}
+                measuringUnits={measuringUnits}
+                isLoading={updateExhibitionMutation.isPending}
+                initialData={exhibition}
               />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="stall-setup">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle>{editingStall ? 'Update Stall' : 'Add Stall'}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <StallForm 
-                    onSubmit={handleCreateStall}
-                    initialData={editingStall || undefined}
-                    measuringUnits={measuringUnits}
-                    amenities={amenities}
-                    isLoading={
-                      createStallMutation.isPending || 
-                      updateStallMutation.isPending || 
-                      isLoadingUnits || 
-                      isLoadingAmenities
-                    }
-                  />
-                </CardContent>
-              </Card>
-            </div>
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Stall List</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <StallList 
-                    stalls={stalls || []}
-                    onEdit={handleEditStall}
-                    onDelete={handleDeleteStall}
-                    isLoading={isLoadingStalls}
-                  />
-                </CardContent>
-              </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Stall Configuration</CardTitle>
+                <CardDescription>
+                  Configure and manage stalls for your exhibition
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <StallConfiguration
+                  stalls={stalls || []}
+                  stallInstances={stallInstances || []}
+                  amenities={amenities}
+                  measuringUnits={measuringUnits}
+                  onAddStall={handleCreateStall}
+                  onEditStall={handleEditStall}
+                  onDeleteStall={handleDeleteStall}
+                  onGenerateLayout={handleGenerateLayout}
+                  onUpdatePrice={handleUpdateStallPrice}
+                  onUpdateStatus={handleUpdateStallStatus}
+                  isLoading={
+                    createStallMutation.isPending || 
+                    updateStallMutation.isPending || 
+                    deleteStallMutation.isPending ||
+                    generateLayoutMutation.isPending
+                  }
+                  exhibitionMeasuringUnitId={exhibition?.measuring_unit_id}
+                />
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Layout Preview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <StallLayout stalls={stalls || []} />
-                </CardContent>
-              </Card>
-            </div>
+            {/* Layout Upload Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Exhibition Layout</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LayoutUpload
+                  exhibitionId={id || ''}
+                  existingImages={galleryImages || []}
+                />
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -233,12 +394,25 @@ const ExhibitionEdit = () => {
           <Card>
             <CardHeader>
               <CardTitle>Gallery & Images</CardTitle>
+              <CardDescription>
+                Upload and manage images for your exhibition
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <GalleryUpload 
+            <CardContent className="space-y-8">
+              <GalleryUpload
                 exhibitionId={id || ''}
-                existingImages={galleryImages || []}
-                isLoading={isLoadingGallery}
+                imageType="banner"
+                existingImages={galleryImages?.filter(img => img.image_type === 'banner') || []}
+                title="Banner Image"
+                description="This image will be displayed at the top of your exhibition page. Recommended size: 1920x600px"
+              />
+
+              <GalleryUpload
+                exhibitionId={id || ''}
+                imageType="gallery"
+                existingImages={galleryImages?.filter(img => img.image_type === 'gallery') || []}
+                title="Gallery Images"
+                description="Add photos showcasing your exhibition space and previous events"
               />
             </CardContent>
           </Card>

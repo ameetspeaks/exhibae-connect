@@ -15,189 +15,153 @@ const signupSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   full_name: z.string().min(2, 'Full name is required'),
-  role: z.enum(['organiser', 'brand', 'shopper'], {
-    required_error: 'Please select a role',
-  }),
+  role: z.enum(['admin', 'organiser', 'brand', 'shopper']),
   company_name: z.string().optional(),
 });
 
 type SignupFormData = z.infer<typeof signupSchema>;
 
-const Signup = () => {
+export default function Signup() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { register, handleSubmit, control, formState: { errors, isSubmitting }, watch } = useForm<SignupFormData>({
+  const { control, handleSubmit, watch } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      role: undefined,
-    }
+      role: 'shopper',
+    },
   });
 
   const selectedRole = watch('role');
 
   const onSubmit = async (data: SignupFormData) => {
     try {
-      // Prepare user metadata
-      const metadata = {
-        full_name: data.full_name,
-        role: data.role,
-        ...(data.company_name && { company_name: data.company_name }),
-      };
-
-      // Sign up the user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
-          data: metadata,
+          data: {
+            full_name: data.full_name,
+            role: data.role,
+            ...(data.company_name && { company_name: data.company_name }),
+          },
           emailRedirectTo: `${window.location.origin}/auth/login`,
         },
       });
 
-      if (signUpError) {
-        console.error('Signup error:', signUpError);
-        throw signUpError;
-      }
+      if (signUpError) throw signUpError;
 
-      if (!authData.user) {
-        throw new Error('No user data returned from signup');
-      }
-
-      // Show success message
       toast({
-        title: "Registration Successful",
+        title: "Success!",
         description: "Please check your email to verify your account.",
       });
 
-      // Wait a moment before redirecting
-      setTimeout(() => {
-        navigate('/auth/login');
-      }, 2000);
-
+      navigate('/auth/login');
     } catch (error: any) {
-      console.error('Signup process error:', error);
-      
-      // Show a more specific error message
-      let errorMessage = "Failed to sign up. Please try again.";
-      if (error.message) {
-        if (error.message.includes('duplicate key')) {
-          errorMessage = "This email is already registered. Please try logging in.";
-        } else if (error.message.includes('valid email')) {
-          errorMessage = "Please enter a valid email address.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-
+      console.error('Signup error:', error);
       toast({
         title: "Error",
-        description: errorMessage,
+        description: error.message || "An error occurred during signup",
         variant: "destructive",
       });
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
+    <div className="container flex h-screen w-screen flex-col items-center justify-center">
+      <Card className="w-[400px]">
         <CardHeader>
-          <CardTitle>Create an Account</CardTitle>
-          <CardDescription>Sign up to start using ExhiBae</CardDescription>
+          <CardTitle>Create an account</CardTitle>
+          <CardDescription>Enter your details below to create your account</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                {...register('email')}
-                autoComplete="email"
+              <Controller
+                name="email"
+                control={control}
+                render={({ field, fieldState: { error } }) => (
+                  <>
+                    <Input {...field} type="email" id="email" placeholder="Enter your email" />
+                    {error && <p className="text-sm text-red-500">{error.message}</p>}
+                  </>
+                )}
               />
-              {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
-              )}
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Create a password"
-                {...register('password')}
-                autoComplete="new-password"
+              <Controller
+                name="password"
+                control={control}
+                render={({ field, fieldState: { error } }) => (
+                  <>
+                    <Input {...field} type="password" id="password" placeholder="Enter your password" />
+                    {error && <p className="text-sm text-red-500">{error.message}</p>}
+                  </>
+                )}
               />
-              {errors.password && (
-                <p className="text-sm text-red-500">{errors.password.message}</p>
-              )}
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="full_name">Full Name</Label>
-                    <Input
-                id="full_name"
-                type="text"
-                placeholder="Enter your full name"
-                {...register('full_name')}
-                autoComplete="name"
-                    />
-              {errors.full_name && (
-                <p className="text-sm text-red-500">{errors.full_name.message}</p>
-              )}
-                  </div>
+              <Controller
+                name="full_name"
+                control={control}
+                render={({ field, fieldState: { error } }) => (
+                  <>
+                    <Input {...field} id="full_name" placeholder="Enter your full name" />
+                    {error && <p className="text-sm text-red-500">{error.message}</p>}
+                  </>
+                )}
+              />
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="role">I am a...</Label>
+              <Label htmlFor="role">Role</Label>
               <Controller
                 name="role"
                 control={control}
-                render={({ field }) => (
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    defaultValue={field.value}
-                  >
-                    <SelectTrigger id="role">
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="organiser">Exhibition Organiser</SelectItem>
-                      <SelectItem value="brand">Brand/Vendor</SelectItem>
-                      <SelectItem value="shopper">Shopper</SelectItem>
-                    </SelectContent>
-                  </Select>
+                render={({ field, fieldState: { error } }) => (
+                  <>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="shopper">Shopper</SelectItem>
+                        <SelectItem value="brand">Brand</SelectItem>
+                        <SelectItem value="organiser">Organiser</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {error && <p className="text-sm text-red-500">{error.message}</p>}
+                  </>
                 )}
               />
-              {errors.role && (
-                <p className="text-sm text-red-500">{errors.role.message}</p>
-              )}
             </div>
-            {(selectedRole === 'organiser' || selectedRole === 'brand') && (
+
+            {selectedRole === 'brand' && (
               <div className="space-y-2">
                 <Label htmlFor="company_name">Company Name</Label>
-                <Input
-                  id="company_name"
-                  type="text"
-                  placeholder="Enter your company name"
-                  {...register('company_name')}
-                  autoComplete="organization"
+                <Controller
+                  name="company_name"
+                  control={control}
+                  render={({ field, fieldState: { error } }) => (
+                    <>
+                      <Input {...field} id="company_name" placeholder="Enter your company name" />
+                      {error && <p className="text-sm text-red-500">{error.message}</p>}
+                    </>
+                  )}
                 />
-                {errors.company_name && (
-                  <p className="text-sm text-red-500">{errors.company_name.message}</p>
-                )}
               </div>
             )}
           </CardContent>
+
           <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full bg-exhibae-navy hover:bg-opacity-90"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Creating account...' : 'Create account'}
-            </Button>
-            <p className="text-sm text-center text-gray-600">
+            <Button type="submit" className="w-full">Sign Up</Button>
+            <p className="text-sm text-gray-500">
               Already have an account?{' '}
-              <Link to="/auth/login" className="text-exhibae-navy hover:underline">
+              <Link to="/auth/login" className="text-primary hover:underline">
                 Sign in
               </Link>
             </p>
@@ -206,6 +170,4 @@ const Signup = () => {
       </Card>
     </div>
   );
-};
-
-export default Signup;
+}

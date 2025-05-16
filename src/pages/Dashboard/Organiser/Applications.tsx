@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -23,46 +22,71 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Clock, XCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useApplications } from '@/hooks/useApplicationsData';
-import { StallApplication } from '@/types/exhibition-management';
-import { formatDate } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useStallApplications } from '@/hooks/useStallApplications';
+import { ApplicationStatus } from '@/types/stall-applications';
+
+const statusIcons = {
+  pending: <Clock className="h-4 w-4 text-yellow-600" />,
+  rejected: <XCircle className="h-4 w-4 text-red-600" />,
+  approved: null,
+} as const;
 
 const statusColors = {
-  pending: 'bg-yellow-500',
-  approved: 'bg-green-500',
-  rejected: 'bg-red-500',
-};
+  pending: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+  approved: 'bg-green-50 text-green-800 border-green-200',
+  rejected: 'bg-red-50 text-red-800 border-red-200',
+} as const;
 
 export default function Applications() {
-  const { exhibitionId } = useParams<{ exhibitionId: string }>();
+  const { exhibitionId } = useParams<{ exhibitionId?: string }>();
   const { toast } = useToast();
   const {
-    applications: { data: applications, isLoading },
-    updateApplication,
+    applications,
+    isLoading,
+    error,
+    updateApplicationStatus,
     deleteApplication,
-  } = useApplications(exhibitionId);
+    filters,
+    setFilters,
+  } = useStallApplications({
+    exhibitionId,
+    status: 'all',
+  });
 
-  const handleStatusUpdate = async (id: string, status: StallApplication['status']) => {
+  const handleStatusUpdate = async (id: string, newStatus: ApplicationStatus) => {
     try {
-      await updateApplication.mutateAsync({ id, status });
+      await updateApplicationStatus(id, newStatus);
       toast({
         title: 'Success',
-        description: `Application ${status} successfully`,
+        description: `Application ${newStatus} successfully`,
       });
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to update application status',
+        description: error instanceof Error ? error.message : 'Failed to update application status',
         variant: 'destructive',
       });
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this application?')) return;
+    
     try {
-      await deleteApplication.mutateAsync(id);
+      await deleteApplication(id);
       toast({
         title: 'Success',
         description: 'Application deleted successfully',
@@ -70,108 +94,116 @@ export default function Applications() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to delete application',
+        description: error instanceof Error ? error.message : 'Failed to delete application',
         variant: 'destructive',
       });
     }
   };
 
-  if (isLoading) {
+  if (error) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
+      <Alert variant="destructive">
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error.message}</AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Applications</CardTitle>
-        <CardDescription>
-          Manage stall applications for your exhibition
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">All Applications</h1>
+        <p className="text-sm text-muted-foreground">
+          Showing {applications.length} applications
+        </p>
+      </div>
+
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <Checkbox />
+              </TableHead>
+              <TableHead>Exhibition</TableHead>
               <TableHead>Brand</TableHead>
               <TableHead>Stall</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Applied On</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="w-[70px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {applications?.map((application) => (
+            {applications.map((application) => (
               <TableRow key={application.id}>
                 <TableCell>
-                  <div>
-                    <div className="font-medium">{application.brand?.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {application.brand?.company}
-                    </div>
-                  </div>
+                  <Checkbox />
                 </TableCell>
                 <TableCell>
-                  <div>
-                    <div className="font-medium">{application.stall?.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {application.stall?.length}x{application.stall?.width}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div>{application.brand?.email}</div>
-                    <div className="text-sm text-gray-500">
-                      {application.brand?.phone}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    className={`${
-                      statusColors[application.status as keyof typeof statusColors]
-                    }`}
+                  <Link 
+                    to={`/dashboard/organiser/exhibitions/${application.exhibition_id}`}
+                    className="font-medium text-primary hover:underline"
                   >
-                    {application.status}
-                  </Badge>
+                    {application.exhibition?.title}
+                  </Link>
                 </TableCell>
                 <TableCell>
-                  {formatDate(application.created_at).relative}
+                  {application.brand?.company_name || application.brand?.full_name}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{application.stall?.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {application.stall?.length}×{application.stall?.width}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {application.brand?.email}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {statusIcons[application.status]}
+                    <Badge 
+                      variant="outline" 
+                      className={statusColors[application.status]}
+                    >
+                      {application.status}
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="text-muted-foreground">
+                    {formatDistanceToNow(new Date(application.created_at), { addSuffix: true })}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
+                      <Button variant="ghost" size="icon">
                         <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Open menu</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {application.status === 'pending' && (
                         <>
                           <DropdownMenuItem
-                            onClick={() =>
-                              handleStatusUpdate(application.id, 'approved')
-                            }
+                            onClick={() => handleStatusUpdate(application.id, 'approved')}
                           >
                             Approve
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() =>
-                              handleStatusUpdate(application.id, 'rejected')
-                            }
+                            onClick={() => handleStatusUpdate(application.id, 'rejected')}
                           >
                             Reject
                           </DropdownMenuItem>
                         </>
                       )}
                       <DropdownMenuItem
-                        className="text-red-600"
                         onClick={() => handleDelete(application.id)}
+                        className="text-red-600"
                       >
                         Delete
                       </DropdownMenuItem>
@@ -182,7 +214,7 @@ export default function Applications() {
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 } 

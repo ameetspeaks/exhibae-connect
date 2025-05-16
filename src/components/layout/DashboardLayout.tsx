@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import SideNav from './SideNav';
+import DashboardHeader from './DashboardHeader';
 
 const DashboardLayout = () => {
   const navigate = useNavigate();
@@ -29,7 +30,8 @@ const DashboardLayout = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <SideNav onLogout={handleLogout} />
-      <main className="pl-64 min-h-screen">
+      <DashboardHeader />
+      <main className="pl-64 pt-16 min-h-screen">
         <div className="container mx-auto py-8 px-6">
           <Outlet />
         </div>

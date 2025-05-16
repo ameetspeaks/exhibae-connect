@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
+  children: React.ReactNode | ((props: { user: any; userRole: string | null }) => React.ReactNode);
   allowedRoles?: UserRole[];
 }
 
@@ -83,7 +83,10 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     return <Navigate to={loginPath} replace />;
   }
 
-  return <>{children}</>;
+  // Handle both render prop and direct children
+  return typeof children === 'function' 
+    ? <>{children({ user, userRole })}</>
+    : <>{children}</>;
 };
 
 export default ProtectedRoute; 

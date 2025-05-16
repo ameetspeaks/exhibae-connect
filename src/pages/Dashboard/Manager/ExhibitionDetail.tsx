@@ -167,7 +167,7 @@ const ExhibitionDetail = () => {
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold">${stall.price.toFixed(2)}</p>
+                            <p className="font-bold">₹{stall.price.toFixed(2)}</p>
                             <p className="text-sm text-muted-foreground">{stall.quantity} available</p>
                           </div>
                         </div>

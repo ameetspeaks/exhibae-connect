@@ -50,6 +50,13 @@ interface Exhibition {
   status: 'draft' | 'published' | 'cancelled' | 'completed';
 }
 
+const getStatusDisplay = (status: Exhibition['status']) => {
+  if (status === 'draft') {
+    return 'Pending for Approval';
+  }
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
 const ExhibitionsPage = () => {
   const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -232,7 +239,7 @@ const ExhibitionsPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="draft">Pending for Approval</SelectItem>
                 <SelectItem value="published">Published</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
@@ -290,12 +297,12 @@ const ExhibitionsPage = () => {
                           <SelectTrigger className="w-[130px]">
                             <SelectValue>
                               <Badge variant={getStatusBadgeVariant(exhibition.status)}>
-                                {exhibition.status}
+                                {getStatusDisplay(exhibition.status)}
                               </Badge>
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="draft">Pending for Approval</SelectItem>
                             <SelectItem value="published">Published</SelectItem>
                             <SelectItem value="cancelled">Cancelled</SelectItem>
                             <SelectItem value="completed">Completed</SelectItem>

@@ -1,239 +1,600 @@
-import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
+import { StallInstance } from '@/types/exhibition-management';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { Loader2, AlertCircle, Box } from 'lucide-react';
-import { Stall, StallInstance } from '@/types/exhibition-management';
-import { useGenerateLayout, useStallInstances } from '@/hooks/useStallsData';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { Calendar } from '@/components/ui/calendar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useMaintenanceOperations } from '@/hooks/useMaintenanceOperations';
+import { usePaymentOperations } from '@/hooks/usePaymentOperations';
+import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { Edit2, Trash2 } from 'lucide-react';
+import MaintenanceDialog from './MaintenanceDialog';
+import PaymentDialog from './PaymentDialog';
 
 interface StallLayoutProps {
-  exhibitionId: string;
-  stalls: Stall[];
+  stallInstances: StallInstance[];
+  onStallSelect?: (instance: StallInstance) => void;
+  selectedInstanceId?: string;
+  isEditable?: boolean;
+  userRole?: 'organiser' | 'brand';
+  onUpdatePrice?: (instanceId: string, newPrice: number) => Promise<void>;
+  onUpdateStatus?: (instanceId: string, newStatus: string) => Promise<void>;
+  onDeleteStall?: (instanceId: string) => Promise<void>;
+  onApplyForStall?: (instanceId: string) => Promise<void>;
+  onScheduleMaintenance?: (instanceId: string, data: { maintenance_type: string; description?: string; next_maintenance_date?: string }) => Promise<void>;
+  onUpdateMaintenanceStatus?: (logId: string, status: string) => Promise<void>;
+  onCreatePayment?: (applicationId: string, data: { amount: number; payment_method: string; reference_number?: string }) => Promise<void>;
 }
 
-const StallLayout: React.FC<StallLayoutProps> = ({ exhibitionId, stalls }) => {
+export const StallLayout: React.FC<StallLayoutProps> = ({
+  stallInstances = [],
+  onStallSelect,
+  selectedInstanceId,
+  isEditable = false,
+  userRole = 'brand',
+  onUpdatePrice,
+  onUpdateStatus,
+  onDeleteStall,
+  onApplyForStall,
+  onScheduleMaintenance,
+  onUpdateMaintenanceStatus,
+  onCreatePayment
+}) => {
   const { toast } = useToast();
-  const { 
-    data: stallInstances,
-    isLoading: isLoadingInstances,
-    error: instancesError
-  } = useStallInstances(exhibitionId);
-  
-  const generateLayoutMutation = useGenerateLayout(exhibitionId);
+  const [editingPrice, setEditingPrice] = useState<{ id: string; price: string } | null>(null);
+  const [selectedStall, setSelectedStall] = useState<StallInstance | null>(null);
+  const [maintenanceDate, setMaintenanceDate] = useState<Date>();
+  const [maintenanceType, setMaintenanceType] = useState('');
+  const [maintenanceDescription, setMaintenanceDescription] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
 
-  // Calculate optimal layout dimensions based on number of stalls
-  const { scalingFactor, containerStyle, gridStyle } = useMemo(() => {
-    if (!stallInstances || stallInstances.length === 0) {
-      return { scalingFactor: 1, containerStyle: {}, gridStyle: {} };
-    }
-    
-    // Calculate grid dimensions based on number of stalls
-    const totalStalls = stallInstances.length;
-    const aspectRatio = 4/3; // Standard 4:3 aspect ratio for the layout
-    const cols = Math.ceil(Math.sqrt(totalStalls * aspectRatio));
-    const rows = Math.ceil(totalStalls / cols);
-    
-    // Target container dimensions (1/4 of original size)
-    const containerWidth = 400; // Reduced from 900
-    const containerHeight = (containerWidth / aspectRatio);
-    
-    // Calculate cell size
-    const cellWidth = containerWidth / cols;
-    const cellHeight = containerHeight / rows;
-    const cellSize = Math.min(cellWidth, cellHeight);
-    
-    // Calculate actual container dimensions
-    const actualWidth = cellSize * cols;
-    const actualHeight = cellSize * rows;
-    
-    // Find the maximum stall dimensions for scaling
-    const maxStallWidth = Math.max(...stallInstances.map(i => Number(i.stall.width)));
-    const maxStallLength = Math.max(...stallInstances.map(i => Number(i.stall.length)));
-    
-    // Calculate scaling factor to fit stalls in cells
-    const scale = (cellSize * 0.85) / Math.max(maxStallWidth, maxStallLength);
-    
-    return {
-      scalingFactor: scale,
-      containerStyle: {
-        width: `${actualWidth}px`,
-        height: `${actualHeight}px`,
-        margin: '0 auto',
-        position: 'relative' as const,
-        display: 'grid',
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gridTemplateRows: `repeat(${rows}, 1fr)`,
-        gap: '2px',
-        background: '#1e3a8a', // Darker blue for grid lines
-        padding: '2px',
-        borderRadius: '4px',
-      },
-      gridStyle: {
-        display: 'grid',
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        width: '100%',
-        height: '100%',
+  // Only fetch maintenance logs when a stall is selected and it's in maintenance mode
+  const maintenance = useMaintenanceOperations(
+    selectedStall?.status === 'under_maintenance' ? selectedStall.id : ''
+  );
+  const payment = usePaymentOperations(selectedStall?.application?.id ?? '');
+
+  const maintenanceLogs = maintenance?.maintenanceLogs?.data ?? [];
+  const paymentTransactions = payment?.paymentTransactions?.data ?? [];
+
+  useEffect(() => {
+    if (selectedInstanceId) {
+      const instance = stallInstances.find(s => s.id === selectedInstanceId);
+      if (instance) {
+        setSelectedStall(instance);
       }
-    };
-  }, [stallInstances]);
+    } else {
+      setSelectedStall(null);
+    }
+  }, [selectedInstanceId, stallInstances]);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price);
-  };
-
-  if (!stalls || stalls.length === 0) {
+  if (!stallInstances || stallInstances.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-16">
-          <div className="text-center">
-            <Box className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground">Add stalls to see the layout visualization.</p>
+      <div className="text-center py-8 text-muted-foreground">
+        No stall layout available. Please generate the layout first.
       </div>
-        </CardContent>
-      </Card>
     );
   }
 
-  const handleGenerateLayout = async () => {
-    try {
-      await generateLayoutMutation.mutateAsync();
+  const getStallStatusColor = (status: string) => {
+    switch (status) {
+      case 'available':
+        return 'bg-blue-50 border-blue-200 hover:bg-blue-100';
+      case 'pending':
+        return 'bg-yellow-50 border-yellow-200';
+      case 'booked':
+        return 'bg-red-50 border-red-200';
+      case 'under_maintenance':
+        return 'bg-gray-50 border-gray-200';
+      default:
+        return 'bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getStallCursor = (instance: StallInstance) => {
+    if (!onStallSelect) return 'cursor-default';
+    if (isEditable) return 'cursor-pointer';
+    if (userRole === 'brand') {
+      // Only allow clicking if the stall is available
+      return instance.status === 'available' ? 'cursor-pointer' : 'cursor-not-allowed';
+    }
+    return 'cursor-not-allowed';
+  };
+
+  const handleStallClick = (instance: StallInstance) => {
+    if (!onStallSelect) return;
+    
+    if (isEditable) {
+      onStallSelect(instance);
+    } else if (userRole === 'brand') {
+      if (instance.status === 'available') {
+        onStallSelect(instance);
+      } else if (instance.status === 'pending') {
+        toast({
+          title: "Stall Unavailable",
+          description: "This stall already has a pending application.",
+          variant: "default"
+        });
+      } else if (instance.status === 'booked') {
+        toast({
+          title: "Stall Unavailable",
+          description: "This stall has already been booked.",
+          variant: "default"
+        });
+      } else if (instance.status === 'under_maintenance') {
+        toast({
+          title: "Stall Unavailable",
+          description: "This stall is currently under maintenance.",
+          variant: "default"
+        });
+      }
+    }
+  };
+
+  const handlePriceUpdate = async (instanceId: string) => {
+    if (!editingPrice || !onUpdatePrice) return;
+    
+    const newPrice = parseFloat(editingPrice.price);
+    if (isNaN(newPrice) || newPrice <= 0) {
       toast({
-        title: "Layout Generated",
-        description: "The stall layout has been generated successfully.",
+        title: 'Invalid price',
+        description: 'Please enter a valid price greater than 0',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      await onUpdatePrice(instanceId, newPrice);
+      setEditingPrice(null);
+      if (selectedStall) {
+        setSelectedStall({
+          ...selectedStall,
+          price: newPrice
+        });
+      }
+      toast({
+        title: 'Price updated',
+        description: 'The stall price has been updated successfully.'
       });
     } catch (error) {
-      console.error('Failed to generate layout:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate layout",
-        variant: "destructive",
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update price',
+        variant: 'destructive'
       });
     }
   };
-  
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between bg-gray-50 border-b">
-        <div>
-          <CardTitle>Layout Preview</CardTitle>
-          {stalls.length > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {stalls.reduce((total, stall) => total + stall.quantity, 0)} total stalls
-            </p>
-          )}
-        </div>
-        <Button 
-          onClick={handleGenerateLayout}
-          disabled={generateLayoutMutation.isPending || stalls.length === 0}
-          variant="default"
-          className="bg-exhibae-navy hover:bg-exhibae-navy/90"
-        >
-          {generateLayoutMutation.isPending && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          )}
-          Generate Layout
-        </Button>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="border-2 border-dashed rounded-lg p-6 bg-white relative overflow-hidden min-h-[300px] flex items-center justify-center">
-          {isLoadingInstances || generateLayoutMutation.isPending ? (
-            <div className="flex flex-col items-center justify-center gap-2">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                {generateLayoutMutation.isPending ? 'Generating layout...' : 'Loading stalls...'}
-              </p>
-            </div>
-          ) : instancesError ? (
-            <div className="text-center text-red-500">
-              <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-              <p>Error loading stall instances</p>
-            </div>
-          ) : !stallInstances || stallInstances.length === 0 ? (
-            <div className="text-center">
-              <p className="text-muted-foreground text-lg">
-                Click "Generate Layout" to create the stall layout
-              </p>
-            </div>
-          ) : (
-            <div style={containerStyle}>
-              {stallInstances.map((instance) => {
-                const stall = instance.stall;
-                const isWide = stall.width > stall.length;
-                    
-                    return (
-                  <HoverCard key={instance.id}>
-                    <HoverCardTrigger asChild>
-                      <div 
-                        className="relative bg-white rounded-sm shadow-sm transition-all hover:shadow-md hover:z-10 cursor-pointer m-0.5 overflow-hidden"
-                        style={{ 
-                          width: `${stall.width * scalingFactor}px`,
-                          height: `${stall.length * scalingFactor}px`,
-                          minWidth: '30px', // Reduced minimum size
-                          minHeight: '30px',
-                          border: '2px solid #1e3a8a', // Darker blue border
-                        }}
-                      >
-                        <div 
-                          className="absolute inset-0 flex items-center justify-center"
-                          style={{
-                            background: 'linear-gradient(45deg, rgba(30, 58, 138, 0.05) 25%, transparent 25%, transparent 75%, rgba(30, 58, 138, 0.05) 75%, rgba(30, 58, 138, 0.05)), linear-gradient(45deg, rgba(30, 58, 138, 0.05) 25%, transparent 25%, transparent 75%, rgba(30, 58, 138, 0.05) 75%, rgba(30, 58, 138, 0.05))',
-                            backgroundSize: '10px 10px',
-                            backgroundPosition: '0 0, 5px 5px'
-                        }}
-                      >
-                          <Badge 
-                            variant="secondary"
-                            className="text-[10px] font-medium bg-white/90 text-exhibae-navy px-1 py-0.5 min-w-[20px] text-center"
-                          >
-                            {instance.instance_number}
-                          </Badge>
-                        </div>
+
+  const handleStatusUpdate = async (instanceId: string, newStatus: string) => {
+    console.log('StallLayout: Updating status:', { instanceId, newStatus, currentStatus: selectedStall?.status });
+    if (!onUpdateStatus) return;
+
+    try {
+      await onUpdateStatus(instanceId, newStatus);
+      
+      // Update local state immediately
+      if (selectedStall && selectedStall.id === instanceId) {
+        setSelectedStall(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+      
+      toast({
+        title: 'Status updated',
+        description: 'Stall status has been updated successfully.'
+      });
+    } catch (error) {
+      console.error('StallLayout: Error updating status:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update status',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleDelete = async (instanceId: string) => {
+    if (!onDeleteStall) return;
+
+    try {
+      await onDeleteStall(instanceId);
+      setSelectedStall(null);
+      toast({
+        title: 'Stall deleted',
+        description: 'The stall has been deleted successfully.'
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete stall',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleApply = async (instanceId: string) => {
+    if (!onApplyForStall) return;
+
+    try {
+      await onApplyForStall(instanceId);
+      toast({
+        title: 'Application submitted',
+        description: 'Your application has been submitted successfully.'
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to submit application',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Get the unit from the first stall since it's consistent
+  const unit = stallInstances[0]?.stall?.unit;
+
+  const getStallSize = (width: number, length: number) => {
+    // Find the smallest dimension among all stalls to use as a base
+    const smallestDimension = stallInstances.reduce((min, instance) => {
+      const stallWidth = instance.stall?.width || 0;
+      const stallLength = instance.stall?.length || 0;
+      return Math.min(min, stallWidth, stallLength);
+    }, Infinity);
+
+    // Calculate size multiplier based on average of width and length
+    const averageDimension = (width + length) / 2;
+    const sizeMultiplier = averageDimension / smallestDimension;
+
+    // Base size in pixels (for the smallest stall)
+    const baseSize = 140; // Reduced base size for more compact layout
+    
+    // Calculate new size with a smaller max multiplier
+    const maxMultiplier = 1.25; // Reduced from 1.5 to 1.25 for more compact sizing
+    const cappedMultiplier = Math.min(sizeMultiplier, maxMultiplier);
+    
+    // Apply a square root scale to make size differences less dramatic
+    const scaledMultiplier = Math.sqrt(cappedMultiplier);
+    
+    return Math.round(baseSize * scaledMultiplier);
+  };
+
+  const renderStallDetails = () => {
+    if (!selectedStall) return null;
+
+    return (
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Selected Stall Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="details">
+            <TabsList>
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+              {selectedStall.application && (
+                <TabsTrigger value="payments">Payments</TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="details">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>ID</Label>
+                  <div className="font-medium">{selectedStall.id.split('-')[0]}</div>
+                </div>
+                <div>
+                  <Label>Stall Number</Label>
+                  <div className="font-medium">
+                    {stallInstances.findIndex(instance => instance.id === selectedStall.id) + 1}
+                  </div>
+                </div>
+                <div>
+                  <Label>Stall Name</Label>
+                  <div className="font-medium">{selectedStall.stall.name}</div>
+                </div>
+                <div>
+                  <Label>Dimensions</Label>
+                  <div className="font-medium">
+                    {selectedStall.stall.width} × {selectedStall.stall.length} {selectedStall.stall?.unit?.symbol}
+                  </div>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  {userRole === 'organiser' ? (
+                    <Select
+                      value={selectedStall.status}
+                      onValueChange={(value) => handleStatusUpdate(selectedStall.id, value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="booked">Booked</SelectItem>
+                        <SelectItem value="under_maintenance">Under Maintenance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="font-medium capitalize">{selectedStall.status.replace('_', ' ')}</div>
+                  )}
+                </div>
+                <div>
+                  <Label>Price</Label>
+                  {userRole === 'organiser' && editingPrice?.id === selectedStall.id ? (
+                    <div className="flex gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2">₹</span>
+                        <Input
+                          type="number"
+                          value={editingPrice.price}
+                          onChange={(e) => setEditingPrice({ id: selectedStall.id, price: e.target.value })}
+                          className="pl-6 w-32"
+                        />
                       </div>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-80">
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-semibold">{stall.name}</h4>
-                        <div className="text-sm">
-                          <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-                            <span>Dimensions:</span>
-                            <span>{stall.length} × {stall.width} {stall.unit?.abbreviation}</span>
-                            <span>Price:</span>
-                            <span>{formatPrice(stall.price)}</span>
-                            <span>Status:</span>
-                            <span className="capitalize">{instance.status}</span>
-                            {stall.amenities && stall.amenities.length > 0 && (
-                              <>
-                                <span>Amenities:</span>
-                                <span>{stall.amenities.map(a => a.name).join(', ')}</span>
-                              </>
+                      <Button size="sm" onClick={() => handlePriceUpdate(selectedStall.id)}>
+                        Save
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingPrice(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium">
+                        ₹{selectedStall.price?.toLocaleString() ?? selectedStall.stall.price.toLocaleString()}
+                      </div>
+                      {userRole === 'organiser' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => setEditingPrice({
+                            id: selectedStall.id,
+                            price: (selectedStall.price ?? selectedStall.stall.price).toString()
+                          })}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4">
+                {userRole === 'organiser' && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleDelete(selectedStall.id)}
+                    disabled={selectedStall.status !== 'available'}
+                  >
+                    Delete Stall
+                  </Button>
+                )}
+                {userRole === 'brand' && selectedStall.status === 'available' && onApplyForStall && (
+                  <Button onClick={() => handleApply(selectedStall.id)}>
+                    Apply for Stall
+                  </Button>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="maintenance">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Maintenance History</h3>
+                  {userRole === 'organiser' && <MaintenanceDialog />}
+                </div>
+                
+                {maintenanceLogs.length > 0 ? (
+                  <div className="space-y-4">
+                    {maintenanceLogs.map((log) => (
+                      <Card key={log.id}>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-medium">{log.maintenance_type}</h4>
+                              <p className="text-sm text-muted-foreground">{log.description}</p>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {format(new Date(log.performed_at), 'PPP')}
+                              </div>
+                            </div>
+                            {userRole === 'organiser' && log.status !== 'completed' && (
+                              <Select
+                                value={log.status}
+                                onValueChange={(value) => {
+                                  if (onUpdateMaintenanceStatus) {
+                                    onUpdateMaintenanceStatus(log.id, value);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                                  <SelectItem value="in_progress">In Progress</SelectItem>
+                                  <SelectItem value="completed">Completed</SelectItem>
+                                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                                </SelectContent>
+                              </Select>
                             )}
                           </div>
-                        </div>
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                    );
-              })}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No maintenance records found
+                  </div>
+                )}
               </div>
-          )}
+            </TabsContent>
+
+            {selectedStall.application && (
+              <TabsContent value="payments">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Payment History</h3>
+                    {userRole === 'organiser' && <PaymentDialog />}
+                  </div>
+
+                  {paymentTransactions.length > 0 ? (
+                    <div className="space-y-4">
+                      {paymentTransactions.map((transaction) => (
+                        <Card key={transaction.id}>
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium">
+                                  ${transaction.amount.toLocaleString()}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {transaction.payment_method}
+                                </div>
+                                {transaction.reference_number && (
+                                  <div className="text-sm text-muted-foreground">
+                                    Ref: {transaction.reference_number}
+                                  </div>
+                                )}
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  {format(new Date(transaction.transaction_date), 'PPP')}
+                                </div>
+                              </div>
+                              <Badge
+                                className={cn(
+                                  transaction.status === 'completed' && 'bg-green-100 text-green-800',
+                                  transaction.status === 'pending' && 'bg-yellow-100 text-yellow-800',
+                                  transaction.status === 'failed' && 'bg-red-100 text-red-800',
+                                  transaction.status === 'refunded' && 'bg-gray-100 text-gray-800'
+                                )}
+                              >
+                                {transaction.status}
+                              </Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No payment records found
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            )}
+          </Tabs>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="w-full overflow-x-auto bg-white rounded-lg p-4 border">
+        <div className="mx-auto" style={{ maxWidth: '1200px' }}>
+          {/* Status Legend and Unit Info */}
+          <div className="flex flex-col items-center space-y-2 mb-4 pb-4 border-b">
+            <div className="flex gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-50 border border-blue-200 rounded-sm" />
+                <span className="text-xs text-muted-foreground">Available</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-yellow-50 border border-yellow-200 rounded-sm" />
+                <span className="text-xs text-muted-foreground">Pending</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-50 border border-red-200 rounded-sm" />
+                <span className="text-xs text-muted-foreground">Booked</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-gray-50 border border-gray-200 rounded-sm" />
+                <span className="text-xs text-muted-foreground">Under Maintenance</span>
+              </div>
+            </div>
+            {unit && (
+              <div className="text-xs text-muted-foreground">
+                All dimensions in {unit.name} ({unit.symbol})
+              </div>
+            )}
+          </div>
+
+          {/* Layout Grid */}
+          <div className="grid gap-8" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '2rem',
+            width: '100%',
+            maxWidth: '1200px',
+            margin: '0 auto',
+            justifyItems: 'center',
+            alignItems: 'start'
+          }}>
+            {stallInstances.map((instance, index) => {
+              const dimensions = `${instance.stall?.width} × ${instance.stall?.length} ${instance.stall?.unit?.symbol}`;
+              const stallNumber = index + 1;
+              const stallSize = getStallSize(instance.stall?.width || 0, instance.stall?.length || 0);
+              
+              return (
+                <div
+                  key={instance.id}
+                  className={cn(
+                    'border rounded-lg transition-all duration-200 shadow-sm hover:shadow-md',
+                    getStallStatusColor(instance.status),
+                    getStallCursor(instance),
+                    selectedInstanceId === instance.id && 'ring-2 ring-primary ring-offset-2'
+                  )}
+                  style={{
+                    transform: instance.rotation_angle ? `rotate(${instance.rotation_angle}deg)` : 'none',
+                    position: 'relative',
+                    width: `${stallSize}px`,
+                    height: `${stallSize}px`,
+                    margin: '0 auto'
+                  }}
+                  onClick={() => handleStallClick(instance)}
+                >
+                  <div className="p-4 flex flex-col gap-2 h-full">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-xs whitespace-nowrap">
+                        Stall {stallNumber}
+                      </Badge>
+                      <Badge 
+                        variant="secondary" 
+                        className="text-xs whitespace-nowrap"
+                      >
+                        {dimensions}
+                      </Badge>
+                    </div>
+                    <div 
+                      className="text-xs text-muted-foreground truncate text-center" 
+                      title={instance.stall?.name}
+                    >
+                      {instance.stall?.name}
+                    </div>
+                    <div className="text-sm font-semibold text-primary mt-auto text-center">
+                      ₹{instance.price?.toLocaleString() ?? instance.stall?.price.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-500">
-            Hover over stalls to view detailed information.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {renderStallDetails()}
+    </div>
   );
 };
-
-export default StallLayout;

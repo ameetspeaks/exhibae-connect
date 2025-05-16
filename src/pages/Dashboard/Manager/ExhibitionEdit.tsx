@@ -6,17 +6,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ExhibitionForm from '@/components/exhibitions/ExhibitionForm';
 import StallForm from '@/components/exhibitions/StallForm';
 import StallList from '@/components/exhibitions/StallList';
-import StallLayout from '@/components/exhibitions/StallLayout';
+import { StallLayout } from '@/components/exhibitions/StallLayout';
 import GalleryUpload from '@/components/exhibitions/GalleryUpload';
 import { 
   useExhibition,
   useUpdateExhibition,
   useCategories,
-  useVenueTypes
+  useVenueTypes,
+  useMeasuringUnits,
+  useEventTypes
 } from '@/hooks/useExhibitionsData';
 import { useStalls, useCreateStall, useUpdateStall, useDeleteStall } from '@/hooks/useStallsData';
 import { useGalleryImages } from '@/hooks/useGalleryData';
-import { useMeasuringUnits } from '@/hooks/useExhibitionsData';
 import { useAmenities } from '@/hooks/useAmenitiesData';
 import { useToast } from '@/hooks/use-toast';
 import { ExhibitionFormData, Stall, StallFormData } from '@/types/exhibition-management';
@@ -29,66 +30,37 @@ const ExhibitionEdit = () => {
   const [activeTab, setActiveTab] = useState('basic-details');
   const [editingStall, setEditingStall] = useState<Stall | null>(null);
 
-  // Fetch exhibition data
-  const {
-    data: exhibition,
-    isLoading: isLoadingExhibition,
-    error: exhibitionError
-  } = useExhibition(id || '');
-
-  // Fetch stalls
-  const {
-    data: stalls,
-    isLoading: isLoadingStalls
-  } = useStalls(id || '');
-
-  // Fetch gallery images
-  const {
-    data: galleryImages,
-    isLoading: isLoadingGallery
-  } = useGalleryImages(id || '');
-
-  // Fetch other required data
+  const { data: exhibition, isLoading: isLoadingExhibition } = useExhibition(id);
   const { data: categories = [], isLoading: isLoadingCategories } = useCategories();
   const { data: venueTypes = [], isLoading: isLoadingVenueTypes } = useVenueTypes();
+  const { data: eventTypes = [], isLoading: isLoadingEventTypes } = useEventTypes();
   const { data: measuringUnits = [], isLoading: isLoadingUnits } = useMeasuringUnits();
+  const { data: stalls = [], isLoading: isLoadingStalls } = useStalls(id);
   const { data: amenities = [], isLoading: isLoadingAmenities } = useAmenities();
+  const { data: galleryImages = [] } = useGalleryImages(id || '');
 
-  // Mutations
   const updateExhibitionMutation = useUpdateExhibition();
   const createStallMutation = useCreateStall(id || '');
   const updateStallMutation = useUpdateStall(id || '');
   const deleteStallMutation = useDeleteStall(id || '');
 
-  if (isLoadingExhibition || isLoadingCategories || isLoadingVenueTypes) {
-    return <div className="text-center py-8">Loading exhibition details...</div>;
-  }
-
-  if (exhibitionError || !exhibition) {
-    return (
-      <div className="text-center py-8 text-red-500">
-        {exhibitionError instanceof Error ? exhibitionError.message : 'Failed to load exhibition details'}
-      </div>
-    );
-  }
-
   const handleUpdateExhibition = async (data: ExhibitionFormData) => {
+    if (!id) return;
+
     try {
       await updateExhibitionMutation.mutateAsync({
-        id: id || '',
-        ...data
+        ...data,
+        exhibitionId: id
       });
 
       toast({
         title: 'Success',
         description: 'Exhibition updated successfully',
       });
-
-      setActiveTab('stall-setup');
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update exhibition',
+        description: error instanceof Error ? error.message : 'Failed to update exhibition',
         variant: 'destructive',
       });
     }
@@ -157,14 +129,30 @@ const ExhibitionEdit = () => {
     navigate('/dashboard/manager/exhibitions');
   };
 
+  if (isLoadingExhibition || isLoadingCategories || isLoadingVenueTypes) {
+    return <div className="text-center py-8">Loading exhibition details...</div>;
+  }
+
+  if (!exhibition) {
+    return (
+      <div className="text-center py-8 text-red-500">
+        Failed to load exhibition details
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/dashboard/manager/exhibitions')}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h2 className="text-2xl font-bold">Edit Exhibition</h2>
+          <h1 className="text-2xl font-semibold">Edit Exhibition</h1>
         </div>
         <Button onClick={handleFinish}>
           <Save className="h-4 w-4 mr-2" />
@@ -172,28 +160,29 @@ const ExhibitionEdit = () => {
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="basic-details">1. Basic Details</TabsTrigger>
-          <TabsTrigger value="stall-setup">2. Stall Setup</TabsTrigger>
-          <TabsTrigger value="gallery">3. Gallery & Images</TabsTrigger>
+          <TabsTrigger value="basic-details">
+            1. Basic Details
+          </TabsTrigger>
+          <TabsTrigger value="stall-setup">
+            2. Stall Setup
+          </TabsTrigger>
+          <TabsTrigger value="gallery-images">
+            3. Gallery & Images
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="basic-details">
-          <Card>
-            <CardHeader>
-              <CardTitle>Exhibition Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ExhibitionForm 
-                onSubmit={handleUpdateExhibition}
-                initialData={exhibition}
-                categories={categories}
-                venueTypes={venueTypes}
-                isLoading={updateExhibitionMutation.isPending || isLoadingCategories || isLoadingVenueTypes}
-              />
-            </CardContent>
-          </Card>
+        <TabsContent value="basic-details" className="space-y-4">
+          <ExhibitionForm
+            onSubmit={handleUpdateExhibition}
+            categories={categories}
+            venueTypes={venueTypes}
+            eventTypes={eventTypes}
+            measuringUnits={measuringUnits}
+            isLoading={updateExhibitionMutation.isPending}
+            initialData={exhibition}
+          />
         </TabsContent>
 
         <TabsContent value="stall-setup">
@@ -239,7 +228,7 @@ const ExhibitionEdit = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="gallery">
+        <TabsContent value="gallery-images">
           <Card>
             <CardHeader>
               <CardTitle>Exhibition Gallery</CardTitle>

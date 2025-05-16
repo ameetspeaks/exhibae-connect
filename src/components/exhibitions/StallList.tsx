@@ -26,18 +26,21 @@ const StallList: React.FC<StallListProps> = ({ stalls, onEdit, onDelete, isLoadi
     try {
       await onDelete(stallToDelete.id);
       toast({
-        title: 'Stall deleted',
+        title: 'Success',
         description: 'The stall has been removed successfully.',
       });
+      setStallToDelete(null);
     } catch (error) {
+      console.error('Error deleting stall:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete stall',
+        description: error instanceof Error 
+          ? error.message 
+          : 'Failed to delete stall. Please try again.',
         variant: 'destructive',
       });
     } finally {
       setIsDeleting(false);
-      setStallToDelete(null);
     }
   };
 
@@ -76,9 +79,9 @@ const StallList: React.FC<StallListProps> = ({ stalls, onEdit, onDelete, isLoadi
             <TableRow key={stall.id}>
               <TableCell className="font-medium">{stall.name}</TableCell>
               <TableCell>
-                {stall.length} × {stall.width} {stall.unit?.abbreviation || ''}
+                {stall.length} × {stall.width} {stall.unit?.symbol}
               </TableCell>
-              <TableCell>${stall.price.toFixed(2)}</TableCell>
+              <TableCell>₹{stall.price.toFixed(2)}</TableCell>
               <TableCell>{stall.quantity}</TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
@@ -93,13 +96,19 @@ const StallList: React.FC<StallListProps> = ({ stalls, onEdit, onDelete, isLoadi
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => onEdit(stall)}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => onEdit(stall)}
+                    disabled={isDeleting}
+                  >
                     <Edit className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setStallToDelete(stall)}
+                    disabled={isDeleting}
                   >
                     <Trash className="h-4 w-4" />
                   </Button>
@@ -110,7 +119,10 @@ const StallList: React.FC<StallListProps> = ({ stalls, onEdit, onDelete, isLoadi
         </TableBody>
       </Table>
 
-      <Dialog open={!!stallToDelete} onOpenChange={() => setStallToDelete(null)}>
+      <Dialog 
+        open={!!stallToDelete} 
+        onOpenChange={(open) => !open && !isDeleting && setStallToDelete(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Stall</DialogTitle>
@@ -130,7 +142,7 @@ const StallList: React.FC<StallListProps> = ({ stalls, onEdit, onDelete, isLoadi
               disabled={isDeleting}
             >
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

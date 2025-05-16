@@ -1,40 +1,79 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Configuration
+SERVER="69.62.77.142"
+USER="root"
 DEPLOY_PATH="/var/www/exhibae"
 BACKUP_DIR="/var/www/exhibae_backups"
-SERVER="deployer@69.62.77.142"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
-# Create a temporary directory for deployment
-echo "Preparing deployment files..."
+# Build the project
+echo "Building project..."
+npm run build
+
+# Create deployment package
+echo "Creating deployment package..."
+rm -rf deploy_temp
 mkdir -p deploy_temp
 cp -r dist/* deploy_temp/
 cp .htaccess deploy_temp/ 2>/dev/null || echo "No .htaccess found"
 cp .env.production deploy_temp/.env 2>/dev/null || echo "No .env.production found"
 
-# Create backup directory on server
-echo "Setting up backup directory..."
-ssh $SERVER "mkdir -p $BACKUP_DIR"
+# Create archive
+cd deploy_temp
+tar czf ../deploy.tar.gz .
+cd ..
 
-# Backup current deployment
-echo "Creating backup..."
-ssh $SERVER "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${BACKUP_DIR}/backup_${TIMESTAMP}; fi"
+# Upload to server
+echo "Uploading to server..."
+scp -o StrictHostKeyChecking=no deploy.tar.gz root@${SERVER}:/tmp/
 
-# Deploy using rsync
-echo "Deploying files..."
-rsync -avz --delete deploy_temp/ $SERVER:$DEPLOY_PATH/
+# Execute deployment
+echo "Executing deployment..."
+ssh -o StrictHostKeyChecking=no root@${SERVER} "
+    set -e
+    cd /tmp
+    
+    # Backup current deployment
+    if [ -d $DEPLOY_PATH ]; then
+        echo 'Creating backup...'
+        mkdir -p $BACKUP_DIR
+        cp -r $DEPLOY_PATH ${BACKUP_DIR}/backup_${TIMESTAMP}
+    fi
 
-# Set proper permissions
-echo "Setting permissions..."
-ssh $SERVER "sudo chown -R www-data:www-data $DEPLOY_PATH && sudo chmod -R 755 $DEPLOY_PATH && sudo chmod -R g+w $DEPLOY_PATH/assets"
+    # Preserve existing .env if it exists
+    if [ -f $DEPLOY_PATH/.env ]; then
+        cp $DEPLOY_PATH/.env /tmp/env.temp
+    fi
 
-# Cleanup
-echo "Cleaning up..."
-rm -rf deploy_temp
+    # Extract new files
+    rm -rf $DEPLOY_PATH/*
+    cd $DEPLOY_PATH
+    tar xzf /tmp/deploy.tar.gz
 
-# Cleanup old backups (keep last 5)
-echo "Cleaning up old backups..."
-ssh $SERVER "cd $BACKUP_DIR && ls -t | tail -n +6 | xargs -r rm -rf"
+    # Restore .env if it was preserved
+    if [ -f /tmp/env.temp ]; then
+        mv /tmp/env.temp .env
+    fi
 
-echo "Deployment completed successfully!" 
+    # Set proper permissions
+    chown -R www-data:www-data .
+    find . -type d -exec chmod 755 {} \;
+    find . -type f -exec chmod 644 {} \;
+    chmod -R g+w assets 2>/dev/null || true
+
+    # Cleanup
+    rm -f /tmp/deploy.tar.gz
+
+    # Cleanup old backups (keep last 5)
+    cd $BACKUP_DIR
+    ls -t | tail -n +6 | xargs -r rm -rf
+
+    echo 'Deployment completed successfully!'
+"
+
+# Cleanup local files
+echo "Cleaning up local files..."
+rm -rf deploy_temp deploy.tar.gz
+
+echo "Deployment completed!" 

@@ -1,48 +1,88 @@
 # Configuration
 $DEPLOY_PATH = "/var/www/exhibae"
 $BACKUP_DIR = "/var/www/exhibae_backups"
-$SERVER = "deployer@69.62.77.142"
 $TIMESTAMP = Get-Date -Format "yyyyMMdd_HHmmss"
+$SERVER = "69.62.77.142"
+$SERVER_USER = "root"
+$SERVER_PASS = "Ameet@300921"
 
 # Create a temporary directory for deployment
 Write-Host "Preparing deployment files..."
 New-Item -ItemType Directory -Force -Path "deploy_temp" | Out-Null
-Copy-Item "dist\*" -Destination "deploy_temp" -Recurse -Force
+Copy-Item -Path "dist\*" -Destination "deploy_temp" -Recurse -Force
+Copy-Item -Path ".htaccess" -Destination "deploy_temp" -ErrorAction SilentlyContinue
+Copy-Item -Path ".env.production" -Destination "deploy_temp\.env" -ErrorAction SilentlyContinue
 
-if (Test-Path ".htaccess") {
-    Copy-Item ".htaccess" -Destination "deploy_temp" -Force
-} else {
-    Write-Host "No .htaccess found"
+# Create deployment archive
+Write-Host "Creating deployment archive..."
+Compress-Archive -Path "deploy_temp\*" -DestinationPath "deploy.zip" -Force
+
+# Upload using PSCP (requires PuTTY tools)
+Write-Host "Uploading deployment archive..."
+$pscpPath = "C:\Program Files\PuTTY\pscp.exe"
+if (-not (Test-Path $pscpPath)) {
+    Write-Host "PuTTY not found. Please install PuTTY and try again."
+    exit 1
 }
 
-if (Test-Path ".env.production") {
-    Copy-Item ".env.production" -Destination "deploy_temp\.env" -Force
-} else {
-    Write-Host "No .env.production found"
+# Upload the file
+& $pscpPath -pw $SERVER_PASS "deploy.zip" "${SERVER_USER}@${SERVER}:/tmp/"
+
+# Execute remote commands using plink
+$plinkPath = "C:\Program Files\PuTTY\plink.exe"
+if (-not (Test-Path $plinkPath)) {
+    Write-Host "PuTTY not found. Please install PuTTY and try again."
+    exit 1
 }
 
-# Create backup directory on server
-Write-Host "Setting up backup directory..."
-ssh $SERVER "mkdir -p $BACKUP_DIR"
+$remoteCommands = @"
+cd /tmp
+unzip -o deploy.zip -d temp_deploy
+if [ -d $DEPLOY_PATH ]; then
+    echo 'Creating backup...'
+    mkdir -p $BACKUP_DIR
+    cp -r $DEPLOY_PATH ${BACKUP_DIR}/backup_${TIMESTAMP}
+fi
 
-# Backup current deployment
-Write-Host "Creating backup..."
-ssh $SERVER "if [ -d $DEPLOY_PATH ]; then cp -r $DEPLOY_PATH ${BACKUP_DIR}/backup_${TIMESTAMP}; fi"
+# Preserve existing .env if it exists
+if [ -f $DEPLOY_PATH/.env ]; then
+    cp $DEPLOY_PATH/.env /tmp/env.temp
+fi
 
-# Deploy using scp (since rsync might not be available on Windows)
-Write-Host "Deploying files..."
-scp -r deploy_temp\* "$SERVER`:$DEPLOY_PATH/"
+# Deploy new version
+echo 'Deploying new version...'
+rm -rf $DEPLOY_PATH/*
+cp -r temp_deploy/* $DEPLOY_PATH/
+
+# Restore .env if it was preserved
+if [ -f /tmp/env.temp ]; then
+    mv /tmp/env.temp $DEPLOY_PATH/.env
+fi
 
 # Set proper permissions
-Write-Host "Setting permissions..."
-ssh $SERVER "sudo chown -R www-data:www-data $DEPLOY_PATH && sudo chmod -R 755 $DEPLOY_PATH && sudo chmod -R g+w $DEPLOY_PATH/assets"
+chown -R www-data:www-data $DEPLOY_PATH
+chmod -R 755 $DEPLOY_PATH
+find $DEPLOY_PATH -type d -exec chmod 755 {} \;
+find $DEPLOY_PATH -type f -exec chmod 644 {} \;
+chmod -R g+w $DEPLOY_PATH/assets 2>/dev/null || true
 
 # Cleanup
-Write-Host "Cleaning up..."
-Remove-Item -Path "deploy_temp" -Recurse -Force
+rm -rf temp_deploy
+rm -f deploy.zip
 
 # Cleanup old backups (keep last 5)
-Write-Host "Cleaning up old backups..."
-ssh $SERVER "cd $BACKUP_DIR && ls -t | tail -n +6 | xargs -r rm -rf"
+cd $BACKUP_DIR
+ls -t | tail -n +6 | xargs -r rm -rf
 
-Write-Host "Deployment completed successfully!" 
+echo 'Deployment completed successfully!'
+"@
+
+Write-Host "Executing deployment on server..."
+$remoteCommands | & $plinkPath -pw $SERVER_PASS "${SERVER_USER}@${SERVER}" "bash -s"
+
+# Cleanup local files
+Write-Host "Cleaning up local files..."
+Remove-Item -Path "deploy_temp" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "deploy.zip" -Force -ErrorAction SilentlyContinue
+
+Write-Host "Local deployment script completed!" 

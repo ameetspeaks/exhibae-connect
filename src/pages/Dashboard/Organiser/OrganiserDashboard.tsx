@@ -171,16 +171,6 @@ const OrganiserDashboard = () => {
   
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium">Dashboard Overview</h2>
-        <Button className="bg-exhibae-navy hover:bg-opacity-90" asChild>
-          <Link to="/dashboard/organiser/exhibitions/create">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Exhibition
-          </Link>
-        </Button>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">

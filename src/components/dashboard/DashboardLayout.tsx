@@ -5,6 +5,7 @@ import DashboardHeader from './DashboardHeader';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { useNotificationEvents } from '@/hooks/useNotificationEvents';
 
 interface DashboardLayoutProps {
   role: 'admin' | 'organiser' | 'brand';
@@ -15,6 +16,9 @@ const DashboardLayout = ({ role, title }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { toast } = useToast();
+
+  // Initialize notification events
+  useNotificationEvents();
 
   useEffect(() => {
     const checkUserRole = async () => {

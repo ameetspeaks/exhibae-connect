@@ -2,10 +2,23 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const supabaseUrl = 'https://ulqlhjluytobqaviuswk.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscWxoamx1eXRvYnFhdml1c3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcwNDQ0MDcsImV4cCI6MjA2MjYyMDQwN30.wbslqPS_NHHvUr5GDXpSJI6ey4nXH1HWfFJxxWsK3TY';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ulqlhjluytobqaviuswk.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscWxoamx1eXRvYnFhdml1c3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcwNDQ0MDcsImV4cCI6MjA2MjYyMDQwN30.wbslqPS_NHHvUr5GDXpSJI6ey4nXH1HWfFJxxWsK3TY';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase URL and Anon Key are required. Please check your environment variables.');
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  db: {
+    schema: 'public'
+  },
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});

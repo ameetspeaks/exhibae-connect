@@ -32,39 +32,44 @@ export interface Exhibition {
   id: string;
   title: string;
   description: string;
-  start_date: string;
-  end_date: string;
   address: string;
   city: string;
   state: string;
   country: string;
   postal_code: string;
-  category_id: string;
-  venue_type_id: string;
   organiser_id: string;
   status: string;
+  start_date: string;
+  end_date: string;
+  start_time: string;
+  end_time: string;
   created_at: string;
   updated_at: string;
+  category_id?: string;
+  venue_type_id?: string;
+  event_type_id?: string;
+  measuring_unit_id?: string;
+  stalls?: Stall[];
   category?: ExhibitionCategory;
   venue_type?: VenueType;
-  measuring_unit_id: string;
+  event_type?: EventType;
   measuring_unit?: MeasuringUnit;
+  gallery_images?: GalleryImage[];
 }
 
 export interface Stall {
   id: string;
   exhibition_id: string;
   name: string;
-  length: number;
   width: number;
-  unit_id: string;
-  unit?: MeasuringUnit;
+  length: number;
   price: number;
   quantity: number;
-  position_x?: number;
-  position_y?: number;
-  status?: 'available' | 'applied' | 'confirmed' | 'rejected' | 'cancelled';
+  status: string;
+  unit_id: string;
+  unit?: MeasuringUnit;
   amenities?: Amenity[];
+  description?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -83,24 +88,41 @@ export interface GalleryImage {
   exhibition_id: string;
   image_url: string;
   image_type: 'banner' | 'layout' | 'gallery';
+  type?: 'banner' | 'layout' | 'gallery';
   created_at?: string;
   updated_at?: string;
 }
 
+export interface EventType {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // The form data interfaces can use Date objects for better UI handling
 export interface ExhibitionFormData {
+  id?: string;
   title: string;
   description: string;
-  start_date: Date;
-  end_date: Date;
   address: string;
   city: string;
   state: string;
   country: string;
   postal_code: string;
-  category_id: string;
-  venue_type_id: string;
+  organiser_id: string;
+  status: string;
+  start_date: string;
+  end_date: string;
+  start_time: string;
+  end_time: string;
+  category_id?: string;
+  venue_type_id?: string;
+  event_type_id?: string;
   measuring_unit_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface StallFormData {
@@ -111,34 +133,29 @@ export interface StallFormData {
   price: number;
   quantity: number;
   amenity_ids?: string[];
+  status?: 'available' | 'pending' | 'booked';
+  exhibition_id?: string;
 }
 
-export interface StallApplication {
+export interface MaintenanceLog {
   id: string;
-  stall_id: string;
-  brand_id: string;
-  exhibition_id: string;
-  status: 'pending' | 'approved' | 'rejected';
-  message?: string;
-  created_at: string;
-  updated_at: string;
-  stall?: Stall;
-  brand?: {
-    id: string;
-    name: string;
-    email: string;
-    phone?: string;
-    company?: string;
-  };
-  exhibition?: {
-    id: string;
-    title: string;
-  };
+  stall_instance_id: string;
+  maintenance_type: string;
+  description?: string;
+  performed_by: string;
+  performed_at: string;
+  next_maintenance_date?: string;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 }
 
-export interface ApplicationFormData {
-  stall_id: string;
-  message?: string;
+export interface PaymentTransaction {
+  id: string;
+  application_id: string;
+  amount: number;
+  payment_method: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
+  transaction_date: string;
+  reference_number?: string;
 }
 
 export interface StallInstance {
@@ -149,8 +166,67 @@ export interface StallInstance {
   position_x: number;
   position_y: number;
   rotation_angle: number;
-  status: 'available' | 'applied' | 'confirmed' | 'rejected' | 'cancelled';
+  status: string;
+  price?: number;
   created_at: string;
   updated_at: string;
-  stall?: Stall;
+  stall: Stall;
+  application?: {
+    id: string;
+    brand_id: string;
+    status: string;
+    created_at: string;
+  };
+}
+
+export interface StallApplication {
+  id: string;
+  stall_id: string;
+  brand_id: string;
+  exhibition_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  message?: string;
+  preferred_location?: string;
+  requirements: any[];
+  payment_status: 'pending' | 'partial' | 'completed';
+  payment_amount?: number;
+  payment_date?: string;
+  booking_deadline?: string;
+  booking_confirmed: boolean;
+  created_at: string;
+  updated_at: string;
+  stall?: {
+    id: string;
+    name: string;
+    length: number;
+    width: number;
+    price: number;
+    status: string;
+    unit?: {
+      id: string;
+      name: string;
+      symbol: string;
+    };
+  };
+  brand?: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string;
+    company_name: string;
+    avatar_url?: string;
+  };
+  exhibition?: {
+    id: string;
+    title: string;
+    location: string;
+    start_date: string;
+    end_date: string;
+    status: string;
+  };
+}
+
+export interface ApplicationFormData {
+  stall_id: string;
+  message?: string;
 }

@@ -8,6 +8,8 @@ create table if not exists stall_instances (
     rotation_angle numeric not null default 0,
     status text not null default 'available' check (status in ('available', 'reserved', 'booked')),
     instance_number integer not null,
+    price decimal(10,2),
+    original_price decimal(10,2),
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -51,6 +53,6 @@ create policy "Organisers can delete their stall instances"
         )
     );
 
--- Create indexes
-create index stall_instances_stall_id_idx on stall_instances(stall_id);
-create index stall_instances_exhibition_id_idx on stall_instances(exhibition_id); 
+-- Create indexes if they don't exist
+create index if not exists stall_instances_stall_id_idx on stall_instances(stall_id);
+create index if not exists stall_instances_exhibition_id_idx on stall_instances(exhibition_id); 

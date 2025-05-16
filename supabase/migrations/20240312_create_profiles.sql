@@ -54,7 +54,25 @@ SECURITY DEFINER
 SET search_path = public
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    _full_name TEXT;
+    _role user_role;
+    _company_name TEXT;
 BEGIN
+    -- Extract metadata values with proper error handling
+    BEGIN
+        _full_name := NEW.raw_user_meta_data->>'full_name';
+        _role := (NEW.raw_user_meta_data->>'role')::user_role;
+        _company_name := NEW.raw_user_meta_data->>'company_name';
+    EXCEPTION WHEN OTHERS THEN
+        RAISE LOG 'Error parsing user metadata: %', SQLERRM;
+        -- Set default values if metadata parsing fails
+        _full_name := NEW.email;
+        _role := 'shopper';
+        _company_name := NULL;
+    END;
+
+    -- Insert or update the profile
     INSERT INTO public.profiles (
         id,
         email,
@@ -65,15 +83,19 @@ BEGIN
     VALUES (
         NEW.id,
         NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-        COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'shopper'::user_role),
-        NEW.raw_user_meta_data->>'company_name'
-    );
+        _full_name,
+        _role,
+        _company_name
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET
+        email = NEW.email,
+        full_name = EXCLUDED.full_name,
+        role = EXCLUDED.role,
+        company_name = EXCLUDED.company_name,
+        updated_at = NOW();
+
     RETURN NEW;
-EXCEPTION
-    WHEN others THEN
-        RAISE LOG 'Error in handle_new_user: %', SQLERRM;
-        RETURN NEW;
 END;
 $$;
 

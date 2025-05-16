@@ -5,7 +5,8 @@ import {
   ExhibitionFormData, 
   ExhibitionCategory, 
   VenueType,
-  MeasuringUnit
+  MeasuringUnit,
+  EventType
 } from '@/types/exhibition-management';
 import { format } from 'date-fns';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
@@ -79,6 +80,27 @@ export const useMeasuringUnits = () => {
   });
 };
 
+export const useEventTypes = () => {
+  return useQuery({
+    queryKey: ['eventTypes'],
+    queryFn: async () => {
+      console.log('Fetching event types...');
+      const { data, error } = await supabase
+        .from('event_types')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching event types:', error);
+        throw new Error(error.message);
+      }
+
+      console.log('Event types loaded:', data);
+      return data as EventType[];
+    }
+  });
+};
+
 export const useExhibitions = (organiserId?: string) => {
   return useQuery({
     queryKey: ['exhibitions', organiserId],
@@ -88,7 +110,8 @@ export const useExhibitions = (organiserId?: string) => {
         .select(`
           *,
           category:exhibition_categories(*),
-          venue_type:venue_types(*)
+          venue_type:venue_types(*),
+          event_type:event_types(*)
         `)
         .order('created_at', { ascending: false });
       
@@ -117,7 +140,8 @@ export const useExhibition = (id: string) => {
         .select(`
           *,
           category:exhibition_categories(*),
-          venue_type:venue_types(*)
+          venue_type:venue_types(*),
+          event_type:event_types(*)
         `)
         .eq('id', id)
         .single();
@@ -125,8 +149,18 @@ export const useExhibition = (id: string) => {
       if (error) {
         throw new Error(error.message);
       }
+
+      // Transform the data to ensure IDs are correctly set
+      const transformedData = {
+        ...data,
+        venue_type_id: data.venue_type_id || data.venue_type?.id,
+        event_type_id: data.event_type_id || data.event_type?.id,
+        category_id: data.category_id || data.category?.id
+      };
       
-      return data as Exhibition;
+      console.log('Transformed exhibition data:', transformedData);
+      
+      return transformedData as Exhibition;
     },
     enabled: !!id
   });
@@ -144,8 +178,10 @@ export const useCreateExhibition = () => {
         ...exhibitionData,
         organiser_id: user.id,
         status: 'draft',
-        start_date: exhibitionData.start_date.toISOString(),
-        end_date: exhibitionData.end_date.toISOString()
+        start_date: exhibitionData.start_date,
+        end_date: exhibitionData.end_date,
+        start_time: exhibitionData.start_time || '11:00',
+        end_time: exhibitionData.end_time || '17:00'
       };
       
       const { data, error } = await supabase
@@ -166,38 +202,28 @@ export const useCreateExhibition = () => {
   });
 };
 
-export const useUpdateExhibition = (id: string) => {
+export const useUpdateExhibition = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async (exhibitionData: Partial<ExhibitionFormData>) => {
-      // Prepare data for Supabase, converting Date objects to strings
-      const formattedData: Record<string, any> = { ...exhibitionData };
-      
-      if (exhibitionData.start_date) {
-        formattedData.start_date = exhibitionData.start_date.toISOString();
-      }
-      
-      if (exhibitionData.end_date) {
-        formattedData.end_date = exhibitionData.end_date.toISOString();
-      }
-      
-      const { data, error } = await supabase
+    mutationFn: async ({ exhibitionId, ...data }: ExhibitionFormData & { exhibitionId: string }) => {
+      if (!exhibitionId) throw new Error('Exhibition ID is required');
+
+      const formattedData = {
+        ...data,
+        start_time: data.start_time || '11:00',
+        end_time: data.end_time || '17:00'
+      };
+
+      const { error } = await supabase
         .from('exhibitions')
         .update(formattedData)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      return data as Exhibition;
+        .eq('id', exhibitionId);
+
+      if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exhibitions'] });
-      queryClient.invalidateQueries({ queryKey: ['exhibition', id] });
+    onSuccess: (_, { exhibitionId }) => {
+      queryClient.invalidateQueries({ queryKey: ['exhibition', exhibitionId] });
     }
   });
 };
@@ -231,31 +257,28 @@ export const usePublishedExhibitions = (limit?: number) => {
       try {
         console.log('Fetching published exhibitions...');
         
-        // First, let's just get all published exhibitions without joins
-        const { data: exhibitions, error: exhibitionsError } = await supabase
-          .from('exhibitions')
-          .select('*')
-          .eq('status', 'published');
-
-        console.log('Raw exhibitions:', exhibitions);
-        
-        if (exhibitionsError) {
-          console.error('Error fetching exhibitions:', exhibitionsError);
-          throw exhibitionsError;
-        }
-
-        if (!exhibitions || exhibitions.length === 0) {
-          console.log('No published exhibitions found');
-          return [];
-        }
-
-        // Now let's get the categories and gallery images
+        // Fetch published exhibitions with all related data
         const { data: withDetails, error: detailsError } = await supabase
           .from('exhibitions')
           .select(`
             *,
-            category:exhibition_categories(name),
-            gallery_images(image_url, image_type)
+            category:exhibition_categories(
+              id,
+              name
+            ),
+            event_type:event_types(
+              id,
+              name,
+              description
+            ),
+            venue_type:venue_types(
+              id,
+              name
+            ),
+            gallery_images(
+              image_url,
+              image_type
+            )
           `)
           .eq('status', 'published')
           .order('created_at', { ascending: false })
@@ -271,6 +294,19 @@ export const usePublishedExhibitions = (limit?: number) => {
         // Transform the data
         const transformedData = withDetails?.map(exhibition => ({
           ...exhibition,
+          category: exhibition.category ? {
+            id: exhibition.category.id,
+            name: exhibition.category.name
+          } : null,
+          event_type: exhibition.event_type ? {
+            id: exhibition.event_type.id,
+            name: exhibition.event_type.name,
+            description: exhibition.event_type.description
+          } : null,
+          venue_type: exhibition.venue_type ? {
+            id: exhibition.venue_type.id,
+            name: exhibition.venue_type.name
+          } : null,
           banner_image: exhibition.gallery_images?.find(img => img.image_type === 'banner')?.image_url
         })) || [];
 

@@ -8,8 +8,85 @@ export const useApplications = (exhibitionId?: string) => {
   const applications = useQuery({
     queryKey: ['applications', exhibitionId],
     queryFn: async () => {
-      let query = supabase
+      try {
+        // Get the current user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+        if (!user) throw new Error('Not authenticated');
+
+        // First get the exhibitions where the user is an organizer
+        const { data: exhibitions, error: exhibitionsError } = await supabase
+          .from('exhibitions')
+          .select('id, title, organiser_id')
+          .eq('organiser_id', user.id);
+
+        if (exhibitionsError) throw exhibitionsError;
+        
+        if (!exhibitions || exhibitions.length === 0) {
+          return []; // Return empty array if organizer has no exhibitions
+        }
+
+        const exhibitionIds = exhibitionId 
+          ? [exhibitionId] 
+          : exhibitions.map(e => e.id);
+
+        // Then fetch applications for these exhibitions
+        const { data, error } = await supabase
+          .from('stall_applications')
+          .select(`
+            *,
+            stall:stalls (
+              id,
+              name,
+              length,
+              width,
+              price,
+              quantity,
+              status,
+              unit:measurement_units (
+                id,
+                name,
+                symbol
+              )
+            ),
+            brand:profiles (
+              id,
+              email,
+              full_name,
+              phone,
+              company_name,
+              avatar_url
+            ),
+            exhibition:exhibitions (
+              id,
+              title,
+              city,
+              state,
+              start_date,
+              end_date,
+              status
+            )
+          `)
+          .in('exhibition_id', exhibitionIds)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return data as StallApplication[];
+      } catch (error) {
+        console.error('Error in applications query:', error);
+        throw error;
+      }
+    },
+    enabled: true,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const createApplication = useMutation({
+    mutationFn: async (data: ApplicationFormData) => {
+      const { data: newApplication, error } = await supabase
         .from('stall_applications')
+        .insert([data])
         .select(`
           *,
           stall:stalls (
@@ -19,43 +96,31 @@ export const useApplications = (exhibitionId?: string) => {
             width,
             price,
             quantity,
-            status
+            status,
+            unit:measurement_units (
+              id,
+              name,
+              symbol
+            )
           ),
-          brand:brands (
+          brand:profiles (
             id,
-            name,
             email,
+            full_name,
             phone,
-            company
+            company_name
           ),
           exhibition:exhibitions (
             id,
             title
           )
         `)
-        .order('created_at', { ascending: false });
-
-      if (exhibitionId) {
-        query = query.eq('exhibition_id', exhibitionId);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return data as StallApplication[];
-    },
-    enabled: true
-  });
-
-  const createApplication = useMutation({
-    mutationFn: async (data: ApplicationFormData) => {
-      const { data: newApplication, error } = await supabase
-        .from('stall_applications')
-        .insert([data])
-        .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating application:', error);
+        throw error;
+      }
       return newApplication;
     },
     onSuccess: () => {
@@ -69,10 +134,40 @@ export const useApplications = (exhibitionId?: string) => {
         .from('stall_applications')
         .update({ status })
         .eq('id', id)
-        .select()
+        .select(`
+          *,
+          stall:stalls (
+            id,
+            name,
+            length,
+            width,
+            price,
+            quantity,
+            status,
+            unit:measurement_units (
+              id,
+              name,
+              symbol
+            )
+          ),
+          brand:profiles (
+            id,
+            email,
+            full_name,
+            phone,
+            company_name
+          ),
+          exhibition:exhibitions (
+            id,
+            title
+          )
+        `)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating application:', error);
+        throw error;
+      }
       return updatedApplication;
     },
     onSuccess: () => {
@@ -87,7 +182,10 @@ export const useApplications = (exhibitionId?: string) => {
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting application:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applications'] });

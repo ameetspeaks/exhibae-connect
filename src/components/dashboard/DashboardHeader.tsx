@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Bell, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { UserRole } from '@/types/auth';
+import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 
 interface DashboardHeaderProps {
   role: UserRole;
@@ -25,10 +25,7 @@ const DashboardHeader = ({ role, title }: DashboardHeaderProps) => {
             />
           </div>
           
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </Button>
+          <NotificationDropdown />
         </div>
       </div>
     </div>

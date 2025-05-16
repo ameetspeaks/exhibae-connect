@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,6 +27,13 @@ const getStatusColor = (status: string) => {
     default:
       return 'bg-gray-100 text-gray-800';
   }
+};
+
+const getStatusDisplay = (status: string) => {
+  if (status === 'draft') {
+    return 'Pending for Approval';
+  }
+  return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
 const ExhibitionList: React.FC<ExhibitionListProps> = ({ exhibitions, onDelete }) => {
@@ -97,7 +103,7 @@ const ExhibitionList: React.FC<ExhibitionListProps> = ({ exhibitions, onDelete }
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className={getStatusColor(exhibition.status)}>
-                  {exhibition.status.charAt(0).toUpperCase() + exhibition.status.slice(1)}
+                  {getStatusDisplay(exhibition.status)}
                 </Badge>
               </TableCell>
               <TableCell className="text-right">

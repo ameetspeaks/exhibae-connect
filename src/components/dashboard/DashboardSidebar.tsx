@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { UserRole } from '@/types/auth';
+import { useAuth } from '@/integrations/supabase/AuthProvider';
 import {
   Calendar,
   LayoutDashboard,
@@ -15,7 +16,10 @@ import {
   ClipboardList,
   Building2,
   Ruler,
-  Tags
+  Tags,
+  Store,
+  Ticket,
+  Heart
 } from 'lucide-react';
 
 interface DashboardSidebarProps {
@@ -26,6 +30,7 @@ interface DashboardSidebarProps {
 const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
   const location = useLocation();
   const path = location.pathname;
+  const { user } = useAuth();
 
   // Define navigation items based on role
   const getNavItems = () => {
@@ -34,12 +39,7 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
         name: 'Overview',
         path: `/dashboard/${role.toLowerCase()}`,
         icon: <LayoutDashboard className="w-5 h-5" />,
-      },
-      {
-        name: 'Settings',
-        path: `/dashboard/${role.toLowerCase()}/settings`,
-        icon: <Settings className="w-5 h-5" />,
-      },
+      }
     ];
 
     switch (role) {
@@ -71,6 +71,11 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
             path: `/dashboard/${role.toLowerCase()}/exhibitions`,
             icon: <Calendar className="w-5 h-5" />,
           },
+          {
+            name: 'Settings',
+            path: `/dashboard/${role.toLowerCase()}/settings`,
+            icon: <Settings className="w-5 h-5" />,
+          }
         ];
       case UserRole.ORGANISER:
         return [
@@ -95,6 +100,16 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
             icon: <ClipboardList className="w-5 h-5" />,
           },
           {
+            name: 'Interest Inquiries',
+            path: `/dashboard/${role.toLowerCase()}/interest-inquiries`,
+            icon: <Users className="w-5 h-5" />,
+          },
+          {
+            name: 'Coupons',
+            path: `/dashboard/${role.toLowerCase()}/coupons`,
+            icon: <Ticket className="w-5 h-5" />,
+          },
+          {
             name: 'Settings',
             path: `/dashboard/${role.toLowerCase()}/settings`,
             icon: <Settings className="w-5 h-5" />,
@@ -104,18 +119,37 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
         return [
           ...baseItems,
           {
+            name: 'My Stalls',
+            path: `/dashboard/${role.toLowerCase()}/stalls`,
+            icon: <Store className="w-5 h-5" />,
+          },
+          {
             name: 'My Applications',
             path: `/dashboard/${role.toLowerCase()}/applications`,
             icon: <List className="w-5 h-5" />,
+          },
+          {
+            name: 'My Interests',
+            path: `/dashboard/${role.toLowerCase()}/interests`,
+            icon: <Heart className="w-5 h-5" />,
           },
           {
             name: 'Find Exhibitions',
             path: `/dashboard/${role.toLowerCase()}/find`,
             icon: <Search className="w-5 h-5" />,
           },
+          {
+            name: 'Settings',
+            path: `/dashboard/${role.toLowerCase()}/settings`,
+            icon: <Settings className="w-5 h-5" />,
+          }
         ];
       default:
-        return baseItems;
+        return [...baseItems, {
+          name: 'Settings',
+          path: `/dashboard/${role.toLowerCase()}/settings`,
+          icon: <Settings className="w-5 h-5" />,
+        }];
     }
   };
 
@@ -151,12 +185,12 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
             <div className="w-8 h-8 bg-exhibae-navy rounded-full flex items-center justify-center text-white">
               {role === UserRole.ORGANISER && "O"}
               {role === UserRole.BRAND && "B"}
-              {role === UserRole.ADMIN && "A"}
+              {role === UserRole.MANAGER && "M"}
               {role === UserRole.SHOPPER && "S"}
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium">{role.charAt(0) + role.slice(1).toLowerCase()} Account</p>
-              <p className="text-xs text-gray-500">user@example.com</p>
+              <p className="text-xs text-gray-500">{user?.email || 'No email available'}</p>
             </div>
           </div>
           <Button

@@ -3,6 +3,14 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
 
 type HeaderProps = {
   isAuthenticated: boolean;
@@ -36,18 +44,54 @@ const Header = ({
           >
             Home
           </Link>
+          
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Solutions</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <div className="grid gap-3 p-4 md:w-[400px] lg:w-[500px]">
+                    <Link 
+                      to="/for-organizers"
+                      className="block p-3 space-y-1 hover:bg-gray-50 rounded-lg"
+                    >
+                      <div className="font-medium">For Organizers</div>
+                      <p className="text-sm text-gray-600">Create and manage exhibitions with powerful tools</p>
+                    </Link>
+                    <Link 
+                      to="/for-brands"
+                      className="block p-3 space-y-1 hover:bg-gray-50 rounded-lg"
+                    >
+                      <div className="font-medium">For Brands</div>
+                      <p className="text-sm text-gray-600">Find and participate in relevant exhibitions</p>
+                    </Link>
+                  </div>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
+
           <Link 
             to="/exhibitions" 
             className={`font-medium ${location.pathname === '/exhibitions' ? 'text-exhibae-navy' : 'text-gray-600 hover:text-exhibae-navy'}`}
           >
             Exhibitions
           </Link>
+          
           <Link 
             to="/about" 
             className={`font-medium ${location.pathname === '/about' ? 'text-exhibae-navy' : 'text-gray-600 hover:text-exhibae-navy'}`}
           >
             About
           </Link>
+          
+          <Link 
+            to="/contact" 
+            className={`font-medium ${location.pathname === '/contact' ? 'text-exhibae-navy' : 'text-gray-600 hover:text-exhibae-navy'}`}
+          >
+            Contact
+          </Link>
+
           {isAuthenticated && user && (
             <Link 
               to="/dashboard" 

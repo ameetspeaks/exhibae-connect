@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building2, Tags } from 'lucide-react';
+import { Users, Building2, Tags, LayoutDashboard, Ruler, CalendarDays, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,39 @@ interface Activity {
   target: string;
   timestamp: string;
 }
+
+const navigation = [
+    {
+        name: 'Dashboard',
+        href: '/dashboard/manager',
+        icon: LayoutDashboard,
+    },
+    {
+        name: 'Exhibitions',
+        href: '/dashboard/manager/exhibitions',
+        icon: CalendarDays,
+    },
+    {
+        name: 'Users',
+        href: '/dashboard/manager/users',
+        icon: Users,
+    },
+    {
+        name: 'Venue Types',
+        href: '/dashboard/manager/venue-types',
+        icon: Building2,
+    },
+    {
+        name: 'Measurement Units',
+        href: '/dashboard/manager/measurement-units',
+        icon: Ruler,
+    },
+    {
+        name: 'Support Chat',
+        href: '/dashboard/manager/chat',
+        icon: MessageSquare,
+    },
+];
 
 const ManagerDashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({

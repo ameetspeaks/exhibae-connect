@@ -1,14 +1,10 @@
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import SettingsLayout from '@/pages/Dashboard/Settings/SettingsLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -18,451 +14,245 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
+import { Loader2, Pencil } from 'lucide-react';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 
-const profileFormSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
+const formSchema = z.object({
+  full_name: z.string().min(2, 'Name must be at least 2 characters'),
+  company_name: z.string().min(2, 'Company name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
-  company: z.string().min(2, 'Company name must be at least 2 characters'),
-  website: z.string().url('Invalid website URL').optional().or(z.literal('')),
 });
 
-const notificationSchema = z.object({
-  emailNotifications: z.boolean(),
-  applicationUpdates: z.boolean(),
-  marketingEmails: z.boolean(),
-});
-
-const securitySchema = z.object({
-  currentPassword: z.string().min(6, 'Password must be at least 6 characters'),
-  newPassword: z.string().min(6, 'Password must be at least 6 characters'),
-  confirmPassword: z.string().min(6, 'Password must be at least 6 characters'),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+type FormData = z.infer<typeof formSchema>;
 
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [profileData, setProfileData] = React.useState<FormData | null>(null);
 
-  const profileForm = useForm({
-    resolver: zodResolver(profileFormSchema),
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      email: user?.email || '',
+      full_name: '',
+      company_name: '',
+      email: '',
       phone: '',
-      company: '',
-      website: '',
     },
   });
 
-  const notificationForm = useForm({
-    resolver: zodResolver(notificationSchema),
-    defaultValues: {
-      emailNotifications: true,
-      applicationUpdates: true,
-      marketingEmails: false,
-    },
-  });
-
-  const securityForm = useForm({
-    resolver: zodResolver(securitySchema),
-    defaultValues: {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    },
-  });
-
-  // Load profile data
-  useEffect(() => {
-    const loadProfile = async () => {
+  React.useEffect(() => {
+    const fetchData = async () => {
       if (!user) return;
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-      if (error) {
+        if (error) throw error;
+        if (data) {
+          const formData = {
+            full_name: data.full_name || '',
+            company_name: data.company_name || '',
+            email: data.email || '',
+            phone: data.phone || '',
+          };
+          setProfileData(formData);
+          form.reset(formData);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
         toast({
           title: 'Error',
           description: 'Failed to load profile data',
           variant: 'destructive',
         });
-        return;
-      }
-
-      if (data) {
-        profileForm.reset({
-          name: data.name || '',
-          email: user.email || '',
-          phone: data.phone || '',
-          company: data.company || '',
-          website: data.website || '',
-        });
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadProfile();
-  }, [user, profileForm, toast]);
+    fetchData();
+  }, [user, form, toast]);
 
-  const onProfileSubmit = async (data: z.infer<typeof profileFormSchema>) => {
+  const onSubmit = async (data: FormData) => {
     if (!user) return;
-    setIsLoading(true);
-
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
-          name: data.name,
+          full_name: data.full_name,
+          company_name: data.company_name,
+          email: data.email,
           phone: data.phone,
-          company: data.company,
-          website: data.website,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
 
       if (error) throw error;
 
-      if (data.email !== user.email) {
-        const { error: updateError } = await supabase.auth.updateUser({
-          email: data.email,
-        });
-        if (updateError) throw updateError;
-      }
-
+      setProfileData(data);
+      setIsEditing(false);
       toast({
         title: 'Success',
         description: 'Profile updated successfully',
       });
     } catch (error) {
+      console.error('Error updating profile:', error);
       toast({
         title: 'Error',
         description: 'Failed to update profile',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const onNotificationSubmit = async (data: z.infer<typeof notificationSchema>) => {
-    if (!user) return;
-    setIsLoading(true);
-
-    try {
-      const { error } = await supabase
-        .from('notification_preferences')
-        .upsert({
-          user_id: user.id,
-          email_notifications: data.emailNotifications,
-          application_updates: data.applicationUpdates,
-          marketing_emails: data.marketingEmails,
-          updated_at: new Date().toISOString(),
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Notification preferences updated successfully',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update notification preferences',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onSecuritySubmit = async (data: z.infer<typeof securitySchema>) => {
-    if (!user) return;
-    setIsLoading(true);
-
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: data.newPassword,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Password updated successfully',
-      });
-
-      securityForm.reset();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update password',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (isLoading) {
+    return (
+      <SettingsLayout basePath="/dashboard/organiser/settings">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
+        </div>
+      </SettingsLayout>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Settings</h2>
-        <p className="text-muted-foreground">
-          Manage your account settings and preferences
-        </p>
-      </div>
+    <SettingsLayout basePath="/dashboard/organiser/settings">
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Profile Settings</h1>
+            <p className="text-gray-600">Manage your organiser profile details</p>
+          </div>
+          {!isEditing && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => setIsEditing(true)}
+            >
+              <Pencil className="h-4 w-4" />
+              Edit Profile
+            </Button>
+          )}
+        </div>
 
-      <Tabs defaultValue="profile" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile</CardTitle>
-              <CardDescription>
-                Update your personal information and profile settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...profileForm}>
-                <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Organiser Information</CardTitle>
+            <CardDescription>Your organiser profile details</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isEditing ? (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
-                    control={profileForm.control}
-                    name="name"
+                    control={form.control}
+                    name="full_name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>Full Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Your name" {...field} />
+                          <Input placeholder="Enter your full name" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          This is your public display name
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <FormField
-                    control={profileForm.control}
+                    control={form.control}
+                    name="company_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your company name" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          The name of your organization
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="Your email" {...field} />
+                          <Input placeholder="Enter your email" type="email" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          Your contact email address
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <FormField
-                    control={profileForm.control}
+                    control={form.control}
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone</FormLabel>
+                        <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="Your phone number" {...field} />
+                          <Input placeholder="Enter your phone number" type="tel" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          Your contact phone number (optional)
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={profileForm.control}
-                    name="company"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Company</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Your company name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={profileForm.control}
-                    name="website"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Website</FormLabel>
-                        <FormControl>
-                          <Input type="url" placeholder="Your website URL" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Saving...' : 'Save Changes'}
-                  </Button>
+                  <div className="flex gap-4">
+                    <Button type="submit">Save Changes</Button>
+                    <Button type="button" variant="outline" onClick={() => {
+                      setIsEditing(false);
+                      form.reset(profileData || undefined);
+                    }}>
+                      Cancel
+                    </Button>
+                  </div>
                 </form>
               </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notifications</CardTitle>
-              <CardDescription>
-                Configure how you receive notifications
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...notificationForm}>
-                <form onSubmit={notificationForm.handleSubmit(onNotificationSubmit)} className="space-y-4">
-                  <FormField
-                    control={notificationForm.control}
-                    name="emailNotifications"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel>Email Notifications</FormLabel>
-                          <FormDescription>
-                            Receive notifications via email
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={notificationForm.control}
-                    name="applicationUpdates"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel>Application Updates</FormLabel>
-                          <FormDescription>
-                            Get notified about stall application updates
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={notificationForm.control}
-                    name="marketingEmails"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel>Marketing Emails</FormLabel>
-                          <FormDescription>
-                            Receive marketing and promotional emails
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Saving...' : 'Save Preferences'}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security">
-          <Card>
-            <CardHeader>
-              <CardTitle>Security</CardTitle>
-              <CardDescription>
-                Update your password and security settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...securityForm}>
-                <form onSubmit={securityForm.handleSubmit(onSecuritySubmit)} className="space-y-4">
-                  <FormField
-                    control={securityForm.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={securityForm.control}
-                    name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={securityForm.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Updating...' : 'Update Password'}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-500">Full Name</p>
+                  <p className="text-base">{profileData?.full_name}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-500">Company Name</p>
+                  <p className="text-base">{profileData?.company_name}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-500">Email</p>
+                  <p className="text-base">{profileData?.email}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-500">Phone Number</p>
+                  <p className="text-base">{profileData?.phone || '-'}</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </SettingsLayout>
   );
 };
 
