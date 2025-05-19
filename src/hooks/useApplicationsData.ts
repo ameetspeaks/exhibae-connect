@@ -65,6 +65,19 @@ export const useApplications = (exhibitionId?: string) => {
               start_date,
               end_date,
               status
+            ),
+            payment_submissions!inner (
+              id,
+              amount,
+              transaction_id,
+              email,
+              proof_file_url,
+              notes,
+              status,
+              rejection_reason,
+              rejection_date,
+              reviewed_at,
+              reviewed_by
             )
           `)
           .in('exhibition_id', exhibitionIds)
@@ -130,9 +143,17 @@ export const useApplications = (exhibitionId?: string) => {
 
   const updateApplication = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: StallApplication['status'] }) => {
+      console.log('Mutation starting with:', { id, status });
+      if (!id || !status) {
+        throw new Error('Invalid parameters: id and status are required');
+      }
+
       const { data: updatedApplication, error } = await supabase
         .from('stall_applications')
-        .update({ status })
+        .update({ 
+          status,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', id)
         .select(`
           *,
@@ -166,12 +187,18 @@ export const useApplications = (exhibitionId?: string) => {
 
       if (error) {
         console.error('Error updating application:', error);
-        throw error;
+        throw new Error(`Failed to update application: ${error.message}`);
       }
+
+      console.log('Update successful:', updatedApplication);
       return updatedApplication;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Mutation succeeded, invalidating queries');
       queryClient.invalidateQueries({ queryKey: ['applications'] });
+    },
+    onError: (error) => {
+      console.error('Mutation failed:', error);
     }
   });
 

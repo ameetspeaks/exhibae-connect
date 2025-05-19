@@ -123,22 +123,9 @@ const BrandDashboard = () => {
       }
 
       // Fetch recent activity with exhibition details
-      const { data, error: activityError } = await supabase
-        .from('brand_activity_log')
-        .select(`
-          id,
-          activity_type,
-          stall_application_id,
-          details,
-          created_at,
-          stall_applications:stall_applications!stall_application_id (
-            exhibition:exhibitions (
-              id,
-              title
-            )
-          )
-        `)
-        .eq('brand_id', user?.id)
+      const { data: activityData, error: activityError } = await supabase
+        .from('brand_activities_secure')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -148,22 +135,19 @@ const BrandDashboard = () => {
       }
 
       // Transform activity data to match our interface
-      const transformedActivityData: BrandActivity[] = (data || []).map(item => {
-        const rawActivity = item as unknown as RawActivityData;
-        return {
-          id: rawActivity.id,
-          activity_type: rawActivity.activity_type,
-          stall_application_id: rawActivity.stall_application_id,
-          details: rawActivity.details,
-          created_at: rawActivity.created_at,
-          stall_applications: rawActivity.stall_applications ? {
-            exhibition: {
-              id: rawActivity.stall_applications.exhibition.id,
-              title: rawActivity.stall_applications.exhibition.title
-            }
-          } : undefined
-        };
-      });
+      const transformedActivityData: BrandActivity[] = (activityData || []).map(item => ({
+        id: item.id,
+        activity_type: item.activity_type,
+        stall_application_id: item.stall_application_id,
+        details: item.details,
+        created_at: item.created_at,
+        stall_applications: item.exhibition_id ? {
+          exhibition: {
+            id: item.exhibition_id,
+            title: item.exhibition_title
+          }
+        } : undefined
+      }));
 
       // Fetch upcoming exhibitions with available stalls
       const { data: exhibitionsData, error: exhibitionsError } = await supabase
@@ -174,7 +158,7 @@ const BrandDashboard = () => {
           start_date,
           end_date,
           address,
-          stalls!inner (
+          stalls (
             id,
             name,
             price,
@@ -193,10 +177,10 @@ const BrandDashboard = () => {
 
       // Process exhibitions to only show those with available stalls
       const exhibitionsWithAvailableStalls = (exhibitionsData || [])
-        .filter(exhibition => exhibition.stalls.some(stall => stall.status === 'available'))
+        .filter(exhibition => exhibition.stalls?.some(stall => stall.status === 'available'))
         .map(exhibition => ({
           ...exhibition,
-          availableStallsCount: exhibition.stalls.filter(stall => stall.status === 'available').length
+          availableStallsCount: exhibition.stalls?.filter(stall => stall.status === 'available').length || 0
         }));
 
       setDashboardData({

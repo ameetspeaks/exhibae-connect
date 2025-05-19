@@ -25,11 +25,10 @@ const bankDetailsSchema = z.object({
   bank_name: z.string().min(2, 'Bank name must be at least 2 characters'),
   account_number: z.string().min(8, 'Account number must be at least 8 characters'),
   ifsc_code: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC code format'),
-  branch: z.string().optional(),
 });
 
 const upiSchema = z.object({
-  upi_address: z.string().regex(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/, 'Invalid UPI address format'),
+  upi_id: z.string().regex(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/, 'Invalid UPI address format'),
 });
 
 type BankDetailsFormData = z.infer<typeof bankDetailsSchema>;
@@ -50,14 +49,13 @@ const PaymentSettings = () => {
       bank_name: '',
       account_number: '',
       ifsc_code: '',
-      branch: '',
     },
   });
 
   const upiForm = useForm<UPIFormData>({
     resolver: zodResolver(upiSchema),
     defaultValues: {
-      upi_address: '',
+      upi_id: '',
     },
   });
 
@@ -70,38 +68,64 @@ const PaymentSettings = () => {
             .from('organiser_bank_details')
             .select('*')
             .eq('organiser_id', user.id)
-            .single(),
+            .eq('is_active', true)
+            .maybeSingle(),
           supabase
             .from('organiser_upi_details')
             .select('*')
             .eq('organiser_id', user.id)
-            .single(),
+            .eq('is_active', true)
+            .maybeSingle(),
         ]);
 
-        if (!bankResponse.error && bankResponse.data) {
+        // Handle bank details
+        if (bankResponse.error && bankResponse.error.code !== 'PGRST116') {
+          // Only throw if it's not a "no results" error
+          throw bankResponse.error;
+        }
+
+        if (bankResponse.data) {
           const bankData = {
             account_holder_name: bankResponse.data.account_holder_name,
             bank_name: bankResponse.data.bank_name,
             account_number: bankResponse.data.account_number,
             ifsc_code: bankResponse.data.ifsc_code,
-            branch: bankResponse.data.branch || '',
           };
           setBankDetails(bankData);
           bankForm.reset(bankData);
+        } else {
+          setBankDetails(null);
+          bankForm.reset({
+            account_holder_name: '',
+            bank_name: '',
+            account_number: '',
+            ifsc_code: '',
+          });
         }
 
-        if (!upiResponse.error && upiResponse.data) {
+        // Handle UPI details
+        if (upiResponse.error && upiResponse.error.code !== 'PGRST116') {
+          // Only throw if it's not a "no results" error
+          throw upiResponse.error;
+        }
+
+        if (upiResponse.data) {
           const upiData = {
-            upi_address: upiResponse.data.upi_address,
+            upi_id: upiResponse.data.upi_id,
           };
           setUpiDetails(upiData);
           upiForm.reset(upiData);
+        } else {
+          setUpiDetails(null);
+          upiForm.reset({
+            upi_id: '',
+          });
         }
       } catch (error) {
         console.error('Error fetching payment details:', error);
         toast({
           title: 'Error',
-          description: 'Failed to load payment details',
+          description: 'Failed to load payment details. Please try refreshing the page.',
           variant: 'destructive',
         });
       } finally {
@@ -118,43 +142,102 @@ const PaymentSettings = () => {
       const bankData = bankForm.getValues();
       const upiData = upiForm.getValues();
 
+      // Handle bank details
+      if (Object.values(bankData).some(value => value !== '')) {
+        // First deactivate all existing active bank details
+        const { error: deactivateBankError } = await supabase
+          .from('organiser_bank_details')
+          .update({ is_active: false })
+          .eq('organiser_id', user.id)
+          .eq('is_active', true);
+
+        if (deactivateBankError) {
+          console.error('Error deactivating bank details:', deactivateBankError);
+          throw deactivateBankError;
+        }
+
+        // Insert new bank details
+        const { error: bankError } = await supabase
+          .from('organiser_bank_details')
+          .insert({
+            organiser_id: user.id,
+            ...bankData,
+            is_active: true,
+          });
+
+        if (bankError) throw bankError;
+      }
+
+      // Handle UPI details
+      if (upiData.upi_id !== '') {
+        // First deactivate all existing active UPI details
+        const { error: deactivateUPIError } = await supabase
+          .from('organiser_upi_details')
+          .update({ is_active: false })
+          .eq('organiser_id', user.id)
+          .eq('is_active', true);
+
+        if (deactivateUPIError) {
+          console.error('Error deactivating UPI details:', deactivateUPIError);
+          throw deactivateUPIError;
+        }
+
+        // Insert new UPI details
+        const { error: upiError } = await supabase
+          .from('organiser_upi_details')
+          .insert({
+            organiser_id: user.id,
+            ...upiData,
+            is_active: true,
+          });
+
+        if (upiError) throw upiError;
+      }
+
+      // Fetch updated data to refresh the view
       const [bankResponse, upiResponse] = await Promise.all([
         supabase
           .from('organiser_bank_details')
-          .upsert({
-            organiser_id: user.id,
-            ...bankData,
-            updated_at: new Date().toISOString(),
-          })
-          .select()
+          .select('*')
+          .eq('organiser_id', user.id)
+          .eq('is_active', true)
           .single(),
         supabase
           .from('organiser_upi_details')
-          .upsert({
-            organiser_id: user.id,
-            ...upiData,
-            updated_at: new Date().toISOString(),
-          })
-          .select()
+          .select('*')
+          .eq('organiser_id', user.id)
+          .eq('is_active', true)
           .single(),
       ]);
 
-      if (bankResponse.error) throw bankResponse.error;
-      if (upiResponse.error) throw upiResponse.error;
+      // Update local state with fresh data
+      if (!bankResponse.error && bankResponse.data) {
+        const bankData = {
+          account_holder_name: bankResponse.data.account_holder_name,
+          bank_name: bankResponse.data.bank_name,
+          account_number: bankResponse.data.account_number,
+          ifsc_code: bankResponse.data.ifsc_code,
+        };
+        setBankDetails(bankData);
+      }
 
-      setBankDetails(bankData);
-      setUpiDetails(upiData);
+      if (!upiResponse.error && upiResponse.data) {
+        const upiData = {
+          upi_id: upiResponse.data.upi_id,
+        };
+        setUpiDetails(upiData);
+      }
+
       setIsEditing(false);
-
       toast({
         title: 'Success',
         description: 'Payment details updated successfully',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating payment details:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update payment details',
+        description: error.message || 'Failed to update payment details',
         variant: 'destructive',
       });
     }
@@ -252,19 +335,6 @@ const PaymentSettings = () => {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={bankForm.control}
-                    name="branch"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Branch (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter branch name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </form>
               </Form>
             ) : (
@@ -285,10 +355,6 @@ const PaymentSettings = () => {
                   <p className="text-sm font-medium text-gray-500">IFSC Code</p>
                   <p className="text-base">{bankDetails?.ifsc_code || '-'}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Branch</p>
-                  <p className="text-base">{bankDetails?.branch || '-'}</p>
-                </div>
               </div>
             )}
           </CardContent>
@@ -305,12 +371,12 @@ const PaymentSettings = () => {
                 <form className="space-y-6">
                   <FormField
                     control={upiForm.control}
-                    name="upi_address"
+                    name="upi_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>UPI Address</FormLabel>
+                        <FormLabel>UPI ID</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter UPI address (e.g., username@upi)" {...field} />
+                          <Input placeholder="Enter UPI ID (e.g., username@upi)" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -320,8 +386,8 @@ const PaymentSettings = () => {
               </Form>
             ) : (
               <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-500">UPI Address</p>
-                <p className="text-base">{upiDetails?.upi_address || '-'}</p>
+                <p className="text-sm font-medium text-gray-500">UPI ID</p>
+                <p className="text-base">{upiDetails?.upi_id || '-'}</p>
               </div>
             )}
           </CardContent>

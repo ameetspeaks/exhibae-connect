@@ -4,12 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PaymentSubmissionForm } from '@/components/exhibitions/PaymentSubmissionForm';
+import { format, isPast } from 'date-fns';
 
 interface Stall {
   id: string;
@@ -47,6 +49,7 @@ const ExhibitionDetail = () => {
   const [stalls, setStalls] = useState<Stall[]>([]);
   const [selectedStall, setSelectedStall] = useState<Stall | null>(null);
   const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [applicationText, setApplicationText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,12 +75,12 @@ const ExhibitionDetail = () => {
       if (exhibitionError) throw exhibitionError;
       setExhibition(exhibitionData);
 
-      // Fetch stalls with their applications
+      // Fetch all stalls with their applications in a single query
       const { data: stallsData, error: stallsError } = await supabase
         .from('stalls')
         .select(`
           *,
-          stall_applications!inner (
+          stall_applications (
             id,
             status,
             brand_id
@@ -85,26 +88,10 @@ const ExhibitionDetail = () => {
         `)
         .eq('exhibition_id', id);
 
-      // Fetch stalls without applications separately
-      const { data: stallsWithoutApps, error: noAppsError } = await supabase
-        .from('stalls')
-        .select('*')
-        .eq('exhibition_id', id)
-        .not('id', 'in', (stallsData || []).map(s => s.id));
-
-      if (stallsError || noAppsError) throw stallsError || noAppsError;
-
-      // Combine stalls with and without applications
-      const allStalls = [
-        ...(stallsData || []),
-        ...(stallsWithoutApps || []).map(stall => ({
-          ...stall,
-          stall_applications: []
-        }))
-      ];
+      if (stallsError) throw stallsError;
 
       // Process stalls to determine their status
-      const processedStalls = allStalls.map(stall => ({
+      const processedStalls = (stallsData || []).map(stall => ({
         ...stall,
         status: determineStallStatus(stall, user?.id)
       }));
@@ -266,6 +253,33 @@ const ExhibitionDetail = () => {
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    const baseClasses = "text-xs px-2 py-1 rounded-full ";
+    switch (status) {
+      case 'pending':
+        return baseClasses + 'bg-yellow-100 text-yellow-800';
+      case 'payment_pending':
+        return baseClasses + 'bg-blue-100 text-blue-800';
+      case 'payment_review':
+        return baseClasses + 'bg-purple-100 text-purple-800';
+      case 'booked':
+        return baseClasses + 'bg-green-100 text-green-800';
+      case 'rejected':
+        return baseClasses + 'bg-red-100 text-red-800';
+      default:
+        return baseClasses + 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setIsPaymentDialogOpen(false);
+    toast({
+      title: 'Payment Submitted',
+      description: 'Your payment details have been submitted for review.',
+    });
+    fetchUserApplications(); // Refresh applications after payment
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -332,23 +346,67 @@ const ExhibitionDetail = () => {
               <div className="grid grid-cols-1 gap-4">
                 {userApplications.map((app) => {
                   const stall = stalls.find(s => s.id === app.stall_id);
+                  const showPaymentButton = app.status === 'payment_pending' && 
+                    app.booking_deadline &&
+                    !isPast(new Date(app.booking_deadline));
+
                   return (
                     <Card key={app.id} className="bg-gray-50">
                       <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium">{stall?.name}</h4>
-                            <p className="text-sm text-gray-600">
-                              Applied: {new Date(app.created_at).toLocaleDateString()}
-                            </p>
+                        <div className="flex flex-col gap-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-medium">{stall?.name}</h4>
+                              <p className="text-sm text-gray-600">
+                                Applied: {new Date(app.created_at).toLocaleDateString()}
+                              </p>
+                              {app.booking_deadline && (
+                                <p className="text-sm text-gray-600">
+                                  Payment Deadline: {format(new Date(app.booking_deadline), 'PPp')}
+                                </p>
+                              )}
+                            </div>
+                            <span className={getStatusBadge(app.status)}>
+                              {app.status.split('_').map(word => 
+                                word.charAt(0).toUpperCase() + word.slice(1)
+                              ).join(' ')}
+                            </span>
                           </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            app.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            app.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
-                          </span>
+
+                          {app.status === 'payment_pending' && (
+                            <Alert>
+                              <AlertDescription>
+                                Please complete the payment to confirm your booking. 
+                                {app.booking_deadline && (
+                                  <> Payment must be made by {format(new Date(app.booking_deadline), 'PPp')}.</>
+                                )}
+                              </AlertDescription>
+                            </Alert>
+                          )}
+
+                          {showPaymentButton && (
+                            <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+                              <DialogTrigger asChild>
+                                <Button className="w-full bg-exhibae-navy hover:bg-opacity-90">
+                                  Make Payment to Confirm Booking
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle>Complete Payment</DialogTitle>
+                                  <DialogDescription>
+                                    Submit your payment details to confirm your stall booking
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <PaymentSubmissionForm
+                                  applicationId={app.id}
+                                  stallPrice={stall?.price || 0}
+                                  exhibitionId={exhibition.id}
+                                  onSuccess={handlePaymentSuccess}
+                                />
+                              </DialogContent>
+                            </Dialog>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

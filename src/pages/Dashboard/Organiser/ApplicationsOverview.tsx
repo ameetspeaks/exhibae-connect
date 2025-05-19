@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useApplications } from '@/hooks/useApplicationsData';
-import { StallApplication } from '@/types/exhibition-management';
+import { ApplicationStatus, StallApplication } from '@/types/stall-applications';
 import { formatDate } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -59,47 +59,75 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PaymentReviewForm } from '@/components/exhibitions/PaymentReviewForm';
+import type { StallApplication as StallApplicationType } from '@/types/stall-applications';
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
-  approved: 'bg-green-100 text-green-800 hover:bg-green-200',
+  payment_pending: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
+  payment_review: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
+  booked: 'bg-green-100 text-green-800 hover:bg-green-200',
   rejected: 'bg-red-100 text-red-800 hover:bg-red-200',
 };
 
 const statusIcons = {
   pending: <Clock className="h-4 w-4" />,
-  approved: <CheckCircle2 className="h-4 w-4" />,
+  payment_pending: <Clock className="h-4 w-4" />,
+  payment_review: <Clock className="h-4 w-4" />,
+  booked: <CheckCircle2 className="h-4 w-4" />,
   rejected: <XCircle className="h-4 w-4" />,
 };
 
-export default function ApplicationsOverview() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  const [selectedApplications, setSelectedApplications] = useState<string[]>([]);
-  const [isBulkActionDialogOpen, setIsBulkActionDialogOpen] = useState(false);
-  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | 'delete' | null>(null);
-  const [selectedApplication, setSelectedApplication] = useState<StallApplication | null>(null);
-  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
-  const { toast } = useToast();
+export default function ApplicationsOverview() {  const [searchTerm, setSearchTerm] = useState('');  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');  const [selectedApplications, setSelectedApplications] = useState<string[]>([]);  const [isBulkActionDialogOpen, setIsBulkActionDialogOpen] = useState(false);  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | 'delete' | null>(null);  const [selectedApplication, setSelectedApplication] = useState<StallApplication | null>(null);  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);  const [isPaymentReviewOpen, setIsPaymentReviewOpen] = useState(false);  const [isUpdating, setIsUpdating] = useState(false);  const { toast } = useToast();
   const {
     applications: { data: applications = [], isLoading },
     updateApplication,
     deleteApplication,
-  } = useApplications();
+  } = useApplications() as unknown as {
+    applications: { data: StallApplicationType[], isLoading: boolean },
+    updateApplication: {
+      mutateAsync: (data: { id: string; status: ApplicationStatus }) => Promise<any>;
+    },
+    deleteApplication: {
+      mutateAsync: (id: string) => Promise<void>;
+    }
+  };
 
-  const handleStatusUpdate = async (id: string, status: StallApplication['status']) => {
-    try {
-      await updateApplication.mutateAsync({ id, status });
-      toast({
-        title: 'Success',
-        description: `Application ${status} successfully`,
-      });
-    } catch (error) {
+  const handleStatusUpdate = async (id: string, status: ApplicationStatus) => {
+    console.log('Attempting to update status:', { id, status });
+    if (!id || !status) {
+      console.error('Invalid parameters for status update:', { id, status });
       toast({
         title: 'Error',
-        description: 'Failed to update application status',
+        description: 'Invalid parameters for status update',
         variant: 'destructive',
       });
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+      console.log('Calling updateApplication.mutateAsync');
+      const result = await updateApplication.mutateAsync({ id, status });
+      console.log('Status update successful, result:', result);
+      
+      toast({
+        title: 'Success',
+        description: `Application ${status.replace('_', ' ')} successfully`,
+      });
+      
+      // Close both dialogs
+      setIsPaymentReviewOpen(false);
+      setIsDetailViewOpen(false);
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update application status',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -130,7 +158,7 @@ export default function ApplicationsOverview() {
           selectedApplications.map(id => 
             updateApplication.mutateAsync({ 
               id, 
-              status: bulkAction === 'approve' ? 'approved' : 'rejected' 
+              status: bulkAction === 'approve' ? 'booked' : 'rejected' 
             })
           )
         );
@@ -169,18 +197,23 @@ export default function ApplicationsOverview() {
     );
   };
 
-  const filteredApplications = applications
-    .filter(app => 
-      (statusFilter === 'all' || app.status === statusFilter) &&
-      (app.brand?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.brand?.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.stall?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+  const filteredApplications = applications.filter(app => {
+    // Status filter
+    if (statusFilter === 'all') return true;
+    return app.status === statusFilter;
+  }).filter(app =>
+    searchTerm === '' ||
+    app.brand?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    app.brand?.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    app.stall?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const stats = {
     total: applications.length,
     pending: applications.filter(app => app.status === 'pending').length,
-    approved: applications.filter(app => app.status === 'approved').length,
+    payment_pending: applications.filter(app => app.status === 'payment_pending').length,
+    payment_review: applications.filter(app => app.status === 'payment_review').length,
+    booked: applications.filter(app => app.status === 'booked').length,
     rejected: applications.filter(app => app.status === 'rejected').length,
   };
 
@@ -236,7 +269,7 @@ export default function ApplicationsOverview() {
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Approved</p>
-                <p className="text-2xl font-bold">{stats.approved}</p>
+                <p className="text-2xl font-bold">{stats.booked}</p>
               </div>
               <div className="p-2 bg-green-100 rounded-full">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -320,8 +353,8 @@ export default function ApplicationsOverview() {
         <Tabs value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)} className="w-[400px]">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="approved">Approved</TabsTrigger>
+            <TabsTrigger value="payment_review">Payment Review</TabsTrigger>
+            <TabsTrigger value="booked">Booked</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
         </Tabs>
@@ -380,9 +413,9 @@ export default function ApplicationsOverview() {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{application.brand?.name}</div>
+                      <div className="font-medium">{application.brand?.full_name}</div>
                       <div className="text-sm text-gray-500">
-                        {application.brand?.company}
+                        {application.brand?.company_name}
                       </div>
                     </div>
                   </TableCell>
@@ -421,44 +454,73 @@ export default function ApplicationsOverview() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {application.status === 'pending' && (
-                          <>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleStatusUpdate(application.id, 'approved')
-                              }
-                              className="text-green-600"
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Approve
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleStatusUpdate(application.id, 'rejected')
-                              }
-                              className="text-red-600"
-                            >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Reject
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => handleDelete(application.id)}
+                    <div className="flex items-center justify-end gap-2">
+                      {application.status === 'payment_review' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isUpdating}
+                          className="flex items-center gap-1 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                          onClick={(e) => {
+                            console.log('Review Payment button clicked', { 
+                              applicationId: application.id,
+                              paymentSubmission: application.payment_submission,
+                              applicationStatus: application.status
+                            });
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Setting selected application:', application);
+                            setSelectedApplication(application);
+                            console.log('Opening payment review dialog');
+                            setIsPaymentReviewOpen(true);
+                          }}
                         >
-                          <Trash className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          {isUpdating ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4" />
+                          )}
+                          Review Payment
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {application.status === 'pending' && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => handleStatusUpdate(application.id, 'payment_pending')}
+                              >
+                                Approve for Payment
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleStatusUpdate(application.id, 'rejected')}
+                              >
+                                Reject
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {application.status === 'payment_pending' && (
+                            <DropdownMenuItem
+                              onClick={() => handleStatusUpdate(application.id, 'payment_review')}
+                            >
+                              Mark as Payment Submitted
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => handleDelete(application.id)}
+                          >
+                            <Trash className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -498,49 +560,111 @@ export default function ApplicationsOverview() {
 
       {/* Application Detail Dialog */}
       <Dialog open={isDetailViewOpen} onOpenChange={setIsDetailViewOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Application Details</DialogTitle>
-            <DialogDescription>
-              Detailed information about the application
-            </DialogDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <DialogTitle>Application Details</DialogTitle>
+                <DialogDescription>
+                  View and manage application details
+                </DialogDescription>
+              </div>
+              {selectedApplication && selectedApplication.status === 'payment_review' && (
+                <Button 
+                  onClick={() => setIsPaymentReviewOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <AlertCircle className="h-4 w-4" />
+                  Review Payment
+                </Button>
+              )}
+            </div>
           </DialogHeader>
-          
-          {selectedApplication && (
-            <ScrollArea className="h-[600px] pr-4">
+
+          <ScrollArea className="max-h-[80vh]">
+            {selectedApplication && (
               <div className="space-y-6">
                 {/* Exhibition Details */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">Exhibition Information</h3>
+                  <h3 className="text-lg font-semibold mb-2">Exhibition</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Title</p>
+                      <p className="text-sm text-muted-foreground">Exhibition Name</p>
                       <p className="font-medium">{selectedApplication.exhibition?.title}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Location</p>
-                      <p className="font-medium">{selectedApplication.exhibition?.location}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Dates</p>
-                      <p className="font-medium">
-                        {selectedApplication.exhibition?.start_date && formatDate(selectedApplication.exhibition.start_date).short} - {selectedApplication.exhibition?.end_date && formatDate(selectedApplication.exhibition.end_date).short}
-                      </p>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <Badge
+                        className={`${
+                          statusColors[selectedApplication.status as keyof typeof statusColors]
+                        }`}
+                      >
+                        {selectedApplication.status.replace('_', ' ').toUpperCase()}
+                      </Badge>
                     </div>
                   </div>
                 </div>
 
-                {/* Brand Details */}
+                {/* Payment Details Section - Show when in payment_review status */}
+                {selectedApplication.status === 'payment_review' && selectedApplication.payment_submission && (
+                  <div className="border rounded-lg p-4 bg-muted/30">
+                    <h3 className="text-lg font-semibold mb-4">Payment Details</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Amount Paid</p>
+                        <p className="font-medium">₹{selectedApplication.payment_submission.amount.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Transaction ID</p>
+                        <p className="font-medium">{selectedApplication.payment_submission.transaction_id}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Payment Email</p>
+                        <p className="font-medium">{selectedApplication.payment_submission.email}</p>
+                      </div>
+                      {selectedApplication.payment_submission.notes && (
+                        <div className="col-span-2">
+                          <p className="text-sm text-muted-foreground">Payment Notes</p>
+                          <p className="mt-1 whitespace-pre-wrap">{selectedApplication.payment_submission.notes}</p>
+                        </div>
+                      )}
+                      {selectedApplication.payment_submission.proof_file_url && (
+                        <div className="col-span-2">
+                          <p className="text-sm text-muted-foreground">Payment Proof</p>
+                          <a
+                            href={selectedApplication.payment_submission.proof_file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline flex items-center gap-2 mt-1"
+                          >
+                            View Payment Proof
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-6 flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsPaymentReviewOpen(true)}
+                        className="flex items-center gap-2"
+                      >
+                        Review Payment
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Brand Information */}
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Brand Information</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Brand Name</p>
-                      <p className="font-medium">{selectedApplication.brand?.name}</p>
+                      <p className="font-medium">{selectedApplication.brand?.full_name}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Company</p>
-                      <p className="font-medium">{selectedApplication.brand?.company}</p>
+                      <p className="font-medium">{selectedApplication.brand?.company_name}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Contact Email</p>
@@ -555,25 +679,21 @@ export default function ApplicationsOverview() {
 
                 {/* Stall Details */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">Stall Information</h3>
+                  <h3 className="text-lg font-semibold mb-2">Stall Details</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Stall Name/Number</p>
+                      <p className="text-sm text-muted-foreground">Stall Name</p>
                       <p className="font-medium">{selectedApplication.stall?.name}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Size</p>
-                      <p className="font-medium">{selectedApplication.stall?.length}x{selectedApplication.stall?.width}</p>
+                      <p className="text-sm text-muted-foreground">Dimensions</p>
+                      <p className="font-medium">
+                        {selectedApplication.stall?.length}×{selectedApplication.stall?.width}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Price</p>
-                      <p className="font-medium">£{selectedApplication.stall?.price}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      <Badge className={statusColors[selectedApplication.status]}>
-                        {selectedApplication.status.charAt(0).toUpperCase() + selectedApplication.status.slice(1)}
-                      </Badge>
+                      <p className="font-medium">₹{selectedApplication.stall?.price?.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -602,41 +722,113 @@ export default function ApplicationsOverview() {
                     </div>
                   </div>
                 </div>
-
-                {/* Action Buttons */}
-                <div className="flex justify-end space-x-2 pt-4">
-                  {selectedApplication.status === 'pending' && (
-                    <>
-                      <Button
-                        variant="outline"
-                        onClick={() => handleStatusUpdate(selectedApplication.id, 'rejected')}
-                        className="bg-red-100 text-red-800 hover:bg-red-200"
-                      >
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Reject
-                      </Button>
-                      <Button
-                        onClick={() => handleStatusUpdate(selectedApplication.id, 'approved')}
-                        className="bg-green-100 text-green-800 hover:bg-green-200"
-                      >
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Approve
-                      </Button>
-                    </>
-                  )}
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleDelete(selectedApplication.id)}
-                  >
-                    <Trash className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
-                </div>
               </div>
-            </ScrollArea>
-          )}
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Review Dialog */}
+      {selectedApplication?.payment_submissions?.[0] && (
+        <Dialog 
+          open={isPaymentReviewOpen} 
+          onOpenChange={(open) => {
+            console.log('Dialog open state changing to:', open, {
+              selectedApplication,
+              paymentSubmission: selectedApplication.payment_submissions?.[0],
+              isPaymentReviewOpen
+            });
+            if (!open) {
+              console.log('Dialog closing, resetting state');
+              setIsUpdating(false);
+            }
+            setIsPaymentReviewOpen(open);
+          }}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Review Payment</DialogTitle>
+              <DialogDescription>
+                Review payment details and take action for application {selectedApplication.id}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Amount Paid</p>
+                  <p className="font-medium">₹{selectedApplication.payment_submissions[0].amount.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Transaction ID</p>
+                  <p className="font-medium">{selectedApplication.payment_submissions[0].transaction_id}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Payment Email</p>
+                  <p className="font-medium">{selectedApplication.payment_submissions[0].email}</p>
+                </div>
+                {selectedApplication.payment_submissions[0].notes && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground">Payment Notes</p>
+                    <p className="mt-1 whitespace-pre-wrap">{selectedApplication.payment_submissions[0].notes}</p>
+                  </div>
+                )}
+                {selectedApplication.payment_submissions[0].proof_file_url && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground">Payment Proof</p>
+                    <a
+                      href={selectedApplication.payment_submissions[0].proof_file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline flex items-center gap-2 mt-1"
+                    >
+                      View Payment Proof
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  disabled={isUpdating}
+                  onClick={() => {
+                    console.log('Rejecting payment for application:', selectedApplication.id);
+                    handleStatusUpdate(selectedApplication.id, 'rejected');
+                  }}
+                  className="bg-red-50 text-red-600 hover:bg-red-100"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Rejecting...
+                    </>
+                  ) : (
+                    'Reject Payment'
+                  )}
+                </Button>
+                <Button
+                  disabled={isUpdating}
+                  onClick={() => {
+                    console.log('Approving payment for application:', selectedApplication.id);
+                    handleStatusUpdate(selectedApplication.id, 'booked');
+                  }}
+                  className="bg-green-600 text-white hover:bg-green-700"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Approving...
+                    </>
+                  ) : (
+                    'Approve Payment'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 } 

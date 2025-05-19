@@ -1,6 +1,21 @@
 import { Stall, StallInstance } from './exhibition-management';
 
-export type ApplicationStatus = 'pending' | 'approved' | 'rejected';
+export type ApplicationStatus = 'pending' | 'payment_pending' | 'payment_review' | 'booked' | 'rejected';
+
+export interface PaymentSubmission {
+  id: string;
+  application_id: string;
+  amount: number;
+  transaction_id: string;
+  email: string;
+  proof_file_url?: string;
+  notes?: string;
+  status: 'pending_review' | 'approved' | 'rejected';
+  rejection_reason?: string;
+  rejection_date?: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+}
 
 export interface StallApplication {
   id: string;
@@ -13,6 +28,7 @@ export interface StallApplication {
   created_at: string;
   updated_at: string;
   exhibition_expiry: boolean;
+  payment_submissions?: PaymentSubmission[];
   stall?: {
     id: string;
     name: string;

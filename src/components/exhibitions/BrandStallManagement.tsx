@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { usePaymentOperations } from '@/hooks/usePaymentOperations';
 import { StallApplication } from '@/types/exhibition-management';
-import { PaymentForm } from './PaymentForm';
+import { PaymentSubmissionForm } from './PaymentSubmissionForm';
 
 export const BrandStallManagement = () => {
   const { toast } = useToast();
@@ -91,38 +91,18 @@ export const BrandStallManagement = () => {
 
 const StallCard = ({ application }: { application: StallApplication }) => {
   const { toast } = useToast();
-  const paymentOps = usePaymentOperations(application.id);
-
-  const handlePaymentSubmit = async (data: {
-    amount: number;
-    payment_method: string;
-    reference_number?: string;
-  }) => {
-    try {
-      await paymentOps.createPayment.mutateAsync(data);
-      toast({
-        title: 'Payment submitted',
-        description: 'Your payment is being processed.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to submit payment',
-        variant: 'destructive',
-      });
-    }
-  };
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
 
   const getStatusBadge = () => {
     switch (application.status) {
       case 'pending':
         return <Badge className="bg-yellow-100 text-yellow-800">Under Review</Badge>;
-      case 'approved':
-        return application.booking_confirmed ? (
-          <Badge className="bg-green-100 text-green-800">Confirmed</Badge>
-        ) : (
-          <Badge className="bg-blue-100 text-blue-800">Payment Required</Badge>
-        );
+      case 'payment_pending':
+        return <Badge className="bg-blue-100 text-blue-800">Payment Required</Badge>;
+      case 'payment_review':
+        return <Badge className="bg-purple-100 text-purple-800">Payment Under Review</Badge>;
+      case 'booked':
+        return <Badge className="bg-green-100 text-green-800">Booked</Badge>;
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
       default:
@@ -130,101 +110,113 @@ const StallCard = ({ application }: { application: StallApplication }) => {
     }
   };
 
-  const showPaymentButton = application.status === 'approved' && 
-    !application.booking_confirmed &&
+  const showPaymentButton = application.status === 'payment_pending' && 
     application.booking_deadline &&
     !isPast(new Date(application.booking_deadline));
 
+  const handlePaymentSuccess = () => {
+    setIsPaymentDialogOpen(false);
+    toast({
+      title: 'Payment Submitted',
+      description: 'Your payment details have been submitted for review.',
+    });
+  };
+
   return (
     <Card>
-      <CardHeader>
+      <CardContent className="space-y-4 pt-6">
+        {/* Application Status */}
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle>{application.stall?.name}</CardTitle>
-            <CardDescription>{application.exhibition?.title}</CardDescription>
+            <h3 className="font-medium">Application Status</h3>
+            <div className="mt-2">{getStatusBadge()}</div>
           </div>
-          {getStatusBadge()}
+          {application.booking_deadline && (
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Booking Deadline</p>
+              <p className="font-medium">
+                {format(new Date(application.booking_deadline), 'PPP')}
+              </p>
+            </div>
+          )}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <div className="text-sm text-muted-foreground">
-            Exhibition Dates:
+
+        {/* Stall Details */}
+        <div>
+          <h3 className="font-medium mb-2">Stall Details</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Name/Number</p>
+              <p className="font-medium">{application.stall?.name}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Size</p>
+              <p className="font-medium">
+                {application.stall?.length}×{application.stall?.width}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Price</p>
+              <p className="font-medium">₹{application.stall?.price?.toLocaleString()}</p>
+            </div>
           </div>
+        </div>
+
+        {/* Payment Status */}
+        {application.payment_status && (
           <div>
-            {application.exhibition?.start_date && application.exhibition?.end_date && (
-              <>
-                {format(new Date(application.exhibition.start_date), 'PPP')} -
-                {format(new Date(application.exhibition.end_date), 'PPP')}
-              </>
+            <h3 className="font-medium mb-2">Payment Status</h3>
+            <Badge className={
+              application.payment_status === 'completed'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-yellow-100 text-yellow-800'
+            }>
+              {application.payment_status === 'completed' && (
+                <CheckCircle2 className="mr-1 h-3 w-3" />
+              )}
+              {application.payment_status.charAt(0).toUpperCase() + application.payment_status.slice(1)}
+            </Badge>
+            {application.payment_amount && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Amount Paid: ₹{application.payment_amount.toLocaleString()}
+              </p>
             )}
           </div>
-        </div>
-        <div className="space-y-2">
-          <div className="text-sm text-muted-foreground">
-            Stall Details:
-          </div>
-          <div>
-            {application.stall?.length} × {application.stall?.width} {application.stall?.unit?.symbol}
-          </div>
-          <div className="font-semibold">
-            ${application.stall?.price.toLocaleString()}
-          </div>
-        </div>
-        {application.booking_deadline && !application.booking_confirmed && (
-          <Alert className={isPast(new Date(application.booking_deadline)) ? 'bg-red-50' : 'bg-yellow-50'}>
-            <Clock className="h-4 w-4" />
-            <AlertTitle>Payment Deadline</AlertTitle>
-            <AlertDescription>
-              {isPast(new Date(application.booking_deadline))
-                ? 'Payment deadline has passed'
-                : `Payment due by ${format(new Date(application.booking_deadline), 'PPP p')}`}
-            </AlertDescription>
-          </Alert>
         )}
-        {application.payment_status !== 'pending' && (
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">
-              Payment Status:
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className={
-                application.payment_status === 'completed'
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-yellow-100 text-yellow-800'
-              }>
-                {application.payment_status === 'completed' ? (
-                  <CheckCircle2 className="mr-1 h-3 w-3" />
-                ) : null}
-                {application.payment_status.charAt(0).toUpperCase() + application.payment_status.slice(1)}
-              </Badge>
-              {application.payment_amount && (
-                <span className="text-sm text-muted-foreground">
-                  (${application.payment_amount.toLocaleString()} paid)
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-      </CardContent>
-      {showPaymentButton && (
-        <CardFooter>
-          <Dialog>
+
+        {/* Payment Button */}
+        {showPaymentButton && (
+          <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full">Pay to Confirm Booking</Button>
+              <Button className="w-full">Make Payment</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Complete Payment</DialogTitle>
               </DialogHeader>
-              <PaymentForm
-                stallPrice={application.stall?.price ?? 0}
-                onSubmit={handlePaymentSubmit}
+              <PaymentSubmissionForm
+                applicationId={application.id}
+                stallPrice={application.stall?.price || 0}
+                exhibitionId={application.exhibition_id}
+                onSuccess={handlePaymentSuccess}
               />
             </DialogContent>
           </Dialog>
-        </CardFooter>
-      )}
+        )}
+
+        {/* Deadline Warning */}
+        {application.status === 'payment_pending' && application.booking_deadline && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Please complete the payment before{' '}
+              {format(new Date(application.booking_deadline), 'PPP')} to secure your booking.
+            </AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
     </Card>
   );
-}; 
+};
+
+export default StallCard; 

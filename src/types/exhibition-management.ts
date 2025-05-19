@@ -184,7 +184,7 @@ export interface StallApplication {
   stall_id: string;
   brand_id: string;
   exhibition_id: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'payment_pending' | 'payment_review' | 'booked' | 'rejected';
   message?: string;
   preferred_location?: string;
   requirements: any[];
