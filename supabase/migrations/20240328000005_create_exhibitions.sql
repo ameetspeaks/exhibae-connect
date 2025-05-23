@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS exhibitions (
     measuring_unit_id UUID REFERENCES measurement_units(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-    CONSTRAINT valid_status CHECK (status IN ('draft', 'published', 'archived')),
+    CONSTRAINT valid_status CHECK (status IN ('draft', 'published', 'archived', 'expired')),
     CONSTRAINT valid_dates CHECK (end_date > start_date)
 );
 

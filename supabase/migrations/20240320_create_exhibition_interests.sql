@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS public.exhibition_interests;
 CREATE TABLE IF NOT EXISTS public.exhibition_interests (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     exhibition_id UUID NOT NULL REFERENCES public.exhibitions(id) ON DELETE CASCADE,
-    brand_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    brand_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     notes TEXT,
     UNIQUE(exhibition_id, brand_id)
@@ -46,5 +46,4 @@ CREATE INDEX idx_exhibition_interests_exhibition_id ON public.exhibition_interes
 CREATE INDEX idx_exhibition_interests_brand_id ON public.exhibition_interests(brand_id);
 
 -- Grant permissions
-GRANT ALL ON public.exhibition_interests TO authenticated;
-GRANT USAGE ON SEQUENCE exhibition_interests_id_seq TO authenticated; 
+GRANT ALL ON public.exhibition_interests TO authenticated; 

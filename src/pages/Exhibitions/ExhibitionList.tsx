@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Tag } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Tag, Map, Search, Loader2, Heart } from 'lucide-react';
 import { ExhibitionFilters } from '@/components/exhibitions/ExhibitionFilters';
+import { useExhibitionFavorite } from '@/hooks/useExhibitionFavorite';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -153,48 +153,13 @@ export default function ExhibitionList() {
       {/* Exhibitions Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {visibleExhibitions?.map((exhibition, index) => (
-          <Card 
+          <ExhibitionCard 
             key={exhibition.id}
-            ref={index === visibleExhibitions.length - 1 ? lastExhibitionRef : null}
-            className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => navigate(`/exhibitions/${exhibition.id}`)}
-          >
-            <AspectRatio ratio={3/2}>
-              <img
-                src={exhibition.banner_image || '/placeholder-exhibition.jpg'}
-                alt={exhibition.title}
-                className="w-full h-full object-cover"
-              />
-            </AspectRatio>
-            <CardContent className="p-4">
-              <div className="space-y-2">
-                <div className="flex gap-2 flex-wrap">
-                  {exhibition.event_type && (
-                    <Badge variant="outline">
-                      <Tag className="w-3 h-3 mr-1" />
-                      {exhibition.event_type.name}
-                    </Badge>
-                  )}
-                  {exhibition.venue_type && (
-                    <Badge variant="outline">
-                      {exhibition.venue_type.name}
-                    </Badge>
-                  )}
-                </div>
-                <h3 className="font-semibold line-clamp-2">{exhibition.title}</h3>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4 mr-1" />
-                  <span>{exhibition.city}, {exhibition.state}</span>
-                </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4 mr-1" />
-                  <span>
-                    {format(new Date(exhibition.start_date), 'MMM d')} - {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            exhibition={exhibition}
+            isLast={index === visibleExhibitions.length - 1}
+            lastExhibitionRef={lastExhibitionRef}
+            onNavigate={() => navigate(`/exhibitions/${exhibition.id}`)}
+          />
         ))}
       </div>
 
@@ -220,3 +185,74 @@ export default function ExhibitionList() {
     </div>
   );
 }
+
+interface ExhibitionCardProps {
+  exhibition: any;
+  isLast: boolean;
+  lastExhibitionRef: React.RefObject<HTMLDivElement>;
+  onNavigate: () => void;
+}
+
+const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNavigate }: ExhibitionCardProps) => {
+  const { isFavorite, toggleFavorite, isSubmitting } = useExhibitionFavorite(exhibition.id);
+
+  return (
+    <Card 
+      ref={isLast ? lastExhibitionRef : null}
+      className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow relative"
+      onClick={onNavigate}
+    >
+      <AspectRatio ratio={3/2}>
+        <img
+          src={exhibition.banner_image || '/placeholder-exhibition.jpg'}
+          alt={exhibition.title}
+          className="w-full h-full object-cover"
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2 bg-white/80 hover:bg-white/90 h-8 w-8 rounded-full"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavorite();
+          }}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Heart className={`h-4 w-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+          )}
+        </Button>
+      </AspectRatio>
+      <CardContent className="p-4">
+        <div className="space-y-2">
+          <div className="flex gap-2 flex-wrap">
+            {exhibition.event_type && (
+              <Badge variant="outline">
+                <Tag className="w-3 h-3 mr-1" />
+                {exhibition.event_type.name}
+              </Badge>
+            )}
+            {exhibition.venue_type && (
+              <Badge variant="outline">
+                {exhibition.venue_type.name}
+              </Badge>
+            )}
+          </div>
+          <h3 className="font-semibold line-clamp-2">{exhibition.title}</h3>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <MapPin className="w-4 h-4 mr-1" />
+            <span>{exhibition.city}, {exhibition.state}</span>
+          </div>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Calendar className="w-4 h-4 mr-1" />
+            <span>
+              {format(new Date(exhibition.start_date), 'MMM d')} - {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};

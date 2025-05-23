@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppNotification } from '@/types/notification';
-import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react';
+import { useUser } from '@supabase/auth-helpers-react';
+import { playNotificationSound, requestNotificationPermission } from '@/services/notificationSoundService';
+import { useAuth } from '@/integrations/supabase/AuthProvider';
+import { useNotificationSettings } from './useNotificationSettings';
+import { RealtimeChannel } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NotificationContextType {
   notifications: AppNotification[];
@@ -14,125 +19,202 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const supabase = useSupabaseClient();
-  const user = useUser();
+  const { user } = useAuth();
+  const { isEnabled } = useNotificationSettings();
+  const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
+  const hasInitialized = useRef(false);
+  const hasFetchedNotifications = useRef(false);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
+  // Effect for realtime subscription
   useEffect(() => {
-    if (!user) return;
+    // Prevent multiple initializations
+    if (!user || hasInitialized.current) return;
+    
+    hasInitialized.current = true;
 
-    // Subscribe to new notifications
-    const channel = supabase
-      .channel(`user_notifications:${user.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user.id}`,
-      }, async (payload) => {
-        const newNotification = payload.new as AppNotification;
+    // Request notification permission on mount
+    requestNotificationPermission();
+
+    // Only setup realtime subscriptions if supabase.channel function exists
+    if (typeof supabase.channel === 'function') {
+      try {
+        const channelName = `user_notifications_${user.id}`;
         
-        // Show desktop notification if permission granted
-        if (Notification.permission === 'granted') {
-          new Notification(newNotification.title, {
-            body: newNotification.message,
-            icon: '/favicon.ico', // Update with your app's icon
+        // Set up realtime subscription
+        const channel = supabase
+          .channel(channelName)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          }, (payload) => {
+            const newNotification = payload.new as AppNotification;
+            const eventType = newNotification.type;
+            
+            // Check manager role
+            const isManager = user.app_metadata?.role === 'MANAGER';
+            
+            // Only show browser notification if it's enabled for user's role
+            if (isEnabled('desktop_notifications') && 
+                isEnabled(`${eventType}_enabled` as any)) {
+              
+              // For managers, show desktop notifications with custom icon
+              if (isManager && Notification.permission === 'granted') {
+                // Show browser notification
+                new Notification(newNotification.title, {
+                  body: newNotification.message,
+                  icon: '/favicon.ico', // Update with your app's icon
+                });
+              }
+              
+              // Play notification sound if enabled
+              if (isEnabled('sound_enabled') && isManager) {
+                playNotificationSound(newNotification.type);
+              }
+            }
+
+            setNotifications(prev => [newNotification, ...prev]);
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('Successfully subscribed to notifications channel');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('Failed to subscribe to notifications channel');
+            }
           });
-        }
-
-        setNotifications(prev => [newNotification, ...prev]);
-      })
-      .subscribe();
-
-    // Fetch existing notifications
-    fetchNotifications();
-
+        
+        setRealtimeChannel(channel);
+      } catch (error) {
+        console.error('Error setting up realtime subscription:', error);
+      }
+    } else {
+      console.warn('Realtime functionality is not available - notifications will be fetched on page load only');
+    }
+    
     return () => {
-      supabase.removeChannel(channel);
+      // Clean up subscription
+      if (realtimeChannel && typeof supabase.removeChannel === 'function') {
+        try {
+          supabase.removeChannel(realtimeChannel);
+        } catch (error) {
+          console.error('Error removing channel:', error);
+        }
+      }
+      hasInitialized.current = false;
     };
-  }, [user, supabase]);
+  }, [user?.id]); // Only depend on user.id, not the entire user object or isEnabled
+
+  // Separate effect for fetching notifications
+  useEffect(() => {
+    if (!user || hasFetchedNotifications.current) return;
+    
+    fetchNotifications();
+    hasFetchedNotifications.current = true;
+    
+    return () => {
+      hasFetchedNotifications.current = false;
+    };
+  }, [user?.id]);
 
   const fetchNotifications = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-    if (error) {
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        return;
+      }
+
+      setNotifications(data || []);
+    } catch (error) {
       console.error('Error fetching notifications:', error);
-      return;
     }
-
-    setNotifications(data);
   };
 
   const markAsRead = async (id: string) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', id)
-      .eq('user_id', user.id);
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', id)
+        .eq('user_id', user.id);
 
-    if (error) {
+      if (error) {
+        console.error('Error marking notification as read:', error);
+        return;
+      }
+
+      setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
+      );
+    } catch (error) {
       console.error('Error marking notification as read:', error);
-      return;
     }
-
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, isRead: true } : n))
-    );
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', user.id)
-      .eq('is_read', false);
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
 
-    if (error) {
+      if (error) {
+        console.error('Error marking all notifications as read:', error);
+        return;
+      }
+
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, isRead: true }))
+      );
+    } catch (error) {
       console.error('Error marking all notifications as read:', error);
-      return;
     }
-
-    setNotifications(prev =>
-      prev.map(n => ({ ...n, isRead: true }))
-    );
   };
 
   const addNotification = async (notification: Omit<AppNotification, 'id' | 'createdAt' | 'isRead'>) => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert([
-        {
-          user_id: user.id,
-          title: notification.title,
-          message: notification.message,
-          type: notification.type,
-          link: notification.link,
-          is_read: false,
-        },
-      ])
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert([
+          {
+            user_id: user.id,
+            title: notification.title,
+            message: notification.message,
+            type: notification.type,
+            link: notification.link,
+            is_read: false,
+          },
+        ])
+        .select()
+        .single();
 
-    if (error) {
+      if (error) {
+        console.error('Error adding notification:', error);
+        return;
+      }
+
+      setNotifications(prev => [data as AppNotification, ...prev]);
+    } catch (error) {
       console.error('Error adding notification:', error);
-      return;
     }
-
-    setNotifications(prev => [data as AppNotification, ...prev]);
   };
 
   return (

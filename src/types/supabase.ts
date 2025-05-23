@@ -20,6 +20,29 @@ export interface Database {
           updated_at: string
         }
       }
+      exhibition_attending: {
+        Row: {
+          id: string
+          user_id: string
+          exhibition_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          exhibition_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          exhibition_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
       stall_applications: {
         Row: {
           id: string

@@ -74,6 +74,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
       [UserRole.MANAGER]: '/auth/manager/login',
       [UserRole.ORGANISER]: '/auth/login',
       [UserRole.BRAND]: '/auth/login',
+      [UserRole.SHOPPER]: '/auth/login',
     };
 
     // Get the first required role and redirect to its login page

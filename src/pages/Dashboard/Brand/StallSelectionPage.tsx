@@ -170,7 +170,7 @@ const StallSelectionPage: React.FC = () => {
                     </Button>
                     <Button 
                       onClick={handleApply}
-                      disabled={submitApplication.isPending || !applicationMessage.trim()}
+                      disabled={submitApplication.isPending}
                     >
                       {submitApplication.isPending ? (
                         <>

@@ -4,8 +4,9 @@ import { useGalleryImages } from '@/hooks/useGalleryData';
 import { useStalls } from '@/hooks/useStallsData';
 import { useStallInstances } from '@/hooks/useStallsData';
 import { useStallInstanceOperations } from '@/hooks/useStallInstanceOperations';
+import { useExhibitionAttendance } from '@/hooks/useExhibitionAttendance';
 import { format } from 'date-fns';
-import { Loader2, MapPin, Calendar, Tag, Info } from 'lucide-react';
+import { Loader2, MapPin, Calendar, Tag, Info, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,17 +35,34 @@ export default function ExhibitionDetail() {
   const { data: stallInstances, refetch: refetchInstances } = useStallInstances(id!);
   const { applyForStall } = useStallInstanceOperations(id!);
   const { user } = useAuth();
+  const { 
+    isAttending, 
+    toggleAttendance, 
+    isSubmitting: isAttendanceSubmitting,
+    attendanceCount 
+  } = useExhibitionAttendance(id!);
+  
   const [selectedStall, setSelectedStall] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasRegisteredInterest, setHasRegisteredInterest] = useState(false);
+  const [organiser, setOrganiser] = useState<any>(null);
+  const [isLoadingOrganiser, setIsLoadingOrganiser] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   // Function to check if user is a brand
   const isBrand = () => {
     if (!user) return false;
     const role = user.user_metadata?.role || 'shopper';
     return role.toLowerCase() === UserRole.BRAND.toLowerCase();
+  };
+
+  // Function to check if user is a shopper
+  const isShopper = () => {
+    if (!user) return false;
+    const role = user.user_metadata?.role || 'shopper';
+    return role.toLowerCase() === UserRole.SHOPPER.toLowerCase();
   };
 
   // Function to check if user is an organiser or manager
@@ -78,14 +96,14 @@ export default function ExhibitionDetail() {
   };
 
   const handleApplicationSubmit = async () => {
-    if (!selectedStall || !user || !applicationMessage.trim()) return;
+    if (!selectedStall || !user) return;
 
     setIsSubmitting(true);
     try {
       console.log('Submitting application for stall:', selectedStall);
       await applyForStall.mutateAsync({
         stallInstanceId: selectedStall.instance_id,
-        message: applicationMessage
+        message: applicationMessage.trim() || '' // Allow empty message
       });
 
       toast({
@@ -174,6 +192,130 @@ export default function ExhibitionDetail() {
 
     checkInterestStatus();
   }, [user, id]);
+
+  useEffect(() => {
+    const fetchOrganiser = async () => {
+      if (!exhibition?.organiser_id) return;
+      setIsLoadingOrganiser(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          full_name,
+          company_name,
+          avatar_url,
+          description,
+          website_url,
+          facebook_url,
+          followers_count,
+          attendees_hosted
+        `)
+        .eq('id', exhibition.organiser_id)
+        .single();
+      if (error) {
+        console.error('Error fetching organiser details:', error);
+      } else {
+        setOrganiser(data);
+      }
+      setIsLoadingOrganiser(false);
+    };
+    if (exhibition) fetchOrganiser();
+  }, [exhibition]);
+
+  // Check if user is following the organiser
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      if (!user || !organiser) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('organiser_followers')
+          .select('*')
+          .eq('organiser_id', organiser.id)
+          .eq('follower_id', user.id)
+          .single();
+        
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+          throw error;
+        }
+        
+        setIsFollowing(!!data);
+      } catch (error) {
+        console.error('Error checking follow status:', error);
+      }
+    };
+    
+    checkFollowStatus();
+  }, [user, organiser]);
+
+  // Handle follow/unfollow
+  const handleFollow = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to follow this organiser.",
+        variant: "destructive"
+      });
+      navigate('/auth');
+      return;
+    }
+    
+    if (!organiser) {
+      toast({
+        title: "Error",
+        description: "Organiser information not available.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      
+      if (isFollowing) {
+        // Unfollow
+        const { error } = await supabase
+          .from('organiser_followers')
+          .delete()
+          .eq('organiser_id', organiser.id)
+          .eq('follower_id', user.id);
+          
+        if (error) throw error;
+        
+        setIsFollowing(false);
+        toast({
+          title: "Unfollowed",
+          description: `You no longer follow ${organiser.full_name || organiser.company_name}`
+        });
+      } else {
+        // Follow
+        const { error } = await supabase
+          .from('organiser_followers')
+          .insert({
+            organiser_id: organiser.id,
+            follower_id: user.id,
+            created_at: new Date().toISOString()
+          });
+          
+        if (error) throw error;
+        
+        setIsFollowing(true);
+        toast({
+          title: "Following",
+          description: `You are now following ${organiser.full_name || organiser.company_name}`
+        });
+      }
+    } catch (error: any) {
+      console.error('Error following/unfollowing:', error);
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred while processing your request.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (isLoadingExhibition) {
     return (
@@ -342,20 +484,50 @@ export default function ExhibitionDetail() {
                       Click on an available stall to apply. Color codes: Light Blue - Available, Yellow - Pending, Red - Booked
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {stallInstances && stallInstances.length > 0 ? (
-                      <StallLayout
-                        stallInstances={stallInstances}
-                        onStallSelect={handleStallSelect}
-                        selectedInstanceId={selectedStall?.instance_id}
-                        isEditable={false}
-                        userRole="brand"
-                      />
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No stall layout available. Please contact the organizer.
+                  <CardContent className="space-y-6">
+                    {/* Layout Images */}
+                    {galleryImages && galleryImages.filter(img => img.image_type === 'layout').length > 0 ? (
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Layout Overview</h3>
+                        <Carousel>
+                          <CarouselContent>
+                            {galleryImages
+                              .filter(img => img.image_type === 'layout')
+                              .map((image) => (
+                                <CarouselItem key={image.id}>
+                                  <AspectRatio ratio={16/9}>
+                                    <img 
+                                      src={image.image_url} 
+                                      alt="Layout" 
+                                      className="w-full h-full object-contain rounded-md"
+                                    />
+                                  </AspectRatio>
+                                </CarouselItem>
+                              ))}
+                          </CarouselContent>
+                          <CarouselPrevious />
+                          <CarouselNext />
+                        </Carousel>
                       </div>
-                    )}
+                    ) : null}
+
+                    {/* Interactive Stall Layout */}
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Interactive Layout</h3>
+                      {stallInstances && stallInstances.length > 0 ? (
+                        <StallLayout
+                          stallInstances={stallInstances}
+                          onStallSelect={handleStallSelect}
+                          selectedInstanceId={selectedStall?.instance_id}
+                          isEditable={false}
+                          userRole="brand"
+                        />
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No stall layout available. Please contact the organizer.
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -363,8 +535,132 @@ export default function ExhibitionDetail() {
           </Tabs>
         </div>
 
-        {/* Right Column - Quick Info */}
+        {/* Right Column - Organiser Card + Quick Info */}
         <div className="space-y-6">
+          {/* Organiser Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Organized by</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingOrganiser ? (
+                <div className="text-center py-4">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                  <p className="text-sm text-muted-foreground mt-2">Loading organiser details...</p>
+                </div>
+              ) : organiser ? (
+                <div className="flex flex-col items-start gap-4">
+                  <div className="flex items-center gap-3">
+                    {organiser.avatar_url ? (
+                      <img 
+                        src={organiser.avatar_url} 
+                        alt={organiser.full_name || organiser.company_name} 
+                        className="w-14 h-14 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center">
+                        <span className="text-xl font-semibold text-muted-foreground">
+                          {(organiser.full_name || organiser.company_name || "O").charAt(0)}
+                        </span>
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-semibold text-lg">{organiser.full_name || organiser.company_name}</h3>
+                      <div className="text-sm text-muted-foreground">
+                        {organiser.full_name && organiser.company_name ? organiser.company_name : ''}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-6 text-sm">
+                    <div>
+                      <span className="font-bold">{organiser.attendees_hosted || '17.8k'}</span> attendees hosted
+                    </div>
+                  </div>
+                  
+                  <div className="text-muted-foreground text-sm">
+                    {organiser.description || 
+                     'We bring together many of the nation\'s leading authorities on legal and financial strategies that will make you more secure, financially stable and give you peace of mind.'}
+                  </div>
+                  
+                  <div className="flex gap-3 mt-2">
+                    {organiser.facebook_url && (
+                      <a 
+                        href={organiser.facebook_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-600 hover:text-blue-800"
+                        aria-label="Facebook"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                          <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                        </svg>
+                      </a>
+                    )}
+                    {organiser.website_url && (
+                      <a 
+                        href={organiser.website_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-gray-600 hover:text-gray-800"
+                        aria-label="Website"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="2" y1="12" x2="22" y2="12"></line>
+                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                      </a>
+                    )}
+                    {!organiser.facebook_url && !organiser.website_url && (
+                      <>
+                        <a 
+                          href="#" 
+                          className="text-blue-600 hover:text-blue-800"
+                          aria-label="Facebook"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                          </svg>
+                        </a>
+                        <a 
+                          href="#" 
+                          className="text-gray-600 hover:text-gray-800"
+                          aria-label="Website"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                          </svg>
+                        </a>
+                      </>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2 mt-2">
+                    <Button 
+                      className={`w-full ${isFollowing ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                      onClick={handleFollow}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {isFollowing ? 'Unfollowing...' : 'Following...'}
+                        </>
+                      ) : (
+                        isFollowing ? 'Following' : 'Follow'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-muted-foreground">No organiser details found</div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Quick Information</CardTitle>
@@ -401,30 +697,56 @@ export default function ExhibitionDetail() {
                     </div>
                   </div>
                 )}
+                
+                <div className="flex items-start space-x-3">
+                  <Users className="w-5 h-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium">Attendees</p>
+                    <p className="text-sm text-muted-foreground">{attendanceCount} people going</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
-              {isBrand() ? (
-                hasRegisteredInterest ? (
-                  <Button className="w-full" size="lg" disabled>
-                    Interest Registered
-                  </Button>
-                ) : (
+              {user ? (
+                // Brand user button
+                isBrand() ? (
+                  hasRegisteredInterest ? (
+                    <Button className="w-full" size="lg" disabled>
+                      Interest Registered
+                    </Button>
+                  ) : (
+                    <Button 
+                      className="w-full" 
+                      size="lg" 
+                      onClick={handleRegisterInterest}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Registering..." : "Register Interest"}
+                    </Button>
+                  )
+                ) : 
+                // Shopper user button
+                isShopper() ? (
                   <Button 
                     className="w-full" 
                     size="lg" 
-                    onClick={handleRegisterInterest}
-                    disabled={isSubmitting}
+                    onClick={toggleAttendance}
+                    disabled={isAttendanceSubmitting}
+                    variant={isAttending ? "secondary" : "default"}
                   >
-                    {isSubmitting ? "Registering..." : "Register Interest"}
+                    {isAttendanceSubmitting ? "Updating..." : (isAttending ? "Going ✓" : "Love to Go")}
                   </Button>
-                )
-              ) : !isOrganiserOrManager() && (
+                ) : 
+                // No button for organiser and manager
+                null
+              ) : (
+                // Guest user button - redirects to auth
                 <Button className="w-full" size="lg" onClick={() => navigate('/auth')}>
-                  Sign in as Brand to Register Interest
+                  Sign in to Register
                 </Button>
               )}
             </CardContent>
@@ -481,7 +803,7 @@ export default function ExhibitionDetail() {
             </Button>
             <Button
               onClick={handleApplicationSubmit}
-              disabled={isSubmitting || !applicationMessage.trim()}
+              disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <>

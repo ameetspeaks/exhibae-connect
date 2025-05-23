@@ -62,12 +62,6 @@ const ExhibitionDetail = () => {
             {exhibition.status.charAt(0).toUpperCase() + exhibition.status.slice(1)}
           </Badge>
           <Button variant="outline" asChild>
-            <a href={`/dashboard/manager/exhibitions/${id}/applications`}>
-              <ClipboardList className="h-4 w-4 mr-2" />
-              View Applications
-            </a>
-          </Button>
-          <Button variant="outline" asChild>
             <a href={`/dashboard/manager/exhibitions/${id}/edit`}>
               <Pencil className="h-4 w-4 mr-2" />
               Edit
@@ -133,10 +127,10 @@ const ExhibitionDetail = () => {
                 </div>
               )}
 
-              {exhibition.organiser && (
+              {exhibition.organiser_id && (
                 <div>
                   <h3 className="font-medium">Organiser</h3>
-                  <p className="text-sm">{exhibition.organiser.full_name}</p>
+                  <p className="text-sm">{exhibition.organiser_id}</p>
                 </div>
               )}
             </CardContent>
@@ -152,23 +146,34 @@ const ExhibitionDetail = () => {
             <CardContent>
               {isLoadingStalls ? (
                 <div className="text-center py-4">Loading stalls...</div>
-              ) : !stalls || stalls.length === 0 ? (
-                <div className="text-center py-4">No stalls have been added yet.</div>
+              ) : !stalls?.length ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  No stalls have been configured yet.
+                </div>
               ) : (
-                <div className="space-y-4">
-                  {stalls.map(stall => (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {stalls.map((stall) => (
                     <Card key={stall.id}>
-                      <CardContent className="p-4">
-                        <div className="flex justify-between">
-                          <div>
-                            <h4 className="font-medium">{stall.name}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {stall.length} × {stall.width} {stall.unit?.abbreviation || ''}
-                            </p>
+                      <CardHeader>
+                        <CardTitle className="text-lg">{stall.name}</CardTitle>
+                        <CardDescription>
+                          {stall.length}×{stall.width} {stall.unit?.symbol}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Price</span>
+                            <span className="font-medium">₹{stall.price}</span>
                           </div>
-                          <div className="text-right">
-                            <p className="font-bold">₹{stall.price.toFixed(2)}</p>
-                            <p className="text-sm text-muted-foreground">{stall.quantity} available</p>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Status</span>
+                            <Badge variant="outline" className={
+                              stall.status === 'available' ? 'bg-green-100 text-green-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }>
+                              {stall.status.charAt(0).toUpperCase() + stall.status.slice(1)}
+                            </Badge>
                           </div>
                         </div>
                       </CardContent>
@@ -188,50 +193,23 @@ const ExhibitionDetail = () => {
             <CardContent>
               {isLoadingGallery ? (
                 <div className="text-center py-4">Loading gallery...</div>
-              ) : !galleryImages || galleryImages.length === 0 ? (
-                <div className="text-center py-4">No images have been added yet.</div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {galleryImages.filter(img => img.image_type === 'gallery').slice(0, 4).map(image => (
-                    <div key={image.id} className="aspect-square">
-                      <img 
-                        src={image.image_url} 
-                        alt="Gallery" 
-                        className="w-full h-full object-cover rounded"
-                      />
-                    </div>
-                  ))}
-                  {galleryImages.filter(img => img.image_type === 'gallery').length > 4 && (
-                    <div className="col-span-2 text-center mt-2">
-                      <Button variant="outline" size="sm">
-                        View all {galleryImages.filter(img => img.image_type === 'gallery').length} images
-                      </Button>
-                    </div>
-                  )}
+              ) : !galleryImages?.length ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  No gallery images uploaded yet.
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Layout Images</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoadingGallery ? (
-                <div className="text-center py-4">Loading layout images...</div>
-              ) : !galleryImages || galleryImages.filter(img => img.image_type === 'layout').length === 0 ? (
-                <div className="text-center py-4">No layout images have been added.</div>
               ) : (
-                <div className="space-y-2">
-                  {galleryImages.filter(img => img.image_type === 'layout').map(image => (
-                    <img 
-                      key={image.id}
-                      src={image.image_url} 
-                      alt="Layout" 
-                      className="w-full h-auto rounded"
-                    />
-                  ))}
+                <div className="grid gap-4">
+                  {galleryImages
+                    .filter(img => img.image_type === 'gallery')
+                    .map((image) => (
+                      <div key={image.id} className="aspect-video rounded-lg overflow-hidden">
+                        <img
+                          src={image.image_url}
+                          alt="Gallery"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
                 </div>
               )}
             </CardContent>

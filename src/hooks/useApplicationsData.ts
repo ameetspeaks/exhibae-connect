@@ -66,7 +66,7 @@ export const useApplications = (exhibitionId?: string) => {
               end_date,
               status
             ),
-            payment_submissions!inner (
+            payment_submissions (
               id,
               amount,
               transaction_id,

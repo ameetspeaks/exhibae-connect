@@ -16,6 +16,18 @@ interface Application {
   status: 'pending' | 'approved' | 'rejected';
 }
 
+interface RawApplicationData {
+  id: string;
+  created_at: string;
+  status: 'pending' | 'approved' | 'rejected';
+  brand_id: string;
+  exhibition_id: string;
+  profiles: {
+    full_name: string;
+    company_name: string;
+  };
+}
+
 interface Exhibition {
   id: string;
   title: string;
@@ -29,6 +41,7 @@ const OrganiserDashboard = () => {
     totalApplications: 0,
     approvedApplications: 0,
     rejectedApplications: 0,
+    totalAttendees: 0,
   });
   
   const [upcomingExhibitions, setUpcomingExhibitions] = useState<Exhibition[]>([]);
@@ -68,16 +81,26 @@ const OrganiserDashboard = () => {
           .in('exhibition_id', exhibitionIds);
           
         if (applicationsError) throw applicationsError;
+
+        // Fetch shopper interests
+        const { data: shopperInterests, error: shopperError } = await supabase
+          .from('shopper_interests')
+          .select('id')
+          .in('exhibition_id', exhibitionIds);
+
+        if (shopperError) throw shopperError;
         
         // Calculate application statistics
         const approvedCount = applications?.filter(app => app.status === 'approved').length || 0;
         const rejectedCount = applications?.filter(app => app.status === 'rejected').length || 0;
+        const totalAttendees = (applications?.length || 0) + (shopperInterests?.length || 0);
         
         setStats({
           activeExhibitions: activeExhibitions?.length || 0,
           totalApplications: applications?.length || 0,
           approvedApplications: approvedCount,
           rejectedApplications: rejectedCount,
+          totalAttendees: totalAttendees,
         });
         
         // Fetch upcoming exhibitions
@@ -113,15 +136,15 @@ const OrganiserDashboard = () => {
           
         if (recentError) throw recentError;
         
-        const formattedApplications = recentData?.map(app => ({
+        const formattedApplications = (recentData as unknown as RawApplicationData[] || []).map(app => ({
           id: app.id,
           brand: {
-            name: app.profiles?.full_name || 'Unknown',
-            company: app.profiles?.company_name || 'Unknown Company',
+            name: app.profiles.full_name || 'Unknown',
+            company: app.profiles.company_name || 'Unknown Company',
           },
           created_at: app.created_at,
           status: app.status,
-        })) || [];
+        }));
         
         setRecentApplications(formattedApplications);
         
@@ -171,7 +194,7 @@ const OrganiserDashboard = () => {
   
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Active Exhibitions</CardTitle>
@@ -185,8 +208,21 @@ const OrganiserDashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
+            <CardTitle className="text-sm font-medium">Attendees Hosted</CardTitle>
             <Users className="h-5 w-5 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalAttendees}</div>
+            <p className="text-xs text-muted-foreground">
+              Combined brand and shopper interests
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
+            <Briefcase className="h-5 w-5 text-gray-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalApplications}</div>

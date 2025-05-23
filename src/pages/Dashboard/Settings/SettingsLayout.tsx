@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Bell, User, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Bell, User, Shield, Wallet } from 'lucide-react';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 
 interface SettingsLayoutProps {
@@ -20,7 +20,7 @@ const SettingsLayout = ({ children, basePath }: SettingsLayoutProps) => {
       {
         title: 'Profile',
         icon: User,
-        href: `${basePath}`,
+        href: basePath,
         exact: true
       },
       {

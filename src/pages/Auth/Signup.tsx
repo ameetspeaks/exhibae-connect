@@ -35,20 +35,45 @@ export default function Signup() {
 
   const onSubmit = async (data: SignupFormData) => {
     try {
+      console.log("Signup attempt with data:", {
+        email: data.email,
+        role: data.role,
+        full_name: data.full_name,
+        has_company: !!data.company_name
+      });
+
+      // Prepare user metadata - only include fields that are needed
+      const metadata = {
+        full_name: data.full_name,
+        role: data.role,
+      };
+
+      // Only add company_name if it's a brand and the field has a value
+      if (data.role === 'brand' && data.company_name) {
+        Object.assign(metadata, { company_name: data.company_name });
+      }
+
+      // Sign up with Supabase
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
-          data: {
-            full_name: data.full_name,
-            role: data.role,
-            ...(data.company_name && { company_name: data.company_name }),
-          },
+          data: metadata,
           emailRedirectTo: `${window.location.origin}/auth/login`,
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        console.error('Supabase auth signup error:', signUpError);
+        throw signUpError;
+      }
+
+      // Successful signup - check if user was created
+      if (!authData.user) {
+        throw new Error('No user data returned from signup');
+      }
+
+      console.log("Signup successful, user created with ID:", authData.user.id);
 
       toast({
         title: "Success!",
@@ -58,9 +83,22 @@ export default function Signup() {
       navigate('/auth/login');
     } catch (error: any) {
       console.error('Signup error:', error);
+      
+      // Detailed error handling
+      let errorMessage = "An error occurred during signup";
+      
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Database-specific error handling
+      if (error.message?.includes('database') || error.code === '23505') {
+        errorMessage = "A user with this email already exists or there was a database error. Please try again with a different email.";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "An error occurred during signup",
+        title: "Signup Failed",
+        description: errorMessage,
         variant: "destructive",
       });
     }

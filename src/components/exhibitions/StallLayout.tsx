@@ -1,22 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { StallInstance } from '@/types/exhibition-management';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useMaintenanceOperations } from '@/hooks/useMaintenanceOperations';
 import { usePaymentOperations } from '@/hooks/usePaymentOperations';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Edit2, Trash2 } from 'lucide-react';
-import MaintenanceDialog from './MaintenanceDialog';
 import PaymentDialog from './PaymentDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { StallInstance, StallApplication } from '@/types/exhibition-management';
 
 interface StallLayoutProps {
   stallInstances: StallInstance[];
@@ -28,8 +25,6 @@ interface StallLayoutProps {
   onUpdateStatus?: (instanceId: string, newStatus: string) => Promise<void>;
   onDeleteStall?: (instanceId: string) => Promise<void>;
   onApplyForStall?: (instanceId: string) => Promise<void>;
-  onScheduleMaintenance?: (instanceId: string, data: { maintenance_type: string; description?: string; next_maintenance_date?: string }) => Promise<void>;
-  onUpdateMaintenanceStatus?: (logId: string, status: string) => Promise<void>;
   onCreatePayment?: (applicationId: string, data: { amount: number; payment_method: string; reference_number?: string }) => Promise<void>;
 }
 
@@ -43,27 +38,16 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
   onUpdateStatus,
   onDeleteStall,
   onApplyForStall,
-  onScheduleMaintenance,
-  onUpdateMaintenanceStatus,
   onCreatePayment
 }) => {
   const { toast } = useToast();
   const [editingPrice, setEditingPrice] = useState<{ id: string; price: string } | null>(null);
   const [selectedStall, setSelectedStall] = useState<StallInstance | null>(null);
-  const [maintenanceDate, setMaintenanceDate] = useState<Date>();
-  const [maintenanceType, setMaintenanceType] = useState('');
-  const [maintenanceDescription, setMaintenanceDescription] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
 
-  // Only fetch maintenance logs when a stall is selected and it's in maintenance mode
-  const maintenance = useMaintenanceOperations(
-    selectedStall?.status === 'under_maintenance' ? selectedStall.id : ''
-  );
   const payment = usePaymentOperations(selectedStall?.application?.id ?? '');
-
-  const maintenanceLogs = maintenance?.maintenanceLogs?.data ?? [];
   const paymentTransactions = payment?.paymentTransactions?.data ?? [];
 
   useEffect(() => {
@@ -93,8 +77,6 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
         return 'bg-yellow-50 border-yellow-200';
       case 'booked':
         return 'bg-red-50 border-red-200';
-      case 'under_maintenance':
-        return 'bg-gray-50 border-gray-200';
       default:
         return 'bg-gray-50 border-gray-200';
     }
@@ -128,12 +110,6 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
         toast({
           title: "Stall Unavailable",
           description: "This stall has already been booked.",
-          variant: "default"
-        });
-      } else if (instance.status === 'under_maintenance') {
-        toast({
-          title: "Stall Unavailable",
-          description: "This stall is currently under maintenance.",
           variant: "default"
         });
       }
@@ -182,9 +158,46 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
     try {
       await onUpdateStatus(instanceId, newStatus);
       
+      // If the stall is being marked as booked, update the application status
+      if (newStatus === 'booked' && selectedStall?.application?.id) {
+        const { error: applicationError } = await supabase
+          .from('stall_applications')
+          .update({
+            status: 'booked',
+            payment_status: 'completed',
+            payment_date: new Date().toISOString(),
+            booking_confirmed: true
+          })
+          .eq('id', selectedStall.application.id);
+
+        if (applicationError) {
+          console.error('Error updating application:', applicationError);
+          throw applicationError;
+        }
+      }
+      
       // Update local state immediately
       if (selectedStall && selectedStall.id === instanceId) {
-        setSelectedStall(prev => prev ? { ...prev, status: newStatus } : null);
+        setSelectedStall(prev => {
+          if (!prev) return null;
+          
+          let updatedApplication = prev.application;
+          if (updatedApplication && newStatus === 'booked') {
+            updatedApplication = {
+              ...updatedApplication,
+              status: 'booked',
+              // Only add these properties if application is a full application type
+              ...(('payment_status' in updatedApplication) ? { payment_status: 'completed' } : {}),
+              ...(('booking_confirmed' in updatedApplication) ? { booking_confirmed: true } : {})
+            };
+          }
+          
+          return { 
+            ...prev, 
+            status: newStatus,
+            application: updatedApplication
+          };
+        });
       }
       
       toast({
@@ -278,7 +291,6 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
           <Tabs defaultValue="details">
             <TabsList>
               <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
               {selectedStall.application && (
                 <TabsTrigger value="payments">Payments</TabsTrigger>
               )}
@@ -320,7 +332,6 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
                         <SelectItem value="available">Available</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="booked">Booked</SelectItem>
-                        <SelectItem value="under_maintenance">Under Maintenance</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
@@ -384,59 +395,6 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
                   <Button onClick={() => handleApply(selectedStall.id)}>
                     Apply for Stall
                   </Button>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="maintenance">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">Maintenance History</h3>
-                  {userRole === 'organiser' && <MaintenanceDialog />}
-                </div>
-                
-                {maintenanceLogs.length > 0 ? (
-                  <div className="space-y-4">
-                    {maintenanceLogs.map((log) => (
-                      <Card key={log.id}>
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium">{log.maintenance_type}</h4>
-                              <p className="text-sm text-muted-foreground">{log.description}</p>
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {format(new Date(log.performed_at), 'PPP')}
-                              </div>
-                            </div>
-                            {userRole === 'organiser' && log.status !== 'completed' && (
-                              <Select
-                                value={log.status}
-                                onValueChange={(value) => {
-                                  if (onUpdateMaintenanceStatus) {
-                                    onUpdateMaintenanceStatus(log.id, value);
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className="w-32">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                                  <SelectItem value="in_progress">In Progress</SelectItem>
-                                  <SelectItem value="completed">Completed</SelectItem>
-                                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No maintenance records found
-                  </div>
                 )}
               </div>
             </TabsContent>

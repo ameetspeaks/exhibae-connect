@@ -1,12 +1,18 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
-import { LayoutDashboard, Users, Ruler, Building2, CalendarDays, Tag } from 'lucide-react';
+import { LayoutDashboard, Users, Ruler, Building2, CalendarDays, Tag, LucideIcon, FileText, MessageSquare, Heart } from 'lucide-react';
+
+type CustomRouteObject = RouteObject & {
+  icon?: LucideIcon;
+  name?: string;
+};
 
 const ManagerDashboard = lazy(() => import('./ManagerDashboard'));
 const ExhibitionsPage = lazy(() => import('./ExhibitionsPage'));
 const ExhibitionDetail = lazy(() => import('./ExhibitionDetail'));
 const ExhibitionEdit = lazy(() => import('./ExhibitionEdit'));
-const CreateExhibitionPage = lazy(() => import('./CreateExhibitionPage'));
+const ExhibitionApplications = lazy(() => import('./ExhibitionApplications'));
+const ApplicationsPage = lazy(() => import('./ApplicationsPage'));
 const UsersPage = lazy(() => import('./UsersPage'));
 const CategoriesPage = lazy(() => import('./CategoriesPage'));
 const VenueTypesPage = lazy(() => import('./VenueTypesPage'));
@@ -16,8 +22,10 @@ const ChatPage = lazy(() => import('../Chat'));
 const CouponsPage = lazy(() => import('./CouponsPage'));
 const CreateCoupon = lazy(() => import('./CreateCoupon'));
 const EditCoupon = lazy(() => import('./EditCoupon'));
+const ContactMessagesPage = lazy(() => import('./ContactMessagesPage'));
+const BrandInterestsPage = lazy(() => import('./BrandInterestsPage'));
 
-export const managerRoutes: RouteObject[] = [
+export const managerRoutes: CustomRouteObject[] = [
   {
     path: '',
     element: <ManagerDashboard />,
@@ -39,14 +47,32 @@ export const managerRoutes: RouteObject[] = [
     element: <ExhibitionEdit />,
   },
   {
-    path: 'exhibitions/create',
-    element: <CreateExhibitionPage />,
+    path: 'exhibitions/:exhibitionId/applications',
+    element: <ExhibitionApplications />,
+  },
+  {
+    path: 'applications',
+    element: <ApplicationsPage />,
+    icon: FileText,
+    name: 'Applications',
+  },
+  {
+    path: 'brand-interests',
+    element: <BrandInterestsPage />,
+    icon: Heart,
+    name: 'Brand Interests',
   },
   {
     path: 'users',
     element: <UsersPage />,
     icon: Users,
     name: 'Users',
+  },
+  {
+    path: 'contact-messages',
+    element: <ContactMessagesPage />,
+    icon: MessageSquare,
+    name: 'Contact Messages',
   },
   {
     path: 'categories',

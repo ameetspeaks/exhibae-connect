@@ -24,6 +24,8 @@ const getStatusColor = (status: string) => {
       return 'bg-blue-100 text-blue-800';
     case 'cancelled':
       return 'bg-red-100 text-red-800';
+    case 'expired':
+      return 'bg-gray-100 text-gray-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }
@@ -32,6 +34,9 @@ const getStatusColor = (status: string) => {
 const getStatusDisplay = (status: string) => {
   if (status === 'draft') {
     return 'Pending for Approval';
+  }
+  if (status === 'expired') {
+    return 'Expired';
   }
   return status.charAt(0).toUpperCase() + status.slice(1);
 };
@@ -66,7 +71,12 @@ const ExhibitionList: React.FC<ExhibitionListProps> = ({ exhibitions, onDelete }
     }
   };
 
-  if (exhibitions.length === 0) {
+  // Filter out expired exhibitions
+  const activeExhibitions = exhibitions.filter(exhibition => 
+    exhibition.status !== 'expired' && new Date(exhibition.end_date) >= new Date()
+  );
+
+  if (activeExhibitions.length === 0) {
     return (
       <div className="text-center py-12">
         <h3 className="text-lg font-medium mb-2">No exhibitions found</h3>
@@ -94,7 +104,7 @@ const ExhibitionList: React.FC<ExhibitionListProps> = ({ exhibitions, onDelete }
           </TableRow>
         </TableHeader>
         <TableBody>
-          {exhibitions.map((exhibition) => (
+          {activeExhibitions.map((exhibition) => (
             <TableRow key={exhibition.id}>
               <TableCell className="font-medium">{exhibition.title}</TableCell>
               <TableCell>{`${exhibition.city}, ${exhibition.state}`}</TableCell>

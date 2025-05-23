@@ -5,6 +5,9 @@ import { StallFormData, Stall, Amenity, MeasuringUnit } from '@/types/exhibition
 import StallForm from './StallForm';
 import StallList from './StallList';
 import { StallLayout } from './StallLayout';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 interface StallConfigurationProps {
   stalls: Stall[];

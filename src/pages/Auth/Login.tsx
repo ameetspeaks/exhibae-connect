@@ -25,6 +25,8 @@ const getDashboardPath = (role: string) => {
       return '/dashboard/organiser';
     case UserRole.BRAND.toLowerCase():
       return '/dashboard/brand';
+    case UserRole.SHOPPER.toLowerCase():
+      return '/dashboard/shopper';
     default:
       return '/exhibitions';
   }
@@ -160,6 +162,14 @@ const Login = () => {
               {errors.password && (
                 <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
+              <div className="text-right">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-gray-600 hover:text-exhibae-navy"
+                >
+                  Forgot Password?
+                </Link>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">

@@ -1,26 +1,23 @@
+import { Profile } from './profile';
 
 export interface Exhibition {
   id: string;
-  title: string;
+  name: string;
   description: string;
-  startDate: Date;
-  endDate: Date;
-  location: {
-    address: string;
-    city: string;
-    state: string;
-    country: string;
-    postalCode: string;
-    latitude: number;
-    longitude: number;
-  };
-  bannerImage: string;
-  organiserId: string;
-  stallCount: number;
-  stallsAvailable: number;
-  ticketPrice?: number;
-  categories: string[];
-  status: "draft" | "published" | "completed" | "cancelled";
+  start_date: string;
+  end_date: string;
+  location: string;
+  organiser_id: string;
+  organiser: Profile;
+  status: 'draft' | 'published' | 'cancelled' | 'completed';
+  created_at: string;
+  updated_at: string;
+  banner_url?: string;
+  venue_details?: string;
+  category?: string;
+  max_brands?: number;
+  price?: number;
+  currency?: string;
 }
 
 export interface Stall {

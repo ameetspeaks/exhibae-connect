@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building2, Tags, LayoutDashboard, Ruler, CalendarDays, MessageSquare } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Users, Building2, Tags, LayoutDashboard, Ruler, CalendarDays, MessageSquare, FileText, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Loader2 } from 'lucide-react';
 
 interface DashboardStats {
   totalUsers: number;
@@ -19,6 +22,42 @@ interface Activity {
   timestamp: string;
 }
 
+interface DatabaseStallApplication {
+  id: string;
+  created_at: string;
+  status: string;
+  brand_id: {
+    full_name: string;
+    company_name: string;
+  };
+  exhibition_id: {
+    id: string;
+    title: string;
+  };
+  stall_id: {
+    name: string;
+    price: number;
+  };
+}
+
+interface StallApplication {
+  id: string;
+  created_at: string;
+  status: string;
+  brand: {
+    full_name: string;
+    company_name: string;
+  };
+  exhibition: {
+    id: string;
+    title: string;
+  };
+  stall: {
+    name: string;
+    price: number;
+  };
+}
+
 const navigation = [
     {
         name: 'Dashboard',
@@ -29,6 +68,16 @@ const navigation = [
         name: 'Exhibitions',
         href: '/dashboard/manager/exhibitions',
         icon: CalendarDays,
+    },
+    {
+        name: 'Applications',
+        href: '/dashboard/manager/applications',
+        icon: FileText,
+    },
+    {
+        name: 'Brand Interests',
+        href: '/dashboard/manager/brand-interests',
+        icon: Heart,
     },
     {
         name: 'Users',
@@ -44,6 +93,11 @@ const navigation = [
         name: 'Measurement Units',
         href: '/dashboard/manager/measurement-units',
         icon: Ruler,
+    },
+    {
+        name: 'Contact Messages',
+        href: '/dashboard/manager/contact-messages',
+        icon: MessageSquare,
     },
     {
         name: 'Support Chat',
@@ -62,9 +116,15 @@ const ManagerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [applications, setApplications] = useState<StallApplication[]>([]);
+  const [contactMessages, setContactMessages] = useState<any[]>([]);
+  const [brandInterests, setBrandInterests] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchRecentApplications();
+    fetchRecentContactMessages();
+    fetchRecentBrandInterests();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -113,6 +173,81 @@ const ManagerDashboard = () => {
     }
   };
 
+  const fetchRecentApplications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stall_applications')
+        .select(`
+          id,
+          created_at,
+          status,
+          brand_id(full_name, company_name),
+          exhibition_id(id, title),
+          stall_id(name, price)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      if (data) {
+        // Cast to any first to avoid TypeScript errors with nested objects
+        const typedData: StallApplication[] = (data as any).map((item: any) => ({
+          id: item.id,
+          created_at: item.created_at,
+          status: item.status,
+          brand: item.brand_id,
+          exhibition: item.exhibition_id,
+          stall: item.stall_id
+        }));
+        setApplications(typedData);
+      } else {
+        setApplications([]);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to fetch applications',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchRecentContactMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setContactMessages(data || []);
+    } catch (error: any) {
+      console.error('Error fetching contact messages:', error);
+    }
+  };
+
+  const fetchRecentBrandInterests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('exhibition_interests')
+        .select(`
+          id,
+          created_at,
+          exhibition:exhibitions (id, title),
+          brand:profiles (id, full_name, company_name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setBrandInterests(data || []);
+    } catch (error: any) {
+      console.error('Error fetching brand interests:', error);
+    }
+  };
+
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'category':
@@ -127,6 +262,25 @@ const ManagerDashboard = () => {
       case 'units':
         navigate('/dashboard/manager/measurement-units');
         break;
+      case 'applications':
+        navigate('/dashboard/manager/applications');
+        break;
+      case 'interests':
+        navigate('/dashboard/manager/brand-interests');
+        break;
+    }
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'approved':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -182,8 +336,8 @@ const ManagerDashboard = () => {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
@@ -207,12 +361,73 @@ const ManagerDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle>Recent Contact Messages</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {contactMessages.length > 0 ? (
+              <div className="space-y-4">
+                {contactMessages.map((message) => (
+                  <div key={message.id} className="text-sm">
+                    <div className="flex justify-between">
+                      <span className="font-medium">{message.name}</span>
+                      <Badge 
+                        className={message.status === 'unread' ? 
+                          'bg-blue-100 text-blue-800' : 
+                          message.status === 'replied' ? 
+                          'bg-green-100 text-green-800' : 
+                          'bg-gray-100 text-gray-800'
+                        }
+                      >
+                        {message.status}
+                      </Badge>
+                    </div>
+                    <p className="text-muted-foreground line-clamp-1">{message.subject}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(message.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+                <div className="pt-4">
+                  <Button asChild variant="outline" className="w-full">
+                    <Link to="/dashboard/manager/contact-messages">View All Messages</Link>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No recent messages</p>
+                <Button asChild variant="outline" className="mt-2">
+                  <Link to="/dashboard/manager/contact-messages">View Messages</Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => handleQuickAction('applications')}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                View Applications
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => handleQuickAction('interests')}
+              >
+                <Heart className="h-4 w-4 mr-2" />
+                View Brand Interests
+              </Button>
               <Button
                 variant="ghost"
                 className="w-full justify-start"
@@ -241,7 +456,111 @@ const ManagerDashboard = () => {
               >
                 Manage Measurement Units
               </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => navigate('/dashboard/manager/contact-messages')}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                View Contact Messages
+              </Button>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Applications */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Stall Applications</CardTitle>
+            <CardDescription>
+              Recent applications from brands for exhibition stalls
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+              </div>
+            ) : applications.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">No recent applications</p>
+            ) : (
+              <div className="space-y-4">
+                {applications.slice(0, 3).map((application) => (
+                  <Card key={application.id} className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <div className="font-medium">{application.brand.company_name}</div>
+                        <div className="text-sm text-gray-500">{application.brand.full_name}</div>
+                        <div className="text-sm">
+                          Applied for <span className="font-medium">{application.stall.name}</span> in{' '}
+                          <Link 
+                            to={`/dashboard/manager/exhibitions/${application.exhibition.id}`}
+                            className="text-exhibae-navy hover:underline"
+                          >
+                            {application.exhibition.title}
+                          </Link>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Price: ₹{application.stall.price}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Applied: {new Date(application.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <Badge className={getStatusBadgeColor(application.status)}>
+                        {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                      </Badge>
+                    </div>
+                  </Card>
+                ))}
+                <div className="text-center pt-4">
+                  <Button asChild variant="outline">
+                    <Link to="/dashboard/manager/applications">View All Applications</Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Brand Interests</CardTitle>
+            <CardDescription>
+              Brands showing interest in exhibitions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {brandInterests.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">No recent brand interests</p>
+            ) : (
+              <div className="space-y-4">
+                {brandInterests.map((interest) => (
+                  <div key={interest.id} className="border rounded-md p-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium">{interest.brand?.company_name || 'Unknown Brand'}</div>
+                        <div className="text-sm text-gray-500">{interest.brand?.full_name}</div>
+                        <div className="text-sm">
+                          Interested in{' '}
+                          <Link 
+                            to={`/dashboard/manager/exhibitions/${interest.exhibition?.id}`}
+                            className="text-exhibae-navy hover:underline"
+                          >
+                            {interest.exhibition?.title || 'Unknown Exhibition'}
+                          </Link>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Registered: {new Date(interest.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

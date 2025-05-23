@@ -3,10 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { Mail, Phone, MapPin, Clock } from "lucide-react";
+import { Mail, Phone, MapPin, Clock, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Contact() {
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -14,14 +16,42 @@ export default function Contact() {
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real application, this would send the data to a server
-    toast({
-      title: "Message Sent",
-      description: "We'll get back to you as soon as possible.",
-    });
-    setFormData({ name: "", email: "", subject: "", message: "" });
+    setIsSubmitting(true);
+    
+    try {
+      // Insert the message into the contact_messages table
+      const { error } = await supabase
+        .from('contact_messages')
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            subject: formData.subject,
+            message: formData.message
+          }
+        ]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Message Sent",
+        description: "We'll get back to you as soon as possible.",
+      });
+      
+      // Reset the form
+      setFormData({ name: "", email: "", subject: "", message: "" });
+    } catch (error: any) {
+      console.error("Failed to send message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send your message. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -109,6 +139,7 @@ export default function Contact() {
                 onChange={handleChange}
                 required
                 placeholder="Your name"
+                disabled={isSubmitting}
               />
             </div>
 
@@ -124,6 +155,7 @@ export default function Contact() {
                 onChange={handleChange}
                 required
                 placeholder="your@email.com"
+                disabled={isSubmitting}
               />
             </div>
 
@@ -138,6 +170,7 @@ export default function Contact() {
                 onChange={handleChange}
                 required
                 placeholder="What is this regarding?"
+                disabled={isSubmitting}
               />
             </div>
 
@@ -153,11 +186,23 @@ export default function Contact() {
                 required
                 placeholder="Your message"
                 rows={5}
+                disabled={isSubmitting}
               />
             </div>
 
-            <Button type="submit" className="w-full bg-exhibae-navy hover:bg-exhibae-navy/90">
-              Send Message
+            <Button 
+              type="submit" 
+              className="w-full bg-exhibae-navy hover:bg-exhibae-navy/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send Message"
+              )}
             </Button>
           </form>
         </div>

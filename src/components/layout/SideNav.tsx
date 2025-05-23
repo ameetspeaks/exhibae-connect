@@ -7,7 +7,8 @@ import {
   PlusCircle,
   FileText,
   Settings,
-  LogOut
+  LogOut,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
@@ -24,7 +25,7 @@ const SideNav: React.FC<SideNavProps> = ({ onLogout }) => {
   const userRole = user?.user_metadata?.role?.toLowerCase() || 'organiser';
   const userInitials = user?.email ? getInitials(user.email) : '?';
 
-  const navItems = [
+  let navItems = [
     {
       title: 'Overview',
       icon: LayoutDashboard,
@@ -45,13 +46,22 @@ const SideNav: React.FC<SideNavProps> = ({ onLogout }) => {
       title: 'Applications',
       icon: FileText,
       href: `/dashboard/${userRole}/applications`
-    },
-    {
-      title: 'Settings',
-      icon: Settings,
-      href: `/dashboard/${userRole}/settings`
     }
   ];
+  
+  if (userRole === 'organiser') {
+    navItems.push({
+      title: 'Messages',
+      icon: MessageSquare,
+      href: `/dashboard/${userRole}/messages`
+    });
+  }
+  
+  navItems.push({
+    title: 'Settings',
+    icon: Settings,
+    href: `/dashboard/${userRole}/settings`
+  });
 
   return (
     <nav className="w-64 bg-white border-r h-screen fixed left-0 top-0 flex flex-col">

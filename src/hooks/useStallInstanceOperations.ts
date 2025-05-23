@@ -90,7 +90,7 @@ export const useStallInstanceOperations = (exhibitionId: string) => {
   });
 
   const applyForStall = useMutation({
-    mutationFn: async ({ stallInstanceId, message }: { stallInstanceId: string; message: string }) => {
+    mutationFn: async ({ stallInstanceId, message }: { stallInstanceId: string; message?: string }) => {
       if (!user) throw new Error('User not authenticated');
 
       // Get the stall instance details first
@@ -130,7 +130,7 @@ export const useStallInstanceOperations = (exhibitionId: string) => {
           exhibition_id: stallInstance.exhibition_id,
           brand_id: user.id,
           status: 'pending',
-          message: message,
+          message: message || '',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })

@@ -12,6 +12,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PaymentSubmissionForm } from '@/components/exhibitions/PaymentSubmissionForm';
 import { format, isPast } from 'date-fns';
+import { useGalleryImages } from '@/hooks/useGalleryData';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+
+interface PaymentSubmission {
+  id: string;
+  application_id: string;
+  amount: number;
+  transaction_id: string;
+  email: string;
+  proof_file_url?: string;
+  notes?: string;
+  status: 'pending_review' | 'approved' | 'rejected';
+  rejection_reason?: string;
+  rejection_date?: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+}
 
 interface Stall {
   id: string;
@@ -49,11 +67,11 @@ const ExhibitionDetail = () => {
   const [stalls, setStalls] = useState<Stall[]>([]);
   const [selectedStall, setSelectedStall] = useState<Stall | null>(null);
   const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [applicationText, setApplicationText] = useState('');
+  const [applicationText, setApplicationText] = useState<string>('Interested in participating in this exhibition.');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userApplications, setUserApplications] = useState<any[]>([]);
+  const { data: galleryImages, isLoading: isLoadingGalleryImages } = useGalleryImages(id || '');
 
   useEffect(() => {
     if (user) {
@@ -111,13 +129,39 @@ const ExhibitionDetail = () => {
 
   const fetchUserApplications = async () => {
     try {
+      console.log('Fetching applications for exhibition:', id);
       const { data, error } = await supabase
         .from('stall_applications')
-        .select('*')
+        .select(`
+          id,
+          exhibition_id,
+          stall_id,
+          status,
+          created_at,
+          booking_deadline,
+          payment_submissions (
+            id,
+            amount,
+            transaction_id,
+            email,
+            proof_file_url,
+            notes,
+            status,
+            rejection_reason,
+            rejection_date,
+            reviewed_at,
+            reviewed_by
+          )
+        `)
         .eq('brand_id', user?.id)
         .eq('exhibition_id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching user applications:', error);
+        throw error;
+      }
+
+      console.log('Raw applications data:', data);
       setUserApplications(data || []);
     } catch (error) {
       console.error('Error fetching user applications:', error);
@@ -176,35 +220,13 @@ const ExhibitionDetail = () => {
       }
 
       setSelectedStall(stall);
+      setApplicationText('Interested in participating in this exhibition.');
       setIsApplyDialogOpen(true);
     }
   };
 
-  const validateApplication = () => {
-    if (!applicationText.trim()) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please provide an application message.',
-        variant: 'destructive',
-      });
-      return false;
-    }
-
-    if (applicationText.length < 50) {
-      toast({
-        title: 'Validation Error',
-        description: 'Application message should be at least 50 characters long.',
-        variant: 'destructive',
-      });
-      return false;
-    }
-
-    return true;
-  };
-
   const handleApplySubmit = async () => {
     if (!selectedStall || !user) return;
-    if (!validateApplication()) return;
 
     setSubmitting(true);
     try {
@@ -241,7 +263,7 @@ const ExhibitionDetail = () => {
 
       setIsApplyDialogOpen(false);
       setSelectedStall(null);
-      setApplicationText('');
+      setApplicationText('Interested in participating in this exhibition.'); // Reset to default text
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -256,6 +278,8 @@ const ExhibitionDetail = () => {
   const getStatusBadge = (status: string) => {
     const baseClasses = "text-xs px-2 py-1 rounded-full ";
     switch (status) {
+      case 'expired':
+        return baseClasses + 'bg-gray-100 text-gray-800';
       case 'pending':
         return baseClasses + 'bg-yellow-100 text-yellow-800';
       case 'payment_pending':
@@ -272,12 +296,11 @@ const ExhibitionDetail = () => {
   };
 
   const handlePaymentSuccess = () => {
-    setIsPaymentDialogOpen(false);
     toast({
-      title: 'Payment Submitted',
-      description: 'Your payment details have been submitted for review.',
+      title: 'Success',
+      description: 'Payment details submitted successfully. The organizer will review your payment.',
     });
-    fetchUserApplications(); // Refresh applications after payment
+    fetchUserApplications(); // Refresh the applications list
   };
 
   if (loading) {
@@ -298,6 +321,23 @@ const ExhibitionDetail = () => {
       </div>
     );
   }
+
+  // Check if exhibition is expired
+  const isExpired = exhibition.status === 'expired' || new Date(exhibition.end_date) < new Date();
+  if (isExpired) {
+    return (
+      <div className="text-center py-8">
+        <h2 className="text-2xl font-bold">Exhibition has expired</h2>
+        <p className="text-gray-600 mt-2">This exhibition is no longer available.</p>
+        <Button onClick={() => navigate('/dashboard/brand/find')} className="mt-4">
+          Browse Other Exhibitions
+        </Button>
+      </div>
+    );
+  }
+
+  // Filter layout images
+  const layoutImages = galleryImages?.filter(img => img.image_type === 'layout') || [];
 
   return (
     <div className="space-y-6">
@@ -331,9 +371,39 @@ const ExhibitionDetail = () => {
             </div>
           </div>
 
+          {isLoadingGalleryImages ? (
+            <div className="mb-6">
+              <h3 className="font-medium mb-4">Stall Layout</h3>
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
+              </div>
+            </div>
+          ) : layoutImages.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-medium mb-4">Stall Layout</h3>
+              <Carousel>
+                <CarouselContent>
+                  {layoutImages.map((image) => (
+                    <CarouselItem key={image.id}>
+                      <AspectRatio ratio={16/9}>
+                        <img 
+                          src={image.image_url} 
+                          alt="Stall Layout" 
+                          className="w-full h-full object-contain rounded-md"
+                        />
+                      </AspectRatio>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious />
+                <CarouselNext />
+              </Carousel>
+            </div>
+          )}
+
           <div className="flex justify-end mb-6">
             <Button
-              onClick={() => navigate(`/dashboard/brand/exhibitions/${exhibition.id}/stalls`)}
+              onClick={() => navigate(`/exhibitions/${exhibition.id}`)}
               className="bg-exhibae-navy hover:bg-opacity-90"
             >
               View Stall Layout
@@ -362,7 +432,7 @@ const ExhibitionDetail = () => {
                               </p>
                               {app.booking_deadline && (
                                 <p className="text-sm text-gray-600">
-                                  Payment Deadline: {format(new Date(app.booking_deadline), 'PPp')}
+                                  Payment Deadline: {format(new Date(app.booking_deadline), 'PPP')}
                                 </p>
                               )}
                             </div>
@@ -378,35 +448,49 @@ const ExhibitionDetail = () => {
                               <AlertDescription>
                                 Please complete the payment to confirm your booking. 
                                 {app.booking_deadline && (
-                                  <> Payment must be made by {format(new Date(app.booking_deadline), 'PPp')}.</>
+                                  <> Payment must be made by {format(new Date(app.booking_deadline), 'PPP')}.</>
                                 )}
                               </AlertDescription>
                             </Alert>
                           )}
 
-                          {showPaymentButton && (
-                            <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                              <DialogTrigger asChild>
-                                <Button className="w-full bg-exhibae-navy hover:bg-opacity-90">
-                                  Make Payment to Confirm Booking
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
-                                <DialogHeader>
-                                  <DialogTitle>Complete Payment</DialogTitle>
-                                  <DialogDescription>
-                                    Submit your payment details to confirm your stall booking
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <PaymentSubmissionForm
-                                  applicationId={app.id}
-                                  stallPrice={stall?.price || 0}
-                                  exhibitionId={exhibition.id}
-                                  onSuccess={handlePaymentSuccess}
-                                />
-                              </DialogContent>
-                            </Dialog>
-                          )}
+                          <div className="flex flex-col gap-2">
+                            {app.status === 'payment_pending' && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button className="w-full bg-exhibae-navy hover:bg-opacity-90">
+                                    Pay Now
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl">
+                                  <DialogHeader>
+                                    <DialogTitle>Complete Payment</DialogTitle>
+                                    <DialogDescription>
+                                      Submit your payment details to confirm your stall booking
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <PaymentSubmissionForm
+                                    applicationId={app.id}
+                                    stallPrice={stall?.price || 0}
+                                    exhibitionId={exhibition.id}
+                                    onSuccess={handlePaymentSuccess}
+                                    bookingDeadline={app.booking_deadline}
+                                  />
+                                </DialogContent>
+                              </Dialog>
+                            )}
+
+                            {app.payment_submission?.proof_file_url && (
+                              <a
+                                href={app.payment_submission.proof_file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-exhibae-navy bg-white border border-exhibae-navy rounded-md hover:bg-exhibae-navy hover:text-white transition-colors"
+                              >
+                                View Payment Proof
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -460,35 +544,37 @@ const ExhibitionDetail = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={isApplyDialogOpen} onOpenChange={setIsApplyDialogOpen}>
+      <Dialog open={isApplyDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setApplicationText('Interested in participating in this exhibition.');
+        }
+        setIsApplyDialogOpen(open);
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Apply for Stall</DialogTitle>
+            <DialogTitle>Apply for Stall {selectedStall?.name}</DialogTitle>
             <DialogDescription>
-              Please provide additional information for your application
+              Review your stall selection
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Selected Stall</Label>
+              <Label>Stall Details</Label>
               <p className="text-sm text-gray-600">{selectedStall?.name}</p>
               <p className="text-sm text-gray-600">
                 Size: {selectedStall?.length}m × {selectedStall?.width}m
               </p>
-              <p className="text-sm text-gray-600">Price: ${selectedStall?.price}</p>
+              <p className="text-sm text-gray-600">Price: ₹{selectedStall?.price}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="application-text">Application Message</Label>
+              <Label htmlFor="application-text">Notes (Optional)</Label>
               <Textarea
                 id="application-text"
-                placeholder="Tell us about your brand and why you'd like to participate... (minimum 50 characters)"
-                value={applicationText}
+                value={applicationText || 'Interested in participating in this exhibition.'}
                 onChange={(e) => setApplicationText(e.target.value)}
-                rows={4}
+                className="min-h-[80px]"
+                rows={3}
               />
-              <p className="text-xs text-gray-500">
-                Characters: {applicationText.length}/500 (minimum 50)
-              </p>
             </div>
           </div>
           <DialogFooter>
@@ -501,7 +587,7 @@ const ExhibitionDetail = () => {
             </Button>
             <Button
               onClick={handleApplySubmit}
-              disabled={submitting || applicationText.length < 50}
+              disabled={submitting}
               className="bg-exhibae-navy hover:bg-opacity-90"
             >
               {submitting ? (

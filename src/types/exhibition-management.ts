@@ -179,54 +179,28 @@ export interface StallInstance {
   };
 }
 
+export enum ApplicationStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected'
+}
+
 export interface StallApplication {
   id: string;
-  stall_id: string;
   brand_id: string;
-  exhibition_id: string;
-  status: 'pending' | 'payment_pending' | 'payment_review' | 'booked' | 'rejected';
-  message?: string;
-  preferred_location?: string;
-  requirements: any[];
-  payment_status: 'pending' | 'partial' | 'completed';
-  payment_amount?: number;
-  payment_date?: string;
-  booking_deadline?: string;
-  booking_confirmed: boolean;
+  status: string;
   created_at: string;
-  updated_at: string;
-  stall?: {
-    id: string;
-    name: string;
-    length: number;
-    width: number;
-    price: number;
-    status: string;
-    unit?: {
-      id: string;
-      name: string;
-      symbol: string;
-    };
-  };
-  brand?: {
-    id: string;
-    full_name: string;
-    email: string;
-    phone: string;
-    company_name: string;
-    avatar_url?: string;
-  };
-  exhibition?: {
-    id: string;
-    title: string;
-    location: string;
-    start_date: string;
-    end_date: string;
-    status: string;
-  };
+  payment_status: string;
+  payment_date?: string;
+  booking_confirmed: boolean;
+  booking_deadline?: string;
+  exhibition_id: string;
+  stall_id: string;
+  message?: string;
+  requirements?: string[];
 }
 
 export interface ApplicationFormData {
-  stall_id: string;
-  message?: string;
+  company_description: string;
+  special_requirements?: string;
 }

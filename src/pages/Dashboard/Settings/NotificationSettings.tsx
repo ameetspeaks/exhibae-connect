@@ -2,10 +2,13 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Bell } from 'lucide-react';
 import { useNotificationSettings } from '@/hooks/useNotificationSettings';
 import SettingsLayout from '@/pages/Dashboard/Settings/SettingsLayout';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
+import NotificationSoundSettings from '@/components/notifications/NotificationSoundSettings';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 interface SettingItemProps {
   id: string;
@@ -16,8 +19,9 @@ interface SettingItemProps {
 const NotificationSettings = () => {
   const { settings, loading, updateSettings } = useNotificationSettings();
   const { user } = useAuth();
-  const userRole = user?.user_metadata?.role?.toLowerCase() || '';
+  const userRole = user?.app_metadata?.role?.toLowerCase() || '';
   const basePath = `/dashboard/${userRole}/settings`;
+  const isManager = userRole === 'manager';
 
   const handleToggle = (key: string, value: boolean) => {
     updateSettings({ [key]: value });
@@ -50,8 +54,21 @@ const NotificationSettings = () => {
   return (
     <SettingsLayout basePath={basePath}>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Notification Settings</h1>
-        <p className="text-gray-600">Manage your notification preferences</p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Notification Settings</h1>
+            <p className="text-gray-600">Manage your notification preferences</p>
+          </div>
+          
+          {isManager && (
+            <Button variant="outline" asChild>
+              <Link to="/dashboard/manager/settings/test-notifications">
+                <Bell className="mr-2 h-4 w-4" />
+                Test Notifications
+              </Link>
+            </Button>
+          )}
+        </div>
 
         <Card>
           <CardHeader>
@@ -76,6 +93,11 @@ const NotificationSettings = () => {
             />
           </CardContent>
         </Card>
+
+        {/* Only show sound settings for managers */}
+        {isManager && settings?.sound_enabled && (
+          <NotificationSoundSettings />
+        )}
 
         <Card>
           <CardHeader>

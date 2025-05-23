@@ -9,6 +9,7 @@ import { Loader2, Calendar, MapPin, IndianRupee, Maximize2, AlertCircle, Users }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatCurrency } from '@/lib/utils';
+import { toast } from '@/components/ui/use-toast';
 
 interface BrandStall {
   application_id: string;
@@ -77,17 +78,38 @@ const MyStalls = () => {
 
   const handleConfirmBooking = async (stall: BrandStall) => {
     try {
-      const { error } = await supabase
+      // Update the stall booking status
+      const { error: bookingError } = await supabase
         .from('stall_bookings')
         .update({ booking_status: 'confirmed' })
         .eq('application_id', stall.application_id);
 
-      if (error) throw error;
+      if (bookingError) throw bookingError;
+
+      // Update the application status to booked
+      const { error: applicationError } = await supabase
+        .from('stall_applications')
+        .update({
+          status: 'booked',
+          booking_confirmed: true
+        })
+        .eq('id', stall.application_id);
+
+      if (applicationError) throw applicationError;
       
       await fetchStalls();
+      
+      toast({
+        title: 'Booking Confirmed',
+        description: 'Your stall booking has been confirmed successfully.',
+      });
     } catch (error) {
       console.error('Error confirming booking:', error);
-      setError('Failed to confirm booking. Please try again.');
+      toast({
+        title: 'Error',
+        description: 'Failed to confirm booking. Please try again.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -119,8 +141,8 @@ const MyStalls = () => {
             <CardDescription>{stall.exhibition_title}</CardDescription>
           </div>
           <div className="flex flex-col gap-2">
-            <Badge variant={stall.booking_status === 'confirmed' ? "default" : "secondary"}>
-              {stall.booking_status === 'confirmed' ? 'Confirmed' : 'Pending Confirmation'}
+            <Badge variant={stall.application_status === 'booked' ? "default" : "secondary"}>
+              {stall.application_status === 'booked' ? 'Confirmed' : 'Pending Confirmation'}
             </Badge>
             {stall.payment_status === 'completed' && (
               <Badge variant="outline" className="bg-green-100 text-green-800">
@@ -130,6 +152,7 @@ const MyStalls = () => {
           </div>
         </div>
       </CardHeader>
+      
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -165,7 +188,7 @@ const MyStalls = () => {
           </div>
         </div>
 
-        {stall.booking_deadline && stall.booking_status === 'pending' && (
+        {stall.booking_deadline && !stall.exhibition_expiry && stall.application_status !== 'booked' && (
           <Alert variant="destructive" className="bg-red-50 border-red-200">
             <AlertCircle className="h-4 w-4 text-red-800" />
             <AlertDescription className="text-red-800">
@@ -174,7 +197,7 @@ const MyStalls = () => {
           </Alert>
         )}
 
-        {stall.payment_status === 'pending' && (
+        {stall.payment_status === 'pending' && stall.application_status !== 'booked' && (
           <Alert className="bg-yellow-50 border-yellow-200">
             <AlertCircle className="h-4 w-4 text-yellow-800" />
             <AlertDescription className="text-yellow-800">
@@ -208,7 +231,7 @@ const MyStalls = () => {
           
           {!stall.exhibition_expiry && (
             <>
-              {stall.booking_status !== 'confirmed' && (
+              {stall.application_status !== 'booked' && stall.booking_status !== 'confirmed' && (
                 <Button 
                   className="w-full bg-exhibae-navy hover:bg-opacity-90"
                   onClick={() => handleConfirmBooking(stall)}
@@ -217,7 +240,7 @@ const MyStalls = () => {
                 </Button>
               )}
               
-              {stall.payment_status === 'pending' && (
+              {stall.payment_status === 'pending' && stall.application_status !== 'booked' && (
                 <Button 
                   variant="outline"
                   className="w-full"

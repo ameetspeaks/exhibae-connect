@@ -209,21 +209,65 @@ export const useUpdateExhibition = () => {
     mutationFn: async ({ exhibitionId, ...data }: ExhibitionFormData & { exhibitionId: string }) => {
       if (!exhibitionId) throw new Error('Exhibition ID is required');
 
+      console.log('Updating exhibition with data:', { exhibitionId, data });
+
+      // Format dates properly and exclude measuring_unit_id
+      const { measuring_unit_id, ...restData } = data;
       const formattedData = {
-        ...data,
-        start_time: data.start_time || '11:00',
-        end_time: data.end_time || '17:00'
+        ...restData,
+        title: restData.title,
+        description: restData.description,
+        address: restData.address || '',
+        city: restData.city || '',
+        state: restData.state || '',
+        country: restData.country || '',
+        postal_code: restData.postal_code || '',
+        category_id: restData.category_id || null,
+        venue_type_id: restData.venue_type_id || null,
+        event_type_id: restData.event_type_id || null,
+        start_date: typeof restData.start_date === 'object' ? (restData.start_date as Date).toISOString() : restData.start_date,
+        end_date: typeof restData.end_date === 'object' ? (restData.end_date as Date).toISOString() : restData.end_date,
+        start_time: restData.start_time || '11:00',
+        end_time: restData.end_time || '17:00'
       };
 
-      const { error } = await supabase
-        .from('exhibitions')
-        .update(formattedData)
-        .eq('id', exhibitionId);
+      // Remove any undefined values
+      Object.keys(formattedData).forEach(key => {
+        if (formattedData[key] === undefined) {
+          delete formattedData[key];
+        }
+      });
 
-      if (error) throw error;
+      console.log('Formatted data for update:', formattedData);
+
+      try {
+        const { data: updatedData, error } = await supabase
+          .from('exhibitions')
+          .update(formattedData)
+          .eq('id', exhibitionId)
+          .select(`
+            *,
+            category:exhibition_categories(*),
+            venue_type:venue_types(*),
+            event_type:event_types(*)
+          `)
+          .single();
+
+        if (error) {
+          console.error('Error updating exhibition:', error);
+          throw error;
+        }
+
+        console.log('Successfully updated exhibition:', updatedData);
+        return updatedData;
+      } catch (error) {
+        console.error('Failed to update exhibition:', error);
+        throw error;
+      }
     },
     onSuccess: (_, { exhibitionId }) => {
       queryClient.invalidateQueries({ queryKey: ['exhibition', exhibitionId] });
+      queryClient.invalidateQueries({ queryKey: ['exhibitions'] });
     }
   });
 };
@@ -251,8 +295,10 @@ export const useDeleteExhibition = () => {
 };
 
 export const usePublishedExhibitions = (limit?: number) => {
+  const { user } = useAuth();
+  
   return useQuery({
-    queryKey: ['published-exhibitions', limit],
+    queryKey: ['published-exhibitions', limit, user?.id],
     queryFn: async () => {
       try {
         console.log('Fetching published exhibitions...');
@@ -291,6 +337,21 @@ export const usePublishedExhibitions = (limit?: number) => {
           throw detailsError;
         }
 
+        // Check if user has favorited any of these exhibitions
+        let favoritesSet = new Set();
+        if (user) {
+          const { data: favorites, error: favoritesError } = await supabase
+            .from('exhibition_favorites')
+            .select('exhibition_id')
+            .eq('user_id', user.id);
+            
+          if (favoritesError) {
+            console.error('Error fetching favorites:', favoritesError);
+          } else {
+            favoritesSet = new Set(favorites?.map((item: any) => item.exhibition_id) || []);
+          }
+        }
+
         // Transform the data
         const transformedData = withDetails?.map(exhibition => ({
           ...exhibition,
@@ -307,11 +368,11 @@ export const usePublishedExhibitions = (limit?: number) => {
             id: exhibition.venue_type.id,
             name: exhibition.venue_type.name
           } : null,
-          banner_image: exhibition.gallery_images?.find(img => img.image_type === 'banner')?.image_url
+          banner_image: exhibition.gallery_images?.find(img => img.image_type === 'banner')?.image_url,
+          isFavorite: user ? favoritesSet.has(exhibition.id) : false
         })) || [];
 
         console.log('Transformed exhibitions:', transformedData);
-        
         return transformedData;
       } catch (error) {
         console.error('Error in usePublishedExhibitions:', error);

@@ -2,23 +2,47 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ulqlhjluytobqaviuswk.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscWxoamx1eXRvYnFhdml1c3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcwNDQ0MDcsImV4cCI6MjA2MjYyMDQwN30.wbslqPS_NHHvUr5GDXpSJI6ey4nXH1HWfFJxxWsK3TY';
+// Default values for development
+const DEFAULT_SUPABASE_URL = 'https://ulqlhjluytobqaviuswk.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscWxoamx1eXRvYnFhdml1c3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcwNDQ0MDcsImV4cCI6MjA2MjYyMDQwN30.wbslqPS_NHHvUr5GDXpSJI6ey4nXH1HWfFJxxWsK3TY';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Supabase URL and Anon Key are required. Please check your environment variables.');
+// Get environment variables with fallbacks
+const envSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const envSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Use default values if environment variables are empty strings or undefined
+const supabaseUrl = envSupabaseUrl && envSupabaseUrl !== '' ? envSupabaseUrl : DEFAULT_SUPABASE_URL;
+const supabaseAnonKey = envSupabaseAnonKey && envSupabaseAnonKey !== '' ? envSupabaseAnonKey : DEFAULT_SUPABASE_ANON_KEY;
+
+// Log environment status (only in development)
+if (import.meta.env.DEV) {
+  console.log('Environment Status:', {
+    hasSupabaseUrl: !!envSupabaseUrl && envSupabaseUrl !== '',
+    hasSupabaseAnonKey: !!envSupabaseAnonKey && envSupabaseAnonKey !== '',
+    usingDefaultUrl: !envSupabaseUrl || envSupabaseUrl === '',
+    usingDefaultKey: !envSupabaseAnonKey || envSupabaseAnonKey === '',
+    actualUrl: supabaseUrl,
+    actualKeyFirstChars: supabaseAnonKey.substring(0, 10) + '...'
+  });
 }
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  db: {
-    schema: 'public'
-  },
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'exhibae-connect@1.0.0'
+    }
   }
 });

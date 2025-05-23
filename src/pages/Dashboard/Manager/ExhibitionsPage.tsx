@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -65,6 +65,8 @@ const ExhibitionsPage = () => {
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [exhibitionToDelete, setExhibitionToDelete] = useState<Exhibition | null>(null);
+  const [statusUpdateDialog, setStatusUpdateDialog] = useState(false);
+  const [statusUpdateData, setStatusUpdateData] = useState<{exhibitionId: string, newStatus: Exhibition['status'], currentTitle: string} | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -108,12 +110,44 @@ const ExhibitionsPage = () => {
   const updateExhibitionStatus = async (exhibitionId: string, newStatus: Exhibition['status']) => {
     try {
       setUpdatingStatus(exhibitionId);
+      
+      // Get the exhibition details before updating
+      const { data: exhibitionData, error: fetchError } = await supabase
+        .from('exhibitions')
+        .select('title, organiser_id, status')
+        .eq('id', exhibitionId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      // Update the exhibition status
       const { error } = await supabase
         .from('exhibitions')
         .update({ status: newStatus })
         .eq('id', exhibitionId);
 
       if (error) throw error;
+
+      // Create a notification for the organizer
+      if (exhibitionData && exhibitionData.status !== newStatus) {
+        // Create notification for the organizer
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert([
+            {
+              user_id: exhibitionData.organiser_id,
+              title: 'Exhibition Status Updated',
+              message: `Your exhibition "${exhibitionData.title}" status has been changed to ${getStatusDisplay(newStatus)}.`,
+              type: 'exhibition_updated',
+              link: `/dashboard/organiser/exhibitions/${exhibitionId}`,
+              is_read: false,
+            },
+          ]);
+
+        if (notificationError) {
+          console.error('Failed to create notification:', notificationError);
+        }
+      }
 
       setExhibitions(exhibitions.map(exhibition => 
         exhibition.id === exhibitionId 
@@ -195,6 +229,33 @@ const ExhibitionsPage = () => {
     }
   };
 
+  const handleStatusChange = async (exhibitionId: string, newStatus: Exhibition['status']) => {
+    // Find the exhibition
+    const exhibition = exhibitions.find(e => e.id === exhibitionId);
+    if (!exhibition) return;
+    
+    // If the status is being changed to cancelled or completed, confirm first
+    if (newStatus === 'cancelled' || newStatus === 'completed') {
+      setStatusUpdateData({
+        exhibitionId,
+        newStatus,
+        currentTitle: exhibition.title
+      });
+      setStatusUpdateDialog(true);
+    } else {
+      // Otherwise just update the status
+      updateExhibitionStatus(exhibitionId, newStatus);
+    }
+  };
+
+  const confirmStatusUpdate = () => {
+    if (!statusUpdateData) return;
+    
+    updateExhibitionStatus(statusUpdateData.exhibitionId, statusUpdateData.newStatus);
+    setStatusUpdateDialog(false);
+    setStatusUpdateData(null);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -207,10 +268,6 @@ const ExhibitionsPage = () => {
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Exhibitions</h1>
-        <Button onClick={() => navigate('/dashboard/manager/exhibitions/create')}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Exhibition
-        </Button>
       </div>
 
       <Card>
@@ -247,70 +304,71 @@ const ExhibitionsPage = () => {
             </Select>
           </div>
 
-          <div className="rounded-md border">
+          <div className="border rounded-md">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>
                   <TableHead>Organiser</TableHead>
-                  <TableHead>Venue Type</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Dates</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredExhibitions.length === 0 ? (
+                {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-4">
-                      No exhibitions found
+                    <TableCell colSpan={6} className="text-center py-8">
+                      Loading exhibitions...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredExhibitions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      No exhibitions found.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredExhibitions.map((exhibition) => (
                     <TableRow key={exhibition.id}>
-                      <TableCell className="font-medium">
-                        {exhibition.title}
+                      <TableCell className="font-medium">{exhibition.title}</TableCell>
+                      <TableCell>{exhibition.organiser.full_name}</TableCell>
+                      <TableCell>{`${exhibition.city}, ${exhibition.state}`}</TableCell>
+                      <TableCell>
+                        {exhibition.start_date && format(new Date(exhibition.start_date), 'MMM d, yyyy')}
                       </TableCell>
                       <TableCell>
-                        {exhibition.organiser.full_name}
+                        <div className="flex items-center space-x-2">
+                          <Badge variant={getStatusBadgeVariant(exhibition.status)} className="mr-2">
+                            {getStatusDisplay(exhibition.status)}
+                          </Badge>
+                          <Select
+                            value={exhibition.status}
+                            onValueChange={(value) => handleStatusChange(exhibition.id, value as Exhibition['status'])}
+                            disabled={updatingStatus === exhibition.id}
+                          >
+                            <SelectTrigger className="w-[140px] h-8">
+                              {updatingStatus === exhibition.id ? (
+                                <div className="flex items-center">
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  <span>Updating...</span>
+                                </div>
+                              ) : (
+                                <SelectValue placeholder="Change status" />
+                              )}
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="draft">Pending for Approval</SelectItem>
+                              <SelectItem value="published">Published</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        {exhibition.venue_type.name}
-                      </TableCell>
-                      <TableCell>
-                        {`${exhibition.city}, ${exhibition.state}`}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(exhibition.start_date), 'MMM d, yyyy')} -{' '}
-                        {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={exhibition.status}
-                          onValueChange={(newStatus: Exhibition['status']) => 
-                            updateExhibitionStatus(exhibition.id, newStatus)
-                          }
-                          disabled={updatingStatus === exhibition.id}
-                        >
-                          <SelectTrigger className="w-[130px]">
-                            <SelectValue>
-                              <Badge variant={getStatusBadgeVariant(exhibition.status)}>
-                                {getStatusDisplay(exhibition.status)}
-                              </Badge>
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Pending for Approval</SelectItem>
-                            <SelectItem value="published">Published</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -327,14 +385,6 @@ const ExhibitionsPage = () => {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(exhibition)}
-                            title="Delete Exhibition"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -346,19 +396,44 @@ const ExhibitionsPage = () => {
         </CardContent>
       </Card>
 
+      {/* Status Update Dialog */}
+      <AlertDialog open={statusUpdateDialog} onOpenChange={setStatusUpdateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              {statusUpdateData && (
+                <>
+                  Are you sure you want to change the status of <strong>{statusUpdateData.currentTitle}</strong> to <strong>{getStatusDisplay(statusUpdateData.newStatus)}</strong>?
+                  {statusUpdateData.newStatus === 'cancelled' && (
+                    <p className="mt-2 text-red-500">This will mark the exhibition as cancelled and notify the organizer.</p>
+                  )}
+                  {statusUpdateData.newStatus === 'completed' && (
+                    <p className="mt-2">This will mark the exhibition as completed and notify the organizer.</p>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmStatusUpdate}>Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the exhibition "{exhibitionToDelete?.title}". This action cannot be undone.
+              This action cannot be undone. This will permanently delete the exhibition
+              and all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

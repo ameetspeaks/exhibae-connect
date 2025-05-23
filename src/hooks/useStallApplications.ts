@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StallApplication, ApplicationStatus, StallApplicationFilters } from '@/types/stall-applications';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
+import { sendApplicationStatusEmail } from '@/services/email/applicationEmailService';
+import { useToast } from '@/hooks/use-toast';
 
 interface UseStallApplicationsReturn {
   applications: StallApplication[];
   isLoading: boolean;
   error: Error | null;
-  updateApplicationStatus: (id: string, status: ApplicationStatus) => Promise<void>;
+  updateApplicationStatus: (id: string, status: ApplicationStatus, comments?: string) => Promise<void>;
   deleteApplication: (id: string) => Promise<void>;
   filters: StallApplicationFilters;
   setFilters: (filters: StallApplicationFilters) => void;
@@ -15,6 +17,7 @@ interface UseStallApplicationsReturn {
 
 export function useStallApplications(initialFilters?: StallApplicationFilters): UseStallApplicationsReturn {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [applications, setApplications] = useState<StallApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -35,156 +38,85 @@ export function useStallApplications(initialFilters?: StallApplicationFilters): 
         setIsLoading(true);
         setError(null);
 
-        // If we have a specific exhibition ID, verify access first
-        if (filters.exhibitionId) {
-          console.log('[Debug] Fetching specific exhibition:', filters.exhibitionId);
-          
-          const { data: exhibition, error: exhibitionError } = await supabase
-            .from('exhibitions')
-            .select('id, organiser_id')
-            .eq('id', filters.exhibitionId)
-            .single();
-
-          console.log('[Debug] Exhibition check result:', { exhibition, error: exhibitionError });
-
-          if (exhibitionError) {
-            throw new Error('Exhibition not found');
-          }
-
-          if (exhibition.organiser_id !== user.id) {
-            throw new Error('You do not have permission to view applications for this exhibition');
-          }
-
-          // Fetch applications for this specific exhibition
-          console.log('[Debug] Fetching applications for exhibition:', filters.exhibitionId);
-          
-          const { data: applications, error: applicationsError } = await supabase
-            .from('stall_applications')
-            .select(`
-              *,
-              stall:stalls (
+        const isManager = user.user_metadata?.role === 'manager';
+        let query = supabase
+          .from('stall_applications')
+          .select(`
+            *,
+            stall:stalls (
+              id,
+              name,
+              length,
+              width,
+              price,
+              status,
+              unit:measurement_units (
                 id,
                 name,
-                length,
-                width,
-                price,
-                status,
-                unit:measurement_units (
-                  id,
-                  name,
-                  symbol
-                )
-              ),
-              stall_instance:stall_instances (
-                id,
-                instance_number,
-                position_x,
-                position_y,
-                rotation_angle,
-                status
-              ),
-              brand:profiles!stall_applications_brand_id_fkey (
-                id,
-                full_name,
-                email,
-                phone,
-                company_name,
-                avatar_url
-              ),
-              exhibition:exhibitions (
-                id,
-                title,
-                start_date,
-                end_date,
-                status
+                symbol
               )
-            `)
-            .eq('exhibition_id', filters.exhibitionId)
-            .order('created_at', { ascending: false });
+            ),
+            stall_instance:stall_instances (
+              id,
+              instance_number,
+              position_x,
+              position_y,
+              rotation_angle,
+              status
+            ),
+            brand:profiles!stall_applications_brand_id_fkey (
+              id,
+              full_name,
+              email,
+              phone,
+              company_name,
+              avatar_url
+            ),
+            exhibition:exhibitions (
+              id,
+              title,
+              start_date,
+              end_date,
+              status
+            )
+          `)
+          .order('created_at', { ascending: false });
 
-          console.log('[Debug] Applications query result:', { applications, error: applicationsError });
+        // Apply filters
+        if (filters.exhibitionId) {
+          query = query.eq('exhibition_id', filters.exhibitionId);
+        }
+        
+        if (filters.status && filters.status !== 'all') {
+          query = query.eq('status', filters.status);
+        }
 
-          if (applicationsError) {
-            throw new Error('Failed to fetch applications');
-          }
-
-          setApplications(applications || []);
-        } else {
-          // Fetch all exhibitions for the organizer
-          console.log('[Debug] Fetching all exhibitions for organizer:', user.id);
-          
+        if (!isManager) {
+          // For non-managers, only show applications for their exhibitions
           const { data: exhibitions, error: exhibitionsError } = await supabase
             .from('exhibitions')
             .select('id')
             .eq('organiser_id', user.id);
-
-          console.log('[Debug] Exhibitions query result:', { exhibitions, error: exhibitionsError });
 
           if (exhibitionsError) {
             throw new Error('Failed to fetch your exhibitions');
           }
 
           if (!exhibitions || exhibitions.length === 0) {
-            console.log('[Debug] No exhibitions found for organizer');
             setApplications([]);
             return;
           }
 
-          // Fetch applications for all exhibitions
-          console.log('[Debug] Fetching applications for exhibitions:', exhibitions.map(e => e.id));
-          
-          const { data: applications, error: applicationsError } = await supabase
-            .from('stall_applications')
-            .select(`
-              *,
-              stall:stalls (
-                id,
-                name,
-                length,
-                width,
-                price,
-                status,
-                unit:measurement_units (
-                  id,
-                  name,
-                  symbol
-                )
-              ),
-              stall_instance:stall_instances (
-                id,
-                instance_number,
-                position_x,
-                position_y,
-                rotation_angle,
-                status
-              ),
-              brand:profiles!stall_applications_brand_id_fkey (
-                id,
-                full_name,
-                email,
-                phone,
-                company_name,
-                avatar_url
-              ),
-              exhibition:exhibitions (
-                id,
-                title,
-                start_date,
-                end_date,
-                status
-              )
-            `)
-            .in('exhibition_id', exhibitions.map(e => e.id))
-            .order('created_at', { ascending: false });
-
-          console.log('[Debug] Applications query result:', { applications, error: applicationsError });
-
-          if (applicationsError) {
-            throw new Error('Failed to fetch applications');
-          }
-
-          setApplications(applications || []);
+          query = query.in('exhibition_id', exhibitions.map(e => e.id));
         }
+
+        const { data: applications, error: applicationsError } = await query;
+
+        if (applicationsError) {
+          throw new Error('Failed to fetch applications');
+        }
+
+        setApplications(applications || []);
       } catch (err) {
         console.error('[Debug] Error in fetchApplications:', err);
         setError(err instanceof Error ? err : new Error('An unexpected error occurred'));
@@ -197,7 +129,7 @@ export function useStallApplications(initialFilters?: StallApplicationFilters): 
     fetchApplications();
   }, [user, filters]);
 
-  const updateApplicationStatus = async (id: string, status: ApplicationStatus) => {
+  const updateApplicationStatus = async (id: string, status: ApplicationStatus, comments?: string) => {
     try {
       const { error } = await supabase
         .from('stall_applications')
@@ -206,13 +138,50 @@ export function useStallApplications(initialFilters?: StallApplicationFilters): 
 
       if (error) throw error;
 
+      // Update local state
       setApplications(prev => 
         prev.map(app => 
           app.id === id ? { ...app, status } : app
         )
       );
+
+      // Send email notification
+      try {
+        const paymentRequired = status === 'payment_pending';
+        const emailSent = await sendApplicationStatusEmail({
+          applicationId: id,
+          status,
+          comments,
+          paymentRequired
+        });
+
+        if (emailSent) {
+          toast({
+            title: "Email notification sent",
+            description: `The brand has been notified about the application status update.`,
+          });
+        } else {
+          toast({
+            title: "Email notification failed",
+            description: "The application was updated, but we couldn't send an email notification.",
+            variant: "destructive",
+          });
+        }
+      } catch (emailError) {
+        console.error('Error sending application status email:', emailError);
+        toast({
+          title: "Email notification failed",
+          description: "The application was updated, but we couldn't send an email notification.",
+          variant: "destructive",
+        });
+      }
     } catch (err) {
       console.error('Error in updateApplicationStatus:', err);
+      toast({
+        title: "Update failed",
+        description: "Failed to update the application status.",
+        variant: "destructive",
+      });
       throw err;
     }
   };
@@ -227,8 +196,18 @@ export function useStallApplications(initialFilters?: StallApplicationFilters): 
       if (error) throw error;
 
       setApplications(prev => prev.filter(app => app.id !== id));
+      
+      toast({
+        title: "Application deleted",
+        description: "The application has been deleted successfully.",
+      });
     } catch (err) {
       console.error('Error in deleteApplication:', err);
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete the application.",
+        variant: "destructive",
+      });
       throw err;
     }
   };

@@ -9,6 +9,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '@/hooks/useNotifications';
+import { format, isPast } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PaymentSubmissionForm } from '@/components/exhibitions/PaymentSubmissionForm';
 
 interface Exhibition {
   id: string;
@@ -28,18 +32,18 @@ interface Stall {
 
 interface Application {
   id: string;
-  stall_id: string;
-  brand_id: string;
   exhibition_id: string;
+  stall_id: string;
   status: string;
-  message: string;
-  booking_deadline: string;
-  booking_confirmed: boolean;
-  stall_instance_id: string;
   created_at: string;
-  updated_at: string;
-  stall: Stall;
+  booking_deadline?: string;
   exhibition: Exhibition;
+  stall: Stall;
+  payment_submission?: {
+    id: string;
+    proof_file_url?: string;
+    status: string;
+  };
 }
 
 const Applications = () => {
@@ -63,63 +67,77 @@ const Applications = () => {
         .from('stall_applications')
         .select(`
           id,
-          stall_id,
-          brand_id,
           exhibition_id,
+          stall_id,
           status,
-          message,
-          booking_deadline,
-          booking_confirmed,
-          stall_instance_id,
           created_at,
-          updated_at,
-          stall:stalls!stall_id (
+          booking_deadline,
+          exhibition:exhibitions (
+            id,
+            title,
+            address,
+            start_date,
+            end_date
+          ),
+          stall:stalls (
             id,
             name,
             length,
             width,
             price
           ),
-          exhibition:exhibitions!exhibition_id (
+          payment_submission:payment_submissions(
             id,
-            title,
-            address,
-            start_date,
-            end_date
+            proof_file_url,
+            status
           )
         `)
         .eq('brand_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('Error fetching applications:', error);
         throw error;
       }
 
-      // Check for new applications and notify
-      const previousApplications = applications;
-      const newApplications = (data || []) as Application[];
-      
-      if (previousApplications.length > 0) {
-        newApplications.forEach(newApp => {
-          const isNew = !previousApplications.find(oldApp => oldApp.id === newApp.id);
-          if (isNew) {
-            addNotification({
-              title: 'Application Submitted',
-              message: `Your application for ${newApp.exhibition.title} has been submitted successfully.`,
-              type: 'application_received',
-              link: `/dashboard/brand/applications`,
-            });
-          }
-        });
-      }
+      console.log('Raw data from Supabase:', data);
 
-      setApplications(newApplications);
-    } catch (error: any) {
+      // Transform and validate the data
+      const transformedData = data?.map(app => {
+        // Log each application for debugging
+        console.log('Processing application:', app);
+
+        // Handle the case where exhibition or stall might be an empty array
+        const exhibition = Array.isArray(app.exhibition) ? app.exhibition[0] : app.exhibition;
+        const stall = Array.isArray(app.stall) ? app.stall[0] : app.stall;
+        const payment_submission = Array.isArray(app.payment_submission) ? 
+          app.payment_submission[0] : app.payment_submission;
+
+        // Skip invalid applications
+        if (!exhibition || !stall) {
+          console.warn('Skipping application due to missing data:', {
+            id: app.id,
+            hasExhibition: !!exhibition,
+            hasStall: !!stall
+          });
+          return null;
+        }
+
+        return {
+          ...app,
+          exhibition,
+          stall,
+          payment_submission
+        };
+      }).filter(Boolean) as Application[];
+
+      console.log('Transformed applications:', transformedData);
+      setApplications(transformedData || []);
+    } catch (error) {
       console.error('Error in fetchApplications:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load applications. ' + (error.message || ''),
+        description: 'Failed to load applications. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -135,6 +153,12 @@ const Applications = () => {
         return 'bg-red-100 text-red-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
+      case 'payment_pending':
+        return 'bg-blue-100 text-blue-800';
+      case 'payment_review':
+        return 'bg-purple-100 text-purple-800';
+      case 'booked':
+        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -142,76 +166,143 @@ const Applications = () => {
 
   const filterApplications = (status: string) => {
     if (status === 'all') return applications;
-    return applications.filter(app => app.status === status);
+    return applications.filter(app => app.status.toLowerCase() === status.toLowerCase());
   };
 
-  const ApplicationCard = ({ application }: { application: Application }) => (
-    <Card className="mb-4">
-      <CardContent className="pt-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="font-medium text-lg">{application.exhibition?.title}</h3>
-            <div className="flex items-center space-x-2 text-gray-600 mt-1">
-              <MapPin className="h-4 w-4" />
-              <span className="text-sm">{application.exhibition?.address}</span>
-            </div>
-          </div>
-          <Badge className={getStatusColor(application.status)}>
-            {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-          </Badge>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2 text-gray-600">
-              <Calendar className="h-4 w-4" />
-              <span className="text-sm">
-                {application.exhibition?.start_date && new Date(application.exhibition.start_date).toLocaleDateString()} - {application.exhibition?.end_date && new Date(application.exhibition.end_date).toLocaleDateString()}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2 text-gray-600">
-              <Clock className="h-4 w-4" />
-              <span className="text-sm">Applied: {new Date(application.created_at).toLocaleDateString()}</span>
-            </div>
-            {application.booking_deadline && (
-              <div className="flex items-center space-x-2 text-gray-600">
-                <Clock className="h-4 w-4" />
-                <span className="text-sm">
-                  Booking Deadline: {new Date(application.booking_deadline).toLocaleDateString()}
-                </span>
+  const ApplicationCard = ({ application }: { application: Application }) => {
+    const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+
+    // Add validation check
+    if (!application?.exhibition || !application?.stall) {
+      console.error('Invalid application data:', application);
+      return null;
+    }
+
+    const showPaymentButton = application.status === 'payment_pending';
+
+    const handlePaymentSuccess = () => {
+      setIsPaymentDialogOpen(false);
+      toast({
+        title: 'Payment Submitted',
+        description: 'Your payment details have been submitted for review.',
+      });
+      fetchApplications(); // Refresh the applications list
+    };
+
+    return (
+      <Card className="mb-4">
+        <CardContent className="pt-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="font-medium text-lg">{application.exhibition.title}</h3>
+              <div className="flex items-center space-x-2 text-gray-600 mt-1">
+                <MapPin className="h-4 w-4" />
+                <span className="text-sm">{application.exhibition.address}</span>
               </div>
-            )}
+            </div>
+            <Badge className={getStatusColor(application.status)}>
+              {application.status.split('_').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+              ).join(' ')}
+            </Badge>
           </div>
           
-          <div className="space-y-2">
-            <div className="text-sm">
-              <span className="text-gray-600">Stall:</span> {application.stall?.name}
-            </div>
-            <div className="text-sm">
-              <span className="text-gray-600">Size:</span> {application.stall?.length}m × {application.stall?.width}m
-            </div>
-            <div className="text-sm">
-              <span className="text-gray-600">Price:</span> ${application.stall?.price}
-            </div>
-            {application.booking_confirmed && (
-              <div className="text-sm text-green-600 font-medium">
-                Booking Confirmed
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2 text-gray-600">
+                <Calendar className="h-4 w-4" />
+                <span className="text-sm">
+                  {format(new Date(application.exhibition.start_date), 'PPP')} - {format(new Date(application.exhibition.end_date), 'PPP')}
+                </span>
               </div>
-            )}
+              <div className="flex items-center space-x-2 text-gray-600">
+                <Clock className="h-4 w-4" />
+                <span className="text-sm">Applied: {format(new Date(application.created_at), 'PPP')}</span>
+              </div>
+              {application.booking_deadline && (
+                <div className="flex items-center space-x-2 text-gray-600">
+                  <Clock className="h-4 w-4" />
+                  <span className="text-sm">
+                    Booking Deadline: {format(new Date(application.booking_deadline), 'PPP')}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <div className="text-sm">
+                <span className="text-gray-600">Stall:</span> {application.stall.name}
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600">Size:</span> {application.stall.length}m × {application.stall.width}m
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600">Price:</span> ₹{application.stall.price.toLocaleString()}
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-4 flex justify-end">
-          <Button 
-            variant="outline"
-            onClick={() => navigate(`/dashboard/brand/exhibitions/${application.exhibition_id}`)}
-          >
-            View Details
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+          {application.status === 'payment_pending' && (
+            <>
+              <Alert className="mt-4">
+                <AlertDescription>
+                  Please complete the payment to confirm your booking. 
+                  {application.booking_deadline && (
+                    <> Payment must be made by {format(new Date(application.booking_deadline), 'PPP')}.</>
+                  )}
+                </AlertDescription>
+              </Alert>
+              <div className="mt-4">
+                <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+                  <Button 
+                    className="w-full bg-exhibae-navy hover:bg-opacity-90"
+                    onClick={() => setIsPaymentDialogOpen(true)}
+                  >
+                    Pay Now
+                  </Button>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Complete Payment</DialogTitle>
+                      <DialogDescription>
+                        Submit your payment details to confirm your stall booking
+                      </DialogDescription>
+                    </DialogHeader>
+                    <PaymentSubmissionForm
+                      applicationId={application.id}
+                      stallPrice={application.stall.price}
+                      exhibitionId={application.exhibition_id}
+                      onSuccess={handlePaymentSuccess}
+                      bookingDeadline={application.booking_deadline}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </>
+          )}
+
+          <div className="mt-4 flex flex-col gap-2">
+            {application.payment_submission?.proof_file_url && (
+              <a
+                href={application.payment_submission.proof_file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-exhibae-navy bg-white border border-exhibae-navy rounded-md hover:bg-exhibae-navy hover:text-white transition-colors"
+              >
+                View Payment Proof
+              </a>
+            )}
+
+            <Button 
+              variant="outline"
+              onClick={() => navigate(`/dashboard/brand/exhibitions/${application.exhibition_id}`)}
+            >
+              View Details
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (loading) {
     return (
