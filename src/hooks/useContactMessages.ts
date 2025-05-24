@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ContactMessage, ContactMessageStatus } from '@/types/contact';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
+import emailService from '@/services/email/emailService';
 
 export const useContactMessages = () => {
   const [messages, setMessages] = useState<ContactMessage[]>([]);
@@ -15,17 +16,10 @@ export const useContactMessages = () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Simplified query to avoid foreign key issues
       const { data, error: fetchError } = await supabase
         .from('contact_messages')
-        .select(`
-          *,
-          responder:responded_by (
-            id,
-            full_name,
-            email,
-            avatar_url
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -35,6 +29,7 @@ export const useContactMessages = () => {
       setMessages(data || []);
     } catch (err: any) {
       setError(err.message);
+      console.error("Contact messages fetch error:", err);
       toast({
         title: 'Error',
         description: 'Failed to load contact messages.',
@@ -83,6 +78,12 @@ export const useContactMessages = () => {
     if (!user) return false;
     
     try {
+      // Find the message to get user details
+      const message = messages.find(msg => msg.id === messageId);
+      if (!message) {
+        throw new Error('Message not found');
+      }
+      
       const now = new Date().toISOString();
       const { error: updateError } = await supabase
         .from('contact_messages')
@@ -96,6 +97,25 @@ export const useContactMessages = () => {
 
       if (updateError) {
         throw updateError;
+      }
+      
+      // Send email response to the user
+      const emailResult = await emailService.sendContactResponseEmail({
+        to: message.email,
+        name: message.name,
+        subject: message.subject,
+        originalMessage: message.message,
+        response: response
+      });
+      
+      if (!emailResult.success) {
+        console.error('Failed to send email response:', emailResult.error);
+        // We continue anyway as the database was updated successfully
+        toast({
+          title: 'Response Recorded',
+          description: 'Your response was saved, but email delivery failed.',
+          variant: 'destructive',
+        });
       }
 
       // Update local state
@@ -115,7 +135,7 @@ export const useContactMessages = () => {
 
       toast({
         title: 'Response Sent',
-        description: 'Your response has been recorded.',
+        description: 'Your response has been recorded and sent to the user.',
       });
 
       return true;

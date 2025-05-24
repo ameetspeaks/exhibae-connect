@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -34,7 +34,9 @@ import {
   Clock,
   Filter,
   Trash,
-  AlertCircle
+  AlertCircle,
+  CheckCircle,
+  Store
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useApplications } from '@/hooks/useApplicationsData';
@@ -78,7 +80,17 @@ const statusIcons = {
   rejected: <XCircle className="h-4 w-4" />,
 };
 
-export default function ApplicationsOverview() {  const [searchTerm, setSearchTerm] = useState('');  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');  const [selectedApplications, setSelectedApplications] = useState<string[]>([]);  const [isBulkActionDialogOpen, setIsBulkActionDialogOpen] = useState(false);  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | 'delete' | null>(null);  const [selectedApplication, setSelectedApplication] = useState<StallApplication | null>(null);  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);  const [isPaymentReviewOpen, setIsPaymentReviewOpen] = useState(false);  const [isUpdating, setIsUpdating] = useState(false);  const { toast } = useToast();
+export default function ApplicationsOverview() {  
+  const [searchTerm, setSearchTerm] = useState('');  
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');  
+  const [selectedApplications, setSelectedApplications] = useState<string[]>([]);  
+  const [isBulkActionDialogOpen, setIsBulkActionDialogOpen] = useState(false);  
+  const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | 'delete' | null>(null);  
+  const [selectedApplication, setSelectedApplication] = useState<StallApplication | null>(null);  
+  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);  
+  const [isPaymentReviewOpen, setIsPaymentReviewOpen] = useState(false);  
+  const [isUpdating, setIsUpdating] = useState(false);  
+  const { toast } = useToast();
   const {
     applications: { data: applications = [], isLoading },
     updateApplication,
@@ -92,6 +104,7 @@ export default function ApplicationsOverview() {  const [searchTerm, setSearchTe
       mutateAsync: (id: string) => Promise<void>;
     }
   };
+  const navigate = useNavigate();
 
   const handleStatusUpdate = async (id: string, status: ApplicationStatus) => {
     console.log('Attempting to update status:', { id, status });
@@ -455,71 +468,78 @@ export default function ApplicationsOverview() {  const [searchTerm, setSearchTe
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
-                      {application.status === 'payment_review' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isUpdating}
-                          className="flex items-center gap-1 bg-blue-50 text-blue-600 hover:bg-blue-100"
-                          onClick={(e) => {
-                            console.log('Review Payment button clicked', { 
-                              applicationId: application.id,
-                              paymentSubmission: application.payment_submission,
-                              applicationStatus: application.status
-                            });
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('Setting selected application:', application);
-                            setSelectedApplication(application);
-                            console.log('Opening payment review dialog');
-                            setIsPaymentReviewOpen(true);
-                          }}
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <AlertCircle className="h-4 w-4" />
-                          )}
-                          Review Payment
+                    {application.status === 'payment_review' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isUpdating}
+                        className="flex items-center gap-1 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                        onClick={(e) => {
+                          console.log('Review Payment button clicked', { 
+                            applicationId: application.id,
+                            paymentSubmission: application.payment_submissions?.[0],
+                            applicationStatus: application.status
+                          });
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Setting selected application:', application);
+                          setSelectedApplication(application);
+                          console.log('Opening payment review dialog');
+                          setIsPaymentReviewOpen(true);
+                        }}
+                      >
+                        {isUpdating ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4" />
+                        )}
+                        Review Payment
+                      </Button>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {application.status === 'pending' && (
-                            <>
-                              <DropdownMenuItem
-                                onClick={() => handleStatusUpdate(application.id, 'payment_pending')}
-                              >
-                                Approve for Payment
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleStatusUpdate(application.id, 'rejected')}
-                              >
-                                Reject
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {application.status === 'payment_pending' && (
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {application.status === 'pending' && (
+                          <>
                             <DropdownMenuItem
-                              onClick={() => handleStatusUpdate(application.id, 'payment_review')}
+                              onClick={() => handleStatusUpdate(application.id, 'payment_pending')}
                             >
-                              Mark as Payment Submitted
+                              Approve for Payment
                             </DropdownMenuItem>
-                          )}
+                            <DropdownMenuItem
+                              onClick={() => handleStatusUpdate(application.id, 'rejected')}
+                            >
+                              Reject
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {application.status === 'payment_pending' && (
                           <DropdownMenuItem
-                            className="text-red-600"
-                            onClick={() => handleDelete(application.id)}
+                            onClick={() => handleStatusUpdate(application.id, 'payment_review')}
                           >
-                            <Trash className="h-4 w-4 mr-2" />
-                            Delete
+                            Mark as Payment Submitted
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        )}
+                        <DropdownMenuItem
+                          onClick={() => window.open(`/brands/${application.brand_id}`, '_blank')}
+                          className="text-primary"
+                        >
+                          <Store className="h-4 w-4 mr-2" />
+                          View Brand Portfolio
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          onClick={() => handleDelete(application.id)}
+                        >
+                          <Trash className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -606,33 +626,33 @@ export default function ApplicationsOverview() {  const [searchTerm, setSearchTe
                 </div>
 
                 {/* Payment Details Section - Show when in payment_review status */}
-                {selectedApplication.status === 'payment_review' && selectedApplication.payment_submission && (
+                {selectedApplication.status === 'payment_review' && selectedApplication.payment_submissions?.[0] && (
                   <div className="border rounded-lg p-4 bg-muted/30">
                     <h3 className="text-lg font-semibold mb-4">Payment Details</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Amount Paid</p>
-                        <p className="font-medium">₹{selectedApplication.payment_submission.amount.toLocaleString()}</p>
+                        <p className="font-medium">₹{selectedApplication.payment_submissions[0].amount.toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Transaction ID</p>
-                        <p className="font-medium">{selectedApplication.payment_submission.transaction_id}</p>
+                        <p className="font-medium">{selectedApplication.payment_submissions[0].transaction_id}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Payment Email</p>
-                        <p className="font-medium">{selectedApplication.payment_submission.email}</p>
+                        <p className="font-medium">{selectedApplication.payment_submissions[0].email}</p>
                       </div>
-                      {selectedApplication.payment_submission.notes && (
+                      {selectedApplication.payment_submissions[0].notes && (
                         <div className="col-span-2">
                           <p className="text-sm text-muted-foreground">Payment Notes</p>
-                          <p className="mt-1 whitespace-pre-wrap">{selectedApplication.payment_submission.notes}</p>
+                          <p className="mt-1 whitespace-pre-wrap">{selectedApplication.payment_submissions[0].notes}</p>
                         </div>
                       )}
-                      {selectedApplication.payment_submission.proof_file_url && (
+                      {selectedApplication.payment_submissions[0].proof_file_url && (
                         <div className="col-span-2">
                           <p className="text-sm text-muted-foreground">Payment Proof</p>
                           <a
-                            href={selectedApplication.payment_submission.proof_file_url}
+                            href={selectedApplication.payment_submissions[0].proof_file_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline flex items-center gap-2 mt-1"

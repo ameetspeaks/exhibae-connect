@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useContactMessages } from '@/hooks/useContactMessages';
 import { format } from 'date-fns';
 import {
@@ -36,8 +36,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Search, Filter, RefreshCw, Inbox, Mail, Check, Archive, Send } from 'lucide-react';
+import { Loader2, Search, Filter, RefreshCw, Inbox, Mail, Check, Archive, Send, ExternalLink } from 'lucide-react';
 import { ContactMessage, ContactMessageStatus } from '@/types/contact';
+import { createContactReplyMailto } from '@/utils/emailUtils';
 
 const ContactMessagesPage = () => {
   const {
@@ -48,6 +49,11 @@ const ContactMessagesPage = () => {
     markAsRead,
     archiveMessage,
   } = useContactMessages();
+
+  // Log messages for debugging
+  useEffect(() => {
+    console.log('Contact messages data:', messages);
+  }, [messages]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ContactMessageStatus | 'all'>('all');
@@ -127,6 +133,15 @@ const ContactMessagesPage = () => {
         };
       });
     }
+  };
+
+  // Open email client with pre-filled response template
+  const handleEmailClientReply = (message: ContactMessage) => {
+    // Create mailto link using utility function
+    const mailtoLink = createContactReplyMailto(message);
+    
+    // Open default email client
+    window.open(mailtoLink, '_blank');
   };
 
   // Helper to get badge color based on status
@@ -241,13 +256,26 @@ const ContactMessagesPage = () => {
                       {format(new Date(message.created_at), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenMessage(message)}
-                      >
-                        View
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="View Details"
+                          onClick={() => handleOpenMessage(message)}
+                        >
+                          <Search className="h-4 w-4" />
+                        </Button>
+                        {message.status !== 'archived' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Direct Email Reply"
+                            onClick={() => handleEmailClientReply(message)}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -310,7 +338,7 @@ const ContactMessagesPage = () => {
             </div>
             
             <DialogFooter className="gap-2 sm:gap-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {selectedMessage.status !== 'archived' && (
                   <Button variant="outline" size="sm" onClick={handleArchive}>
                     <Archive className="h-4 w-4 mr-2" />
@@ -318,10 +346,21 @@ const ContactMessagesPage = () => {
                   </Button>
                 )}
                 
+                {selectedMessage.status !== 'archived' && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleEmailClientReply(selectedMessage)}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Email Client Reply
+                  </Button>
+                )}
+                
                 {selectedMessage.status !== 'replied' && selectedMessage.status !== 'archived' && (
                   <Button onClick={handleOpenReply}>
                     <Mail className="h-4 w-4 mr-2" />
-                    Reply
+                    System Reply
                   </Button>
                 )}
               </div>

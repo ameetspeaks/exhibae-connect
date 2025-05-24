@@ -123,6 +123,19 @@ export interface StallStatusEmailData {
   from?: string;
 }
 
+// Contact response email interfaces
+export interface ContactResponseEmailData {
+  to: string;
+  name: string;
+  subject: string;
+  originalMessage: string;
+  response: string;
+  supportName?: string;
+  supportEmail?: string;
+  websiteUrl?: string;
+  from?: string;
+}
+
 /**
  * Email Service for sending emails via the API
  */
@@ -667,6 +680,162 @@ class EmailService {
     } catch (error: any) {
       console.error('Error queuing stall status email:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send a contact response email
+   * @param data - Contact response email data
+   * @returns Promise with send result
+   */
+  async sendContactResponseEmail(data: ContactResponseEmailData): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      // If template exists, use it
+      if (await this.checkTemplateExists('contact-response')) {
+        // Prepare template data
+        const templateData = {
+          to: data.to,
+          templateId: 'contact-response',
+          data: {
+            ...data,
+            supportName: data.supportName || 'ExhiBae Support Team',
+            supportEmail: data.supportEmail || 'support@exhibae.com',
+            websiteUrl: data.websiteUrl || 'https://exhibae.com'
+          },
+          from: data.from
+        };
+        
+        // Send contact response email using template
+        return await this.sendTemplateEmail(templateData);
+      } else {
+        // Fallback to sending a simple HTML email
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Response to Your Inquiry</h2>
+            <p>Dear ${data.name},</p>
+            <p>Thank you for contacting us regarding "${data.subject}".</p>
+            
+            <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #666; margin: 20px 0;">
+              <p style="margin: 0; font-style: italic;">${data.originalMessage.replace(/\n/g, '<br>')}</p>
+            </div>
+            
+            <div style="margin: 20px 0;">
+              <p>${data.response.replace(/\n/g, '<br>')}</p>
+            </div>
+            
+            <p>Best regards,<br>${data.supportName || 'ExhiBae Support Team'}</p>
+            
+            <hr style="border: 1px solid #eee; margin: 30px 0;">
+            <p style="font-size: 12px; color: #666;">
+              This is a response to your message sent through our contact form. 
+              If you have any further questions, please feel free to contact us.
+            </p>
+          </div>
+        `;
+        
+        // Email data
+        const emailData = {
+          to: data.to,
+          subject: `Re: ${data.subject}`,
+          html,
+          from: data.from
+        };
+        
+        // Send the email
+        return await this.sendEmail(emailData);
+      }
+    } catch (error: any) {
+      console.error('Error sending contact response email:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Queue a contact response email for later delivery
+   * @param data - Contact response email data
+   * @returns Promise with queue result
+   */
+  async queueContactResponseEmail(data: ContactResponseEmailData): Promise<{ success: boolean; queueId?: string; error?: string }> {
+    try {
+      // If template exists, use it
+      if (await this.checkTemplateExists('contact-response')) {
+        // Prepare template data
+        const templateData = {
+          to: data.to,
+          templateId: 'contact-response',
+          data: {
+            ...data,
+            supportName: data.supportName || 'ExhiBae Support Team',
+            supportEmail: data.supportEmail || 'support@exhibae.com',
+            websiteUrl: data.websiteUrl || 'https://exhibae.com'
+          },
+          from: data.from
+        };
+        
+        // Queue contact response email using template
+        return await this.queueTemplateEmail(templateData);
+      } else {
+        // Fallback to queuing a simple HTML email
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Response to Your Inquiry</h2>
+            <p>Dear ${data.name},</p>
+            <p>Thank you for contacting us regarding "${data.subject}".</p>
+            
+            <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #666; margin: 20px 0;">
+              <p style="margin: 0; font-style: italic;">${data.originalMessage.replace(/\n/g, '<br>')}</p>
+            </div>
+            
+            <div style="margin: 20px 0;">
+              <p>${data.response.replace(/\n/g, '<br>')}</p>
+            </div>
+            
+            <p>Best regards,<br>${data.supportName || 'ExhiBae Support Team'}</p>
+            
+            <hr style="border: 1px solid #eee; margin: 30px 0;">
+            <p style="font-size: 12px; color: #666;">
+              This is a response to your message sent through our contact form. 
+              If you have any further questions, please feel free to contact us.
+            </p>
+          </div>
+        `;
+        
+        // Email data
+        const emailData = {
+          to: data.to,
+          subject: `Re: ${data.subject}`,
+          html,
+          from: data.from
+        };
+        
+        // Queue the email
+        return await this.queueEmail(emailData);
+      }
+    } catch (error: any) {
+      console.error('Error queuing contact response email:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  /**
+   * Check if an email template exists
+   * @param templateId - Template ID to check
+   * @returns Promise with check result
+   */
+  private async checkTemplateExists(templateId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.apiUrl}/templates/check/${templateId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      return result.exists || false;
+    } catch (error) {
+      console.error('Error checking template existence:', error);
+      return false;
     }
   }
 }

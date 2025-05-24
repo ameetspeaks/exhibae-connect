@@ -230,14 +230,23 @@ export default function InterestInquiries() {
                   </div>
                 )}
 
-                {/* Action Button */}
-                <Button 
-                  variant="outline" 
-                  className="w-full mt-2 h-8 text-xs"
-                  onClick={() => navigate(`/dashboard/organiser/exhibitions/${inquiry.exhibition_id}`)}
-                >
-                  View Exhibition Details
-                </Button>
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-2 mt-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-8 text-xs"
+                    onClick={() => navigate(`/dashboard/organiser/exhibitions/${inquiry.exhibition_id}`)}
+                  >
+                    View Exhibition Details
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-8 text-xs bg-primary/5 hover:bg-primary/10 text-primary"
+                    onClick={() => window.open(`/brands/${inquiry.brand.id}`, '_blank')}
+                  >
+                    View Brand Portfolio
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))

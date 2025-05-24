@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { AppNotification } from '@/types/notification';
 import { useUser } from '@supabase/auth-helpers-react';
-import { playNotificationSound, requestNotificationPermission } from '@/services/notificationSoundService';
+import { playNotificationSound } from '@/services/notificationSoundService';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { useNotificationSettings } from './useNotificationSettings';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { processNotification, showBrowserNotification } from '@/services/notificationService';
 
 interface NotificationContextType {
   notifications: AppNotification[];
@@ -34,9 +35,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     
     hasInitialized.current = true;
 
-    // Request notification permission on mount
-    requestNotificationPermission();
-
     // Only setup realtime subscriptions if supabase.channel function exists
     if (typeof supabase.channel === 'function') {
       try {
@@ -54,26 +52,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             const newNotification = payload.new as AppNotification;
             const eventType = newNotification.type;
             
-            // Check manager role
-            const isManager = user.app_metadata?.role === 'MANAGER';
+            // Check if desktop notifications are enabled for this type
+            const shouldShowDesktopNotification = isEnabled('desktop_notifications') && 
+                isEnabled(`${eventType}_enabled` as any);
             
-            // Only show browser notification if it's enabled for user's role
-            if (isEnabled('desktop_notifications') && 
-                isEnabled(`${eventType}_enabled` as any)) {
-              
-              // For managers, show desktop notifications with custom icon
-              if (isManager && Notification.permission === 'granted') {
-                // Show browser notification
-                new Notification(newNotification.title, {
-                  body: newNotification.message,
-                  icon: '/favicon.ico', // Update with your app's icon
-                });
-              }
-              
-              // Play notification sound if enabled
-              if (isEnabled('sound_enabled') && isManager) {
-                playNotificationSound(newNotification.type);
-              }
+            // Check if sound notifications are enabled for this type
+            const shouldPlaySound = isEnabled('sound_enabled') && 
+                isEnabled(`${eventType}_enabled` as any);
+            
+            if (shouldShowDesktopNotification || shouldPlaySound) {
+              // Process the notification (show desktop notification and/or play sound)
+              processNotification(newNotification, shouldPlaySound, shouldShowDesktopNotification);
             }
 
             setNotifications(prev => [newNotification, ...prev]);
@@ -211,7 +200,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return;
       }
 
-      setNotifications(prev => [data as AppNotification, ...prev]);
+      const newNotification = data as AppNotification;
+      
+      // Check if desktop notifications are enabled for this type
+      const shouldShowDesktopNotification = isEnabled('desktop_notifications') && 
+          isEnabled(`${notification.type}_enabled` as any);
+      
+      // Check if sound notifications are enabled for this type
+      const shouldPlaySound = isEnabled('sound_enabled') && 
+          isEnabled(`${notification.type}_enabled` as any);
+      
+      if (shouldShowDesktopNotification || shouldPlaySound) {
+        // Process the notification (show desktop notification and/or play sound)
+        processNotification(newNotification, shouldPlaySound, shouldShowDesktopNotification);
+      }
+
+      setNotifications(prev => [newNotification, ...prev]);
     } catch (error) {
       console.error('Error adding notification:', error);
     }

@@ -1,15 +1,72 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { Mail, Phone, MapPin, Loader2, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 const Contact = () => {
-  const handleSubmit = (e: React.FormEvent) => {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: ''
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
+    setIsSubmitting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('contact_messages')
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            subject: formData.subject,
+            message: formData.message
+          }
+        ]);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reset form and show success
+      setFormData({ name: '', email: '', subject: '', message: '' });
+      setIsSuccess(true);
+      
+      toast({
+        title: "Message Sent",
+        description: "Thank you for your message. We'll get back to you soon.",
+      });
+
+      // Reset success state after 5 seconds
+      setTimeout(() => {
+        setIsSuccess(false);
+      }, 5000);
+      
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send message. Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -33,32 +90,75 @@ const Contact = () => {
             {/* Contact Form */}
             <div>
               <h2 className="text-2xl font-bold text-exhibae-navy mb-6">Send us a Message</h2>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input id="name" placeholder="Your name" required />
+              
+              {isSuccess ? (
+                <div className="bg-green-50 text-green-800 p-6 rounded-lg flex items-center space-x-3 animate-fade-in">
+                  <CheckCircle className="h-6 w-6" />
+                  <div>
+                    <h3 className="font-semibold">Message Sent!</h3>
+                    <p>Thank you for contacting us. We'll respond to your inquiry soon.</p>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="Your email" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject</Label>
-                  <Input id="subject" placeholder="Message subject" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="message">Message</Label>
-                  <Textarea 
-                    id="message" 
-                    placeholder="Your message" 
-                    className="min-h-[150px]"
-                    required 
-                  />
-                </div>
-                <Button type="submit" className="w-full bg-exhibae-navy hover:bg-opacity-90">
-                  Send Message
-                </Button>
-              </form>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input 
+                      id="name" 
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="Your name" 
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Your email" 
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input 
+                      id="subject" 
+                      value={formData.subject}
+                      onChange={handleInputChange}
+                      placeholder="Message subject" 
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="message">Message</Label>
+                    <Textarea 
+                      id="message" 
+                      value={formData.message}
+                      onChange={handleInputChange}
+                      placeholder="Your message" 
+                      className="min-h-[150px]"
+                      required 
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-exhibae-navy hover:bg-opacity-90"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      "Send Message"
+                    )}
+                  </Button>
+                </form>
+              )}
             </div>
 
             {/* Contact Information */}

@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -22,7 +22,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, Clock, XCircle } from 'lucide-react';
+import { MoreHorizontal, Clock, XCircle, Store } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -41,12 +41,12 @@ import { ApplicationStatus } from '@/types/stall-applications';
 const statusIcons = {
   pending: <Clock className="h-4 w-4 text-yellow-600" />,
   rejected: <XCircle className="h-4 w-4 text-red-600" />,
-  approved: null,
+  booked: null,
 } as const;
 
 const statusColors = {
   pending: 'bg-yellow-50 text-yellow-800 border-yellow-200',
-  approved: 'bg-green-50 text-green-800 border-green-200',
+  booked: 'bg-green-50 text-green-800 border-green-200',
   rejected: 'bg-red-50 text-red-800 border-red-200',
 } as const;
 
@@ -65,6 +65,7 @@ export default function Applications() {
     exhibitionId,
     status: 'all',
   });
+  const navigate = useNavigate();
 
   const handleStatusUpdate = async (id: string, newStatus: ApplicationStatus) => {
     try {
@@ -190,7 +191,7 @@ export default function Applications() {
                       {application.status === 'pending' && (
                         <>
                           <DropdownMenuItem
-                            onClick={() => handleStatusUpdate(application.id, 'approved')}
+                            onClick={() => handleStatusUpdate(application.id, 'booked')}
                           >
                             Approve
                           </DropdownMenuItem>
@@ -201,6 +202,12 @@ export default function Applications() {
                           </DropdownMenuItem>
                         </>
                       )}
+                      <DropdownMenuItem
+                        onClick={() => window.open(`/brands/${application.brand_id}`, '_blank')}
+                        className="text-primary"
+                      >
+                        <Store className="h-4 w-4 mr-2" /> View Brand Portfolio
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => handleDelete(application.id)}
                         className="text-red-600"
