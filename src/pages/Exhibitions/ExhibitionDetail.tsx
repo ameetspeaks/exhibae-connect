@@ -5,8 +5,9 @@ import { useStalls } from '@/hooks/useStallsData';
 import { useStallInstances } from '@/hooks/useStallsData';
 import { useStallInstanceOperations } from '@/hooks/useStallInstanceOperations';
 import { useExhibitionAttendance } from '@/hooks/useExhibitionAttendance';
+import { useExhibitionFavorite } from '@/hooks/useExhibitionFavorite';
 import { format } from 'date-fns';
-import { Loader2, MapPin, Calendar, Tag, Info, Users } from 'lucide-react';
+import { Loader2, MapPin, Calendar, Tag, Info, Users, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,12 @@ export default function ExhibitionDetail() {
     isSubmitting: isAttendanceSubmitting,
     attendanceCount 
   } = useExhibitionAttendance(id!);
+  const {
+    isFavorite,
+    toggleFavorite,
+    isSubmitting: isFavoriteSubmitting,
+    favoritesCount
+  } = useExhibitionFavorite(id!);
   
   const [selectedStall, setSelectedStall] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -702,7 +709,10 @@ export default function ExhibitionDetail() {
                   <Users className="w-5 h-5 text-muted-foreground mt-0.5" />
                   <div>
                     <p className="font-medium">Attendees</p>
-                    <p className="text-sm text-muted-foreground">{attendanceCount} people going</p>
+                    <p className="text-sm text-muted-foreground">
+                      {attendanceCount} people going
+                      {favoritesCount > 0 && ` • ${favoritesCount} people interested`}
+                    </p>
                   </div>
                 </div>
               </div>

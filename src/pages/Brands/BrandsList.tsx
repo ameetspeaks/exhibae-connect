@@ -2,11 +2,13 @@ import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Search, ArrowUpDown, AlertCircle, Users, Bookmark, ChevronRight } from 'lucide-react';
+import { Loader2, Search, ArrowUpDown, AlertCircle, Users, Bookmark, ChevronRight, Heart } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { User } from '@supabase/supabase-js';
+import { useAuth } from '@/integrations/supabase/AuthProvider';
+import { useBrandFavorite } from '@/hooks/useBrandFavorite';
 import {
   Select,
   SelectContent,
@@ -38,6 +40,7 @@ interface Brand {
   user_metadata: BrandMetadata;
   created_at?: string;
   event_count?: number;
+  isFavorite?: boolean;
 }
 
 interface PaginatedResponse {
@@ -52,6 +55,8 @@ const ITEMS_PER_PAGE = 12;
 
 const BrandCard: React.FC<{ brand: Brand }> = ({ brand }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toggleFavorite, isSubmitting } = useBrandFavorite(brand.id);
   
   const getInitials = (name: string = '') => {
     return name
@@ -61,41 +66,137 @@ const BrandCard: React.FC<{ brand: Brand }> = ({ brand }) => {
       .toUpperCase();
   };
 
+  // Generate a random gradient for brands without logos
+  const getRandomGradient = () => {
+    const gradients = [
+      'from-blue-500 to-purple-500',
+      'from-emerald-500 to-teal-500',
+      'from-pink-500 to-rose-500',
+      'from-amber-500 to-orange-500',
+      'from-indigo-500 to-blue-500',
+      'from-green-500 to-emerald-500',
+    ];
+    return gradients[Math.floor(Math.random() * gradients.length)];
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation when clicking the favorite button
+    toggleFavorite();
+  };
+
   return (
     <div
       onClick={() => navigate(`/brands/${brand.id}`)}
       className="group cursor-pointer"
     >
-      <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 h-full">
-        <div className="relative mb-6">
-          <Avatar className="w-32 h-32 transition-transform duration-200 group-hover:scale-105 border-2 border-primary/10">
-            <AvatarImage 
-              src={brand.user_metadata.logo_url} 
-              alt={brand.user_metadata.company_name} 
-              className="object-cover"
-            />
-            <AvatarFallback className="text-3xl bg-primary/10 text-primary">
-              {getInitials(brand.user_metadata.company_name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-primary/10 text-primary text-xs font-medium px-3 py-1 rounded-full">
-            {brand.event_count || 0} {brand.event_count === 1 ? 'event' : 'events'}
+      <div className="relative flex flex-col h-full overflow-hidden bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        <div className="relative p-6 flex flex-col items-center">
+          {/* Favorite Button */}
+          {user && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-4 top-4 h-8 w-8 hover:bg-primary/10"
+              onClick={handleFavoriteClick}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Heart className={`h-4 w-4 ${brand.isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400 hover:text-red-500'}`} />
+              )}
+            </Button>
+          )}
+
+          <div className="relative mb-6">
+            <div className="relative">
+              <Avatar className="w-32 h-32 transition-all duration-300 group-hover:scale-105 shadow-lg">
+                <AvatarImage 
+                  src={brand.user_metadata.logo_url} 
+                  alt={brand.user_metadata.company_name} 
+                  className="object-cover"
+                />
+                <AvatarFallback className={`text-3xl bg-gradient-to-br ${getRandomGradient()} text-white`}>
+                  {getInitials(brand.user_metadata.company_name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white shadow-md text-primary text-xs font-medium px-4 py-1.5 rounded-full border border-primary/10">
+                {brand.event_count || 0} {brand.event_count === 1 ? 'event' : 'events'}
+              </div>
+            </div>
           </div>
-        </div>
-        <h3 className="text-lg font-semibold text-center mb-2 group-hover:text-primary transition-colors">
-          {brand.user_metadata.company_name}
-        </h3>
-        <div className="flex items-center text-xs text-muted-foreground mt-auto">
-          <Button variant="ghost" size="sm" className="text-xs font-normal mt-2 group-hover:bg-primary/10">
-            View Profile <ChevronRight className="h-3 w-3 ml-1" />
-          </Button>
+
+          <h3 className="text-xl font-semibold text-center mb-3 group-hover:text-primary transition-colors">
+            {brand.user_metadata.company_name}
+          </h3>
+          
+          <div className="mt-auto pt-4 w-full">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full justify-between"
+            >
+              <span>View Profile</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
+const fetchBrands = async (user: User | null) => {
+  try {
+    // Fetch brand users from the profiles table
+    const { data: brandProfiles, error: brandsError } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, company_name, avatar_url, role, created_at');
+
+    if (brandsError) throw brandsError;
+
+    // If user is logged in, fetch their favorites
+    let favorites: string[] = [];
+    if (user) {
+      const { data: favoritesData } = await supabase
+        .from('brand_favorites')
+        .select('brand_id')
+        .eq('user_id', user.id);
+      
+      favorites = (favoritesData || []).map(f => f.brand_id);
+    }
+
+    // Filter for brands and map with favorite status
+    const filteredBrandUsers = [];
+    
+    for (const profile of brandProfiles || []) {
+      if (profile.role === 'brand') {
+        filteredBrandUsers.push({
+          id: profile.id,
+          email: profile.email,
+          user_metadata: {
+            company_name: profile.company_name || 'Brand',
+            logo_url: profile.avatar_url,
+            description: '',
+            role: profile.role
+          },
+          created_at: profile.created_at,
+          isFavorite: favorites.includes(profile.id)
+        });
+      }
+    }
+
+    return filteredBrandUsers;
+  } catch (err) {
+    console.error('Error fetching brands:', err);
+    throw err;
+  }
+};
+
 const BrandsList = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1');
   const sortField = (searchParams.get('sort') as SortField) || 'company_name';
@@ -114,140 +215,13 @@ const BrandsList = () => {
     setSearchParams(newParams);
   };
 
-  const { data, isLoading, error } = useQuery<PaginatedResponse>({
-    queryKey: ['brands', page, sortField, sortOrder, searchQuery],
-    queryFn: async () => {
-      try {
-        // Fetch brand users from the profiles table
-        const { data: brandProfiles, error: brandsError } = await supabase
-          .from('profiles')
-          .select('id, email, full_name, company_name, avatar_url, role, created_at');
-
-        if (brandsError) throw brandsError;
-
-        // Filter for brands client-side
-        const filteredBrandUsers = [];
-        
-        for (const profile of brandProfiles || []) {
-          if (profile.role === 'brand') {
-            // Map profile data to the expected Brand structure
-            filteredBrandUsers.push({
-              id: profile.id,
-              email: profile.email,
-              user_metadata: {
-                company_name: profile.company_name || 'Brand',
-                logo_url: profile.avatar_url,
-                description: '', // Profiles may not have description, add if available
-                role: profile.role
-              },
-              created_at: profile.created_at
-            });
-          }
-        }
-
-        // Get event counts for each brand
-        let eventCounts = [];
-        try {
-          const eventCountPromises = filteredBrandUsers.map(async (user) => {
-            try {
-              const { data: applications, error: appError } = await supabase
-                .from('exhibition_applications')
-                .select('exhibition_id')
-                .eq('brand_id', user.id)
-                .eq('status', 'approved');
-                
-              // If we get a 404 error (table doesn't exist), return 0 count
-              if (appError && appError.code === '404') {
-                return {
-                  id: user.id,
-                  event_count: 0
-                };
-              }
-              
-              if (appError) throw appError;
-              
-              return {
-                id: user.id,
-                event_count: applications?.length || 0
-              };
-            } catch (err) {
-              console.error(`Error fetching events for brand ${user.id}:`, err);
-              // Return 0 count for this brand if there's an error
-              return {
-                id: user.id,
-                event_count: 0
-              };
-            }
-          });
-          
-          eventCounts = await Promise.all(eventCountPromises);
-        } catch (err) {
-          console.error('Error fetching event counts:', err);
-          // If the entire operation fails, set all counts to 0
-          eventCounts = filteredBrandUsers.map(user => ({
-            id: user.id,
-            event_count: 0
-          }));
-        }
-        
-        // Convert to our Brand interface and add event counts
-        const brands: Brand[] = filteredBrandUsers.map(user => {
-          const eventData = eventCounts.find(ec => ec.id === user.id);
-          return {
-            id: user.id,
-            email: user.email,
-            user_metadata: user.user_metadata,
-            created_at: user.created_at,
-            event_count: eventData?.event_count || 0
-          };
-        });
-
-        // Apply search filter if present
-        let filteredBrands = brands;
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          filteredBrands = brands.filter(brand => 
-            brand.user_metadata.company_name?.toLowerCase().includes(query) ||
-            brand.user_metadata.description?.toLowerCase().includes(query)
-          );
-        }
-
-        // Sort the results
-        filteredBrands.sort((a, b) => {
-          if (sortField === 'company_name') {
-            const nameA = a.user_metadata.company_name?.toLowerCase() || '';
-            const nameB = b.user_metadata.company_name?.toLowerCase() || '';
-            return sortOrder === 'asc' 
-              ? nameA.localeCompare(nameB)
-              : nameB.localeCompare(nameA);
-          } else { // created_at
-            const dateA = new Date(a.created_at || '').getTime();
-            const dateB = new Date(b.created_at || '').getTime();
-            return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
-          }
-        });
-
-        // Get total count for pagination
-        const totalCount = filteredBrands.length;
-
-        // Apply pagination
-        const start = (page - 1) * ITEMS_PER_PAGE;
-        const end = start + ITEMS_PER_PAGE;
-        const paginatedBrands = filteredBrands.slice(start, end);
-
-        return {
-          data: paginatedBrands,
-          count: totalCount
-        };
-      } catch (err) {
-        console.error('Error fetching brands:', err);
-        throw err;
-      }
-    },
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['brands', user?.id, page, searchQuery, sortField, sortOrder],
+    queryFn: () => fetchBrands(user),
     retry: false
   });
 
-  const totalPages = Math.ceil((data?.count || 0) / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil((data?.length || 0) / ITEMS_PER_PAGE);
 
   const handleSearch = (value: string) => {
     updateParams({ q: value, page: '1' });
@@ -280,7 +254,7 @@ const BrandsList = () => {
   }
 
   return (
-    <div className="bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-primary/90 to-primary text-white">
         <div className="container mx-auto py-12 px-4">
@@ -292,7 +266,7 @@ const BrandsList = () => {
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
                 <Users className="h-5 w-5" />
-                <span className="font-medium">{data?.count || 0} Brands</span>
+                <span className="font-medium">{data?.length || 0} Brands</span>
               </div>
               <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
                 <Bookmark className="h-5 w-5" />
@@ -305,20 +279,20 @@ const BrandsList = () => {
 
       <div className="container mx-auto py-8 px-4">
         {/* Filters */}
-        <div className="bg-white p-6 rounded-xl shadow-sm mb-8">
+        <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-sm mb-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <h2 className="text-xl font-semibold">Browse All Brands</h2>
+            <h2 className="text-xl font-semibold text-gray-800">Browse All Brands</h2>
             
             {/* Search and Sort */}
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
               <div className="relative flex-1 sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/60" />
                 <Input
                   type="text"
                   placeholder="Search brands..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-9 border-primary/20 focus-visible:ring-primary/30"
+                  className="pl-9 bg-white/50 border-primary/20 focus-visible:ring-primary/30 rounded-xl"
                 />
               </div>
               <Select
@@ -328,7 +302,7 @@ const BrandsList = () => {
                   updateParams({ sort: field, order, page: '1' });
                 }}
               >
-                <SelectTrigger className="w-full sm:w-[180px] border-primary/20">
+                <SelectTrigger className="w-full sm:w-[180px] bg-white/50 border-primary/20 rounded-xl">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -344,7 +318,7 @@ const BrandsList = () => {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center min-h-[400px] bg-white rounded-xl shadow-sm">
+          <div className="flex items-center justify-center min-h-[400px] bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm">
             <div className="text-center">
               <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
               <p className="text-muted-foreground">Loading brands...</p>
@@ -353,8 +327,8 @@ const BrandsList = () => {
         )}
 
         {/* No Results */}
-        {!isLoading && (!data?.data.length) && (
-          <div className="text-center py-16 bg-white rounded-xl shadow-sm">
+        {!isLoading && (!data?.length) && (
+          <div className="text-center py-16 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm">
             <Users className="h-12 w-12 text-primary/30 mx-auto mb-4" />
             <h3 className="text-xl font-semibold mb-2">No brands found</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -375,9 +349,9 @@ const BrandsList = () => {
         )}
 
         {/* Brands Grid */}
-        {!isLoading && data?.data.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {data.data.map((brand) => (
+        {!isLoading && data?.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {data.map((brand) => (
               <BrandCard key={brand.id} brand={brand} />
             ))}
           </div>
@@ -395,7 +369,7 @@ const BrandsList = () => {
                       e.preventDefault();
                       if (page > 1) updateParams({ page: (page - 1).toString() });
                     }}
-                    className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
+                    className={`rounded-xl transition-colors duration-300 ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-primary/5'}`}
                   />
                 </PaginationItem>
                 
@@ -415,7 +389,7 @@ const BrandsList = () => {
                                 e.preventDefault();
                                 updateParams({ page: p.toString() });
                               }}
-                              isActive={page === p}
+                              className={`rounded-xl transition-colors duration-300 ${page === p ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'hover:bg-primary/5'}`}
                             >
                               {p}
                             </PaginationLink>
@@ -431,7 +405,7 @@ const BrandsList = () => {
                             e.preventDefault();
                             updateParams({ page: p.toString() });
                           }}
-                          isActive={page === p}
+                          className={`rounded-xl transition-colors duration-300 ${page === p ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'hover:bg-primary/5'}`}
                         >
                           {p}
                         </PaginationLink>
@@ -446,7 +420,7 @@ const BrandsList = () => {
                       e.preventDefault();
                       if (page < totalPages) updateParams({ page: (page + 1).toString() });
                     }}
-                    className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}
+                    className={`rounded-xl transition-colors duration-300 ${page >= totalPages ? 'pointer-events-none opacity-50' : 'hover:bg-primary/5'}`}
                   />
                 </PaginationItem>
               </PaginationContent>

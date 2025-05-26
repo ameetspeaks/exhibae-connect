@@ -33,7 +33,7 @@ interface DashboardSidebarProps {
   onLogout: () => void;
 }
 
-const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
+export default function DashboardSidebar({ role, onLogout }: DashboardSidebarProps) {
   const location = useLocation();
   const path = location.pathname;
   const { user } = useAuth();
@@ -83,7 +83,7 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
     const baseItems = [
       {
         name: 'Overview',
-        path: `/dashboard/${role.toLowerCase()}`,
+        path: `/dashboard/${role}`,
         icon: <LayoutDashboard className="w-5 h-5" />,
       }
     ];
@@ -142,27 +142,27 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
         return [
           {
             name: 'Overview',
-            path: `/dashboard/${role.toLowerCase()}`,
+            path: `/dashboard/${role}`,
             icon: <LayoutDashboard className="w-5 h-5" />,
           },
           {
             name: 'Exhibitions',
-            path: `/dashboard/${role.toLowerCase()}/exhibitions`,
+            path: `/dashboard/${role}/exhibitions`,
             icon: <Calendar className="w-5 h-5" />,
           },
           {
             name: 'Create Exhibition',
-            path: `/dashboard/${role.toLowerCase()}/exhibitions/create`,
+            path: `/dashboard/${role}/exhibitions/create`,
             icon: <Plus className="w-5 h-5" />,
           },
           {
             name: 'Applications',
-            path: `/dashboard/${role.toLowerCase()}/applications`,
+            path: `/dashboard/${role}/applications`,
             icon: <ClipboardList className="w-5 h-5" />,
           },
           {
             name: 'Interest Inquiries',
-            path: `/dashboard/${role.toLowerCase()}/interest-inquiries`,
+            path: `/dashboard/${role}/interest-inquiries`,
             icon: <Users className="w-5 h-5" />,
           },
           {
@@ -177,12 +177,12 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
           },
           {
             name: 'Coupons',
-            path: `/dashboard/${role.toLowerCase()}/coupons`,
+            path: `/dashboard/${role}/coupons`,
             icon: <Ticket className="w-5 h-5" />,
           },
           {
             name: 'Settings',
-            path: `/dashboard/${role.toLowerCase()}/settings`,
+            path: `/dashboard/${role}/settings`,
             icon: <Settings className="w-5 h-5" />,
           },
         ];
@@ -243,9 +243,9 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
             icon: <Calendar className="w-5 h-5" />,
           },
           {
-            name: 'Favorites',
+            name: 'My Favorites',
             path: `/dashboard/shopper/favorites`,
-            icon: <Heart className="w-5 h-5" />,
+            icon: <Heart className="w-5 h-5 text-red-500" />,
           },
           {
             name: 'Settings',
@@ -256,7 +256,7 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
       default:
         return [...baseItems, {
           name: 'Settings',
-          path: `/dashboard/${role.toLowerCase()}/settings`,
+          path: `/dashboard/${role}/settings`,
           icon: <Settings className="w-5 h-5" />,
         }];
     }
@@ -351,6 +351,4 @@ const DashboardSidebar = ({ role, onLogout }: DashboardSidebarProps) => {
       </div>
     </div>
   );
-};
-
-export default DashboardSidebar;
+}

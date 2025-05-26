@@ -13,6 +13,7 @@ interface BrandStatistics {
   total_applications: number;
   approved_applications: number;
   rejected_applications: number;
+  pending_applications: number;
   active_stalls: number;
   total_exhibitions_participated: number;
   last_updated: string;
@@ -91,6 +92,7 @@ const BrandDashboard = () => {
       total_applications: 0,
       approved_applications: 0,
       rejected_applications: 0,
+      pending_applications: 0,
       active_stalls: 0,
       total_exhibitions_participated: 0,
       last_updated: new Date().toISOString()
@@ -110,17 +112,49 @@ const BrandDashboard = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch brand statistics
-      const { data: statsData, error: statsError } = await supabase
-        .from('brand_statistics')
-        .select('*')
+      // Fetch active stalls (ongoing exhibitions with confirmed applications)
+      const { data: activeStallsData, error: activeStallsError } = await supabase
+        .from('stall_applications')
+        .select(`
+          id,
+          exhibition:exhibitions (
+            id,
+            end_date,
+            status
+          )
+        `)
         .eq('brand_id', user?.id)
-        .single();
+        .in('status', ['confirmed', 'booked'])
+        .gte('exhibition.end_date', new Date().toISOString())
+        .eq('exhibition.status', 'active');
 
-      if (statsError && statsError.code !== 'PGRST116') {
-        console.error('Error fetching statistics:', statsError);
-        throw new Error('Failed to load statistics');
-      }
+      if (activeStallsError) throw activeStallsError;
+
+      // Fetch application statistics
+      const { data: applicationStats, error: applicationStatsError } = await supabase
+        .from('stall_applications')
+        .select('status')
+        .eq('brand_id', user?.id);
+
+      if (applicationStatsError) throw applicationStatsError;
+
+      const totalApplications = applicationStats?.length || 0;
+      const approvedApplications = applicationStats?.filter(app => ['confirmed', 'booked'].includes(app.status)).length || 0;
+      const pendingApplications = applicationStats?.filter(app => app.status === 'pending').length || 0;
+      const rejectedApplications = applicationStats?.filter(app => app.status === 'rejected').length || 0;
+
+      // Fetch total exhibitions participated (exhibitions with confirmed applications)
+      const { data: participatedExhibitions, error: participatedError } = await supabase
+        .from('stall_applications')
+        .select('exhibition_id', { count: 'exact' })
+        .eq('brand_id', user?.id)
+        .in('status', ['confirmed', 'booked'])
+        .order('exhibition_id');
+
+      if (participatedError) throw participatedError;
+
+      // Get unique exhibition IDs
+      const uniqueExhibitionIds = [...new Set(participatedExhibitions?.map(app => app.exhibition_id) || [])];
 
       // Fetch recent activity with exhibition details
       const { data: activityData, error: activityError } = await supabase
@@ -184,7 +218,15 @@ const BrandDashboard = () => {
         }));
 
       setDashboardData({
-        statistics: statsData || dashboardData.statistics,
+        statistics: {
+          total_applications: totalApplications,
+          approved_applications: approvedApplications,
+          rejected_applications: rejectedApplications,
+          pending_applications: pendingApplications,
+          active_stalls: activeStallsData?.length || 0,
+          total_exhibitions_participated: uniqueExhibitionIds.length,
+          last_updated: new Date().toISOString()
+        },
         recentActivity: transformedActivityData,
         upcomingExhibitions: exhibitionsWithAvailableStalls
       });
@@ -258,12 +300,19 @@ const BrandDashboard = () => {
           <h2 className="text-2xl font-bold">Dashboard Overview</h2>
           <p className="text-gray-600">Welcome back! Here's your exhibition activity summary.</p>
         </div>
-        <Button className="bg-exhibae-navy hover:bg-opacity-90" asChild>
-          <Link to="/dashboard/brand/find">
-            <Search className="h-4 w-4 mr-2" />
-            Find Exhibitions
-          </Link>
-        </Button>
+        <div className="flex gap-4">
+          <Button variant="outline" className="border-exhibae-navy text-exhibae-navy hover:bg-exhibae-navy hover:text-white" asChild>
+            <Link to={`/brands/${user?.id}`}>
+              View Profile
+            </Link>
+          </Button>
+          <Button className="bg-exhibae-navy hover:bg-opacity-90" asChild>
+            <Link to="/dashboard/brand/find">
+              <Search className="h-4 w-4 mr-2" />
+              Find Exhibitions
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -287,9 +336,17 @@ const BrandDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{statistics.total_applications}</div>
-            <p className="text-xs text-muted-foreground">
-              {statistics.approved_applications} approved
-            </p>
+            <div className="flex gap-2 mt-1">
+              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                {statistics.approved_applications} Approved
+              </Badge>
+              <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">
+                {statistics.pending_applications} Pending
+              </Badge>
+              <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50">
+                {statistics.rejected_applications} Rejected
+              </Badge>
+            </div>
           </CardContent>
         </Card>
 

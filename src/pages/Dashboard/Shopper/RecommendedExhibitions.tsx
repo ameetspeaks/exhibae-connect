@@ -36,9 +36,20 @@ interface Exhibition {
   address: string;
   city: string;
   category_id?: string;
-  category?: Category;
+  category?: Category | null;
   isAttending?: boolean;
   isFavorite?: boolean;
+}
+
+interface ExhibitionResponse {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  address: string;
+  city: string;
+  category_id?: string;
+  category?: Category | null;
 }
 
 const RecommendedExhibitions = () => {
@@ -65,8 +76,7 @@ const RecommendedExhibitions = () => {
         console.log('Published exhibitions check:', publishedCheck?.length || 0);
       }
       
-      // In a real application, you would have a more sophisticated recommendation algorithm
-      // Here we're just getting upcoming exhibitions sorted by start date
+      // Get exhibitions with their categories
       const { data, error } = await supabase
         .from('exhibitions')
         .select(`
@@ -77,12 +87,12 @@ const RecommendedExhibitions = () => {
           address,
           city,
           category_id,
-          category:category_id(
+          category:exhibition_categories!category_id(
             id,
             name
           )
         `)
-        .eq('status', 'published')  // Only get published exhibitions
+        .eq('status', 'published')
         .gte('end_date', new Date().toISOString())
         .order('start_date', { ascending: true })
         .limit(30);
@@ -94,73 +104,101 @@ const RecommendedExhibitions = () => {
       
       console.log('Fetched exhibitions:', data?.length || 0);
       
-      // Check if user is already attending these exhibitions
+      // If user is logged in, get their attendance and favorites
       if (user) {
-        const { data: attending, error: attendingError } = await supabase
+        // Get attending status
+        const attendingPromise = supabase
           .from('exhibition_attending')
           .select('exhibition_id')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Error fetching attendance:', error);
+              return [];
+            }
+            return data;
+          });
           
-        if (attendingError) {
-          console.error('Error fetching attendance:', attendingError);
-          throw attendingError;
-        }
-        
-        // Check if user has favorited these exhibitions
-        const { data: favorites, error: favoritesError } = await supabase
+        // Get favorites status
+        const favoritesPromise = supabase
           .from('exhibition_favorites')
           .select('exhibition_id')
-          .eq('user_id', user.id);
-          
-        if (favoritesError) {
-          console.error('Error fetching favorites:', favoritesError);
-          throw favoritesError;
-        }
+          .eq('user_id', user.id)
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Error fetching favorites:', error);
+              return [];
+            }
+            return data;
+          });
         
-        const attendingSet = new Set(attending?.map((item: any) => item.exhibition_id) || []);
-        const favoritesSet = new Set(favorites?.map((item: any) => item.exhibition_id) || []);
+        // Wait for both queries to complete
+        const [attending, favorites] = await Promise.all([attendingPromise, favoritesPromise]);
         
-        return (data || []).map((item: any) => ({
-          ...item,
-          // Handle the category which comes as an object now
-          category: item.category || null,
+        const attendingSet = new Set(attending?.map(item => item.exhibition_id) || []);
+        const favoritesSet = new Set(favorites?.map(item => item.exhibition_id) || []);
+        
+        const exhibitions = data as unknown as ExhibitionResponse[];
+        return (exhibitions || []).map(item => ({
+          id: item.id,
+          title: item.title,
+          start_date: item.start_date,
+          end_date: item.end_date,
+          address: item.address,
+          city: item.city,
+          category_id: item.category_id,
+          category: item.category,
           isAttending: attendingSet.has(item.id),
           isFavorite: favoritesSet.has(item.id)
         })) as Exhibition[];
       }
       
-      return (data || []).map((item: any) => ({
-        ...item,
-        // Handle the category which comes as an object now
-        category: item.category || null
+      const exhibitions = data as unknown as ExhibitionResponse[];
+      return (exhibitions || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        start_date: item.start_date,
+        end_date: item.end_date,
+        address: item.address,
+        city: item.city,
+        category_id: item.category_id,
+        category: item.category
       })) as Exhibition[];
     },
     enabled: true,
   });
 
-  // Fetch unique categories and locations for filters
+  // Fetch unique categories for filters
   const { data: categories } = useQuery({
     queryKey: ['exhibition-categories'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('categories')
+        .from('exhibition_categories')
         .select('id, name')
-        .order('name');
+        .order('name', { ascending: true });
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching categories:', error);
+        return [];
+      }
       return data;
     }
   });
 
+  // Fetch unique locations for filters
   const { data: locations } = useQuery({
     queryKey: ['exhibition-locations'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('exhibitions')
         .select('city')
-        .order('city');
+        .eq('status', 'published')
+        .order('city', { ascending: true });
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching locations:', error);
+        return [];
+      }
       
       // Get unique cities
       const uniqueCities = [...new Set(data.map(item => item.city))];

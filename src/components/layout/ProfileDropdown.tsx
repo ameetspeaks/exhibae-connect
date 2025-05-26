@@ -29,7 +29,8 @@ import {
   Building2,
   Tags,
   Ruler,
-  Ticket
+  Ticket,
+  Star
 } from 'lucide-react';
 import { UserRole } from '@/types/auth';
 
@@ -110,6 +111,11 @@ const ProfileDropdown = ({ onLogout }: ProfileDropdownProps) => {
             label: 'My Exhibitions',
             icon: <Calendar className="mr-2 h-4 w-4" />,
             path: `${dashboardPath}/my-exhibitions`,
+          },
+          {
+            label: 'My Favorites',
+            icon: <Heart className="mr-2 h-4 w-4 text-red-500" />,
+            path: `${dashboardPath}/favorites`,
           },
           {
             label: 'Recommended',

@@ -82,18 +82,18 @@ const OrganiserDashboard = () => {
           
         if (applicationsError) throw applicationsError;
 
-        // Fetch shopper interests
-        const { data: shopperInterests, error: shopperError } = await supabase
-          .from('shopper_interests')
+        // Fetch exhibition interests
+        const { data: exhibitionInterests, error: interestsError } = await supabase
+          .from('exhibition_interests')
           .select('id')
           .in('exhibition_id', exhibitionIds);
 
-        if (shopperError) throw shopperError;
+        if (interestsError) throw interestsError;
         
         // Calculate application statistics
         const approvedCount = applications?.filter(app => app.status === 'approved').length || 0;
         const rejectedCount = applications?.filter(app => app.status === 'rejected').length || 0;
-        const totalAttendees = (applications?.length || 0) + (shopperInterests?.length || 0);
+        const totalAttendees = (applications?.length || 0) + (exhibitionInterests?.length || 0);
         
         setStats({
           activeExhibitions: activeExhibitions?.length || 0,
@@ -214,7 +214,7 @@ const OrganiserDashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalAttendees}</div>
             <p className="text-xs text-muted-foreground">
-              Combined brand and shopper interests
+              Combined brand and exhibition interests
             </p>
           </CardContent>
         </Card>

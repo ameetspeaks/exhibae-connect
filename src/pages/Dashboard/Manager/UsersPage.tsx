@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { logActivity } from '@/lib/activity-logger';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
+import { Label } from '@/components/ui/label';
 
 type UserRole = 'manager' | 'organiser' | 'brand' | 'shopper';
 type UserStatus = 'active' | 'inactive';
@@ -24,6 +25,10 @@ interface User {
   phone: string | null;
   created_at: string;
   status: UserStatus;
+  user_metadata?: {
+    full_name?: string;
+    company_name?: string;
+  };
 }
 
 const UsersPage = () => {
@@ -34,6 +39,12 @@ const UsersPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    company_name: '',
+    role: ''
+  });
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -141,6 +152,52 @@ const UsersPage = () => {
       toast({
         title: "Error",
         description: error.message || "Failed to reactivate user",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const { error } = await supabase.auth.admin.updateUserById(selectedUser.id, {
+        user_metadata: {
+          full_name: editForm.full_name,
+          company_name: editForm.company_name
+        },
+        role: editForm.role as UserRole
+      });
+
+      if (error) throw error;
+
+      // Update local state
+      setUsers(users.map(user => {
+        if (user.id === selectedUser.id) {
+          return {
+            ...user,
+            role: editForm.role as UserRole,
+            user_metadata: {
+              ...user.user_metadata,
+              full_name: editForm.full_name,
+              company_name: editForm.company_name
+            }
+          };
+        }
+        return user;
+      }));
+
+      setIsEditDialogOpen(false);
+      setSelectedUser(null);
+      
+      toast({
+        title: "User Updated",
+        description: "User details have been updated successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user",
         variant: "destructive",
       });
     }
@@ -277,7 +334,19 @@ const UsersPage = () => {
                     {new Date(user.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => {
+                        setSelectedUser(user);
+                        setEditForm({
+                          full_name: user.user_metadata?.full_name || '',
+                          company_name: user.user_metadata?.company_name || '',
+                          role: user.role
+                        });
+                        setIsEditDialogOpen(true);
+                      }}
+                    >
                       <Pencil className="w-4 h-4" />
                     </Button>
                     {user.status === 'active' ? (
@@ -331,6 +400,56 @@ const UsersPage = () => {
             <Button variant="destructive" onClick={handleDeleteUser}>
               Deactivate
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user details and role
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="full_name">Full Name</Label>
+              <Input
+                id="full_name"
+                value={editForm.full_name}
+                onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                placeholder="Enter full name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="company_name">Company Name</Label>
+              <Input
+                id="company_name"
+                value={editForm.company_name}
+                onChange={(e) => setEditForm(prev => ({ ...prev, company_name: e.target.value }))}
+                placeholder="Enter company name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="role">Role</Label>
+              <Select value={editForm.role} onValueChange={(value) => setEditForm(prev => ({ ...prev, role: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="brand">Brand</SelectItem>
+                  <SelectItem value="organiser">Organiser</SelectItem>
+                  <SelectItem value="shopper">Shopper</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditUser}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,21 +1,18 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePublishedExhibitions, useEventTypes, useVenueTypes } from '@/hooks/useExhibitionsData';
 import { format, isToday, isTomorrow, isThisWeek, parseISO } from 'date-fns';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Tag, Map, Search, Loader2, Heart } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import ExhibitionCard from '@/components/exhibitions/ExhibitionCard';
 import { ExhibitionFilters } from '@/components/exhibitions/ExhibitionFilters';
-import { useExhibitionFavorite } from '@/hooks/useExhibitionFavorite';
+import { Button } from '@/components/ui/button';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function ExhibitionList() {
   const navigate = useNavigate();
-  const [visibleItems, setVisibleItems] = useState(ITEMS_PER_PAGE);
-  const loadingRef = useRef(null);
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [selectedFilters, setSelectedFilters] = useState({
     eventTypes: [] as string[],
@@ -28,27 +25,24 @@ export default function ExhibitionList() {
   const { data: eventTypes = [], isLoading: isLoadingEventTypes } = useEventTypes();
   const { data: venueTypes = [], isLoading: isLoadingVenueTypes } = useVenueTypes();
 
-  // Debug logging
+  // Reset page when filters change
   useEffect(() => {
-    console.log('Event Types:', eventTypes);
-    console.log('Selected Filters:', selectedFilters);
-    console.log('Exhibitions:', exhibitions);
-  }, [eventTypes, selectedFilters, exhibitions]);
-
-  // Memoize cities list to prevent unnecessary recalculations
-  const cities = useMemo(() => {
-    if (!exhibitions) return [];
-    return Array.from(new Set(exhibitions.map(e => e.city).filter(Boolean))).sort();
-  }, [exhibitions]);
-
-  // Reset visible items when filters change
-  useEffect(() => {
-    setVisibleItems(ITEMS_PER_PAGE);
+    setCurrentPage(1);
   }, [selectedFilters]);
 
-  // Memoize filtered exhibitions to prevent unnecessary recalculations
+  // Memoize cities list
+  const cities = useMemo(() => {
+    if (!exhibitions?.length) return [];
+    return Array.from(new Set(exhibitions.map(e => e?.city).filter(Boolean))).sort();
+  }, [exhibitions]);
+
+  // Memoize filtered exhibitions
   const filteredExhibitions = useMemo(() => {
-    return exhibitions?.filter(exhibition => {
+    if (!exhibitions?.length) return [];
+    
+    return exhibitions.filter(exhibition => {
+      if (!exhibition) return false;
+
       // Event Type filter
       if (selectedFilters.eventTypes.length > 0) {
         if (!exhibition.event_type || !selectedFilters.eventTypes.includes(exhibition.event_type.id)) {
@@ -105,154 +99,123 @@ export default function ExhibitionList() {
     });
   }, [exhibitions, selectedFilters]);
 
-  // Intersection Observer for infinite scroll
-  const observer = useRef<IntersectionObserver | null>(null);
-  const lastExhibitionRef = useCallback((node: HTMLDivElement | null) => {
-    if (isLoadingExhibitions) return;
-    if (observer.current) observer.current.disconnect();
+  // Calculate pagination
+  const totalPages = Math.ceil((filteredExhibitions?.length || 0) / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentExhibitions = filteredExhibitions?.slice(startIndex, endIndex);
 
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && filteredExhibitions && visibleItems < filteredExhibitions.length) {
-        setVisibleItems(prev => Math.min(prev + ITEMS_PER_PAGE, filteredExhibitions.length));
-      }
-    });
+  const isLoading = isLoadingExhibitions || isLoadingEventTypes || isLoadingVenueTypes;
 
-    if (node) observer.current.observe(node);
-  }, [isLoadingExhibitions, filteredExhibitions, visibleItems]);
-
-  if (isLoadingExhibitions || isLoadingEventTypes || isLoadingVenueTypes) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  const visibleExhibitions = filteredExhibitions?.slice(0, visibleItems);
-
   return (
-    <div className="container mx-auto py-8 px-4">
-      {/* Page Title */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Exhibitions</h1>
-        <p className="text-muted-foreground mt-2">
-          Discover and book your spot at upcoming exhibitions
-        </p>
-      </div>
-
-      {/* Filters Section */}
-      <div className="mb-8">
-        <ExhibitionFilters
-          eventTypes={eventTypes}
-          venueTypes={venueTypes}
-          cities={cities}
-          onFilterChange={setSelectedFilters}
-        />
-      </div>
-
-      {/* Exhibitions Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {visibleExhibitions?.map((exhibition, index) => (
-          <ExhibitionCard 
-            key={exhibition.id}
-            exhibition={exhibition}
-            isLast={index === visibleExhibitions.length - 1}
-            lastExhibitionRef={lastExhibitionRef}
-            onNavigate={() => navigate(`/exhibitions/${exhibition.id}`)}
-          />
-        ))}
-      </div>
-
-      {/* Loading More Indicator */}
-      {visibleItems < (filteredExhibitions?.length || 0) && (
-        <div 
-          ref={loadingRef}
-          className="flex justify-center py-8"
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <div className="container mx-auto py-6 px-4 space-y-6">
+        {/* Hero Section */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-8"
         >
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-      )}
-
-      {/* Empty State */}
-      {(!filteredExhibitions || filteredExhibitions.length === 0) && (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-semibold mb-2">No Exhibitions Found</h3>
-          <p className="text-muted-foreground">
-            Try adjusting your filters or check back later for new exhibitions
+          <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-600">
+            Discover Exhibitions
+          </h1>
+          <p className="mt-4 text-lg text-gray-600 dark:text-gray-300">
+            Find and book your spot at the most exciting exhibitions
           </p>
+        </motion.div>
+
+        {/* Filters Section */}
+        <div className="mb-6">
+          <ExhibitionFilters
+            eventTypes={eventTypes}
+            venueTypes={venueTypes}
+            cities={cities}
+            onFilterChange={setSelectedFilters}
+            exhibitions={exhibitions}
+          />
         </div>
-      )}
+
+        {/* Exhibitions Grid */}
+        <AnimatePresence mode="wait">
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {currentExhibitions?.map((exhibition) => (
+              <ExhibitionCard
+                key={exhibition.id}
+                exhibition={exhibition}
+                isLast={false}
+                lastExhibitionRef={() => {}}
+                onNavigate={() => navigate(`/exhibitions/${exhibition.id}`)}
+              />
+            ))}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 mt-8">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  className="min-w-[32px]"
+                >
+                  {page}
+                </Button>
+              ))}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {(!filteredExhibitions || filteredExhibitions.length === 0) && (
+          <motion.div 
+            className="text-center py-12"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
+              No Exhibitions Found
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300">
+              Try adjusting your filters or check back later for new exhibitions
+            </p>
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 }
-
-interface ExhibitionCardProps {
-  exhibition: any;
-  isLast: boolean;
-  lastExhibitionRef: React.RefObject<HTMLDivElement>;
-  onNavigate: () => void;
-}
-
-const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNavigate }: ExhibitionCardProps) => {
-  const { isFavorite, toggleFavorite, isSubmitting } = useExhibitionFavorite(exhibition.id);
-
-  return (
-    <Card 
-      ref={isLast ? lastExhibitionRef : null}
-      className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow relative"
-      onClick={onNavigate}
-    >
-      <AspectRatio ratio={3/2}>
-        <img
-          src={exhibition.banner_image || '/placeholder-exhibition.jpg'}
-          alt={exhibition.title}
-          className="w-full h-full object-cover"
-        />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 bg-white/80 hover:bg-white/90 h-8 w-8 rounded-full"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFavorite();
-          }}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Heart className={`h-4 w-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
-          )}
-        </Button>
-      </AspectRatio>
-      <CardContent className="p-4">
-        <div className="space-y-2">
-          <div className="flex gap-2 flex-wrap">
-            {exhibition.event_type && (
-              <Badge variant="outline">
-                <Tag className="w-3 h-3 mr-1" />
-                {exhibition.event_type.name}
-              </Badge>
-            )}
-            {exhibition.venue_type && (
-              <Badge variant="outline">
-                {exhibition.venue_type.name}
-              </Badge>
-            )}
-          </div>
-          <h3 className="font-semibold line-clamp-2">{exhibition.title}</h3>
-          <div className="flex items-center text-sm text-muted-foreground">
-            <MapPin className="w-4 h-4 mr-1" />
-            <span>{exhibition.city}, {exhibition.state}</span>
-          </div>
-          <div className="flex items-center text-sm text-muted-foreground">
-            <Calendar className="w-4 h-4 mr-1" />
-            <span>
-              {format(new Date(exhibition.start_date), 'MMM d')} - {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
-            </span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};

@@ -5,9 +5,21 @@ A modern web application for managing exhibitions and connecting brands with org
 ## Features
 - Brand Management
 - Exhibition Organization
-- User Dashboard
-- Secure Authentication
+- User Dashboard with:
+  - Profile Management (personal info, contact details, bio)
+  - Notification Preferences (email and push notifications)
+  - Favorites System (brands and exhibitions)
+  - Exhibition Attendance Tracking
+- Secure Authentication with Row Level Security (RLS)
 - Real-time Updates
+- Responsive Design
+
+## Database Features
+- Brand Favorites
+- Exhibition Favorites
+- Exhibition Attendance Tracking
+- Profile Management
+- Notification Preferences
 
 ## Deployment
 The application is automatically deployed via GitHub Actions when changes are pushed to the master branch.
@@ -33,7 +45,15 @@ npm run build
 - Vite
 - TypeScript
 - Supabase
+  - Authentication
+  - Real-time Database
+  - Row Level Security (RLS)
 - Tailwind CSS
+- React Query (Tanstack Query)
+- React Hook Form
+- Zod Validation
+- Lucide Icons
+- Shadcn/ui Components
 
 ## Project info
 

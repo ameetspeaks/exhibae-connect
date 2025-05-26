@@ -17,7 +17,7 @@ import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { format } from 'date-fns';
 import { useExhibitionFavorite } from '@/hooks/useExhibitionFavorite';
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 5;
 
 // Types for the exhibitions
 interface Exhibition {
@@ -63,18 +63,15 @@ const FindExhibitions = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
   const [categories, setCategories] = useState<ExhibitionCategory[]>([]);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalCount, setTotalCount] = useState<number>(0);
 
   useEffect(() => {
     if (user) {
       fetchExhibitions();
       fetchCategories();
     }
-  }, [user, currentPage]);
+  }, [user]);
 
   useEffect(() => {
-    setCurrentPage(1);
     if (user) {
       fetchExhibitions();
     }
@@ -94,10 +91,11 @@ const FindExhibitions = () => {
               status
             )
           )
-        `, { count: 'exact' })
+        `)
         .eq('status', 'published')
         .gte('start_date', new Date().toISOString())
-        .order('start_date', { ascending: true });
+        .order('start_date', { ascending: true })
+        .limit(ITEMS_PER_PAGE);
 
       if (searchTerm) {
         query = query.or(`title.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`);
@@ -106,11 +104,7 @@ const FindExhibitions = () => {
         query = query.eq('category_id', category);
       }
 
-      const from = (currentPage - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-      query = query.range(from, to);
-
-      const { data: exhibitionsData, error: exhibitionsError, count } = await query;
+      const { data: exhibitionsData, error: exhibitionsError } = await query;
 
       if (exhibitionsError) throw exhibitionsError;
 
@@ -143,7 +137,6 @@ const FindExhibitions = () => {
       });
 
       setExhibitions(processedExhibitions || []);
-      setTotalCount(count || 0);
     } catch (error) {
       console.error('Error fetching exhibitions:', error);
       toast({
@@ -169,28 +162,6 @@ const FindExhibitions = () => {
       console.error('Error fetching categories:', error);
     }
   };
-
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(prev => prev + 1);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -221,13 +192,17 @@ const FindExhibitions = () => {
         </Select>
       </div>
 
-      {exhibitions.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
+        </div>
+      ) : exhibitions.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           No exhibitions found matching your criteria.
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {exhibitions.map((exhibition) => (
               <ExhibitionCard
                 key={exhibition.id}
@@ -237,31 +212,13 @@ const FindExhibitions = () => {
             ))}
           </div>
 
-          {/* Pagination Controls */}
-          <div className="flex items-center justify-between border-t pt-4">
-            <div className="text-sm text-gray-600">
-              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount} exhibitions
-            </div>
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage >= totalPages}
-              >
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
+          <div className="flex justify-center mt-8">
+            <Button
+              onClick={() => navigate('/exhibitions')}
+              className="bg-exhibae-navy hover:bg-opacity-90"
+            >
+              Show All Exhibitions
+            </Button>
           </div>
         </>
       )}

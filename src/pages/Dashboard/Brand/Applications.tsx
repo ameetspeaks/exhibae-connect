@@ -166,6 +166,27 @@ const Applications = () => {
 
   const filterApplications = (status: string) => {
     if (status === 'all') return applications;
+    
+    // Handle pending status which includes multiple states
+    if (status === 'pending') {
+      return applications.filter(app => 
+        ['pending', 'payment_pending', 'payment_review'].includes(app.status.toLowerCase())
+      );
+    }
+    
+    // Handle confirmed status which includes both confirmed and booked states
+    if (status === 'confirmed') {
+      return applications.filter(app => 
+        ['confirmed', 'booked'].includes(app.status.toLowerCase())
+      );
+    }
+    
+    // For rejected status, only show explicitly rejected applications
+    if (status === 'rejected') {
+      return applications.filter(app => app.status.toLowerCase() === 'rejected');
+    }
+    
+    // Default case: exact status match
     return applications.filter(app => app.status.toLowerCase() === status.toLowerCase());
   };
 
@@ -320,7 +341,7 @@ const Applications = () => {
       </div>
 
       <Tabs defaultValue="all" className="w-full">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="all">All Applications</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
@@ -341,25 +362,25 @@ const Applications = () => {
           </div>
         ) : (
           <>
-            <TabsContent value="all" className="mt-6">
+            <TabsContent value="all" className="mt-6 space-y-4">
               {filterApplications('all').map(application => (
                 <ApplicationCard key={application.id} application={application} />
               ))}
             </TabsContent>
 
-            <TabsContent value="pending" className="mt-6">
+            <TabsContent value="pending" className="mt-6 space-y-4">
               {filterApplications('pending').map(application => (
                 <ApplicationCard key={application.id} application={application} />
               ))}
             </TabsContent>
 
-            <TabsContent value="confirmed" className="mt-6">
+            <TabsContent value="confirmed" className="mt-6 space-y-4">
               {filterApplications('confirmed').map(application => (
                 <ApplicationCard key={application.id} application={application} />
               ))}
             </TabsContent>
 
-            <TabsContent value="rejected" className="mt-6">
+            <TabsContent value="rejected" className="mt-6 space-y-4">
               {filterApplications('rejected').map(application => (
                 <ApplicationCard key={application.id} application={application} />
               ))}

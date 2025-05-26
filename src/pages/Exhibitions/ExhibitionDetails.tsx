@@ -4,7 +4,16 @@ import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Exhibition } from '@/types/exhibition';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { Calendar, MapPin, Heart, Loader2, Building2, Users, Info } from 'lucide-react';
+import { format } from 'date-fns';
+import { useExhibitionFavorite } from '@/hooks/useExhibitionFavorite';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useGalleryImages } from '@/hooks/useGalleryData';
 
 export default function ExhibitionDetails() {
   const { id } = useParams();
@@ -17,6 +26,8 @@ export default function ExhibitionDetails() {
   const [hasRegisteredInterest, setHasRegisteredInterest] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userProfile, setUserProfile] = useState<{ id: string } | null>(null);
+  const { isFavorite, toggleFavorite, isSubmitting: isFavoriteSubmitting } = useExhibitionFavorite(id || '');
+  const { data: galleryImages, isLoading: isLoadingGallery } = useGalleryImages(id || '');
 
   // Fetch user's profile ID
   useEffect(() => {
@@ -182,99 +193,298 @@ export default function ExhibitionDetails() {
     }
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
+  if (loading || isLoadingGallery) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Skeleton className="w-full h-64 rounded-lg" />
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-4 w-1/4" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="col-span-2">
+              <Skeleton className="h-[200px] w-full" />
+            </div>
+            <div>
+              <Skeleton className="h-[200px] w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!exhibition) {
-    return <div>Exhibition not found</div>;
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <h2 className="text-2xl font-bold mb-4">Exhibition not found</h2>
+        <p className="text-muted-foreground mb-6">The exhibition you're looking for doesn't exist or has been removed.</p>
+        <Button onClick={() => navigate(-1)}>Go Back</Button>
+      </div>
+    );
   }
 
+  const bannerImage = galleryImages?.find(img => img.image_type === 'banner')?.image_url;
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        {exhibition.banner_url && (
-          <img 
-            src={exhibition.banner_url} 
-            alt={exhibition.name}
-            className="w-full h-64 object-cover rounded-lg mb-6"
-          />
-        )}
-        
-        <h1 className="text-3xl font-bold mb-4">{exhibition.name}</h1>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="col-span-2">
-            <div className="prose max-w-none">
-              <p>{exhibition.description}</p>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-5xl mx-auto">
+          {/* Hero Section */}
+          <div className="relative mb-8 group">
+            <AspectRatio ratio={21/9}>
+              <img 
+                src={bannerImage || '/placeholder-banner.jpg'} 
+                alt={exhibition.name}
+                className="w-full h-full object-cover rounded-2xl shadow-lg transition-transform duration-300 group-hover:scale-[1.01]"
+              />
+            </AspectRatio>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent rounded-2xl" />
             
-            <div className="mt-6 space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold">Date & Time</h3>
-                <p>
-                  {new Date(exhibition.start_date).toLocaleDateString()} - {new Date(exhibition.end_date).toLocaleDateString()}
-                </p>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold">Location</h3>
-                <p>{exhibition.location}</p>
-                {exhibition.venue_details && (
-                  <p className="text-sm text-gray-600">{exhibition.venue_details}</p>
+            {/* Favorite Button */}
+            <div className="absolute top-4 right-4 z-10">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="bg-white/95 hover:bg-white shadow-lg border-0 backdrop-blur-sm flex items-center gap-2 px-4 rounded-full transition-all duration-300 hover:scale-105"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleFavorite();
+                }}
+                disabled={isFavoriteSubmitting}
+              >
+                {isFavoriteSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <Heart className={`h-4 w-4 transition-all duration-300 ${isFavorite ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-700 hover:scale-110'}`} />
                 )}
-              </div>
-              
-              {exhibition.price && (
-                <div>
-                  <h3 className="text-lg font-semibold">Price</h3>
-                  <p>
-                    {exhibition.currency || '£'}{exhibition.price}
-                  </p>
+                <span className="text-sm font-medium text-gray-700">
+                  {isFavorite ? 'Favorited' : 'Add to Favorites'}
+                </span>
+              </Button>
+            </div>
+
+            <div className="absolute bottom-0 left-0 right-0 p-8">
+              <div className="flex flex-col gap-4">
+                <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">
+                  {exhibition.name}
+                </h1>
+                <div className="flex flex-wrap gap-3">
+                  {exhibition.category && (
+                    <Badge variant="secondary" className="bg-white/90 hover:bg-white text-primary px-4 py-1.5 text-sm font-medium rounded-full backdrop-blur-sm transition-all duration-300 hover:scale-105">
+                      <Info className="w-4 h-4 mr-1.5" />
+                      {exhibition.category}
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="bg-white/90 hover:bg-white text-primary px-4 py-1.5 text-sm font-medium rounded-full backdrop-blur-sm transition-all duration-300 hover:scale-105">
+                    <MapPin className="w-4 h-4 mr-1.5" />
+                    {exhibition.location}
+                  </Badge>
+                  <Badge variant="secondary" className="bg-white/90 hover:bg-white text-primary px-4 py-1.5 text-sm font-medium rounded-full backdrop-blur-sm transition-all duration-300 hover:scale-105">
+                    <Calendar className="w-4 h-4 mr-1.5" />
+                    {format(new Date(exhibition.start_date), 'MMM d')} - {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
+                  </Badge>
                 </div>
-              )}
+              </div>
             </div>
           </div>
-          
-          <div>
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Organiser</h3>
-              <div className="flex items-center space-x-4 mb-4">
-                {exhibition.organiser.avatar_url && (
-                  <img 
-                    src={exhibition.organiser.avatar_url} 
-                    alt={exhibition.organiser.full_name}
-                    className="w-12 h-12 rounded-full"
-                  />
-                )}
-                <div>
-                  <p className="font-medium">{exhibition.organiser.full_name}</p>
-                  {exhibition.organiser.company_name && (
-                    <p className="text-sm text-gray-600">{exhibition.organiser.company_name}</p>
+
+          {/* Main Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Details */}
+            <div className="lg:col-span-2">
+              <Tabs defaultValue="about" className="w-full">
+                <TabsList className="mb-6 p-1 bg-white/50 backdrop-blur-sm rounded-full border shadow-sm">
+                  <TabsTrigger value="about" className="rounded-full text-sm">About</TabsTrigger>
+                  <TabsTrigger value="details" className="rounded-full text-sm">Details</TabsTrigger>
+                  <TabsTrigger value="organiser" className="rounded-full text-sm">Organiser</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="about">
+                  <Card className="border-0 shadow-lg bg-white/95 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle>About the Exhibition</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="prose max-w-none">
+                        <p className="text-lg text-muted-foreground leading-relaxed">
+                          {exhibition.description}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="details">
+                  <Card className="border-0 shadow-lg bg-white/95 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle>Exhibition Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-8">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-primary/10 rounded-xl">
+                          <Calendar className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-lg mb-1">Date & Time</p>
+                          <p className="text-muted-foreground">
+                            Start: {format(new Date(exhibition.start_date), 'MMMM d, yyyy')}<br />
+                            End: {format(new Date(exhibition.end_date), 'MMMM d, yyyy')}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 bg-primary/10 rounded-xl">
+                          <MapPin className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-lg mb-1">Location</p>
+                          <p className="text-muted-foreground">
+                            {exhibition.location}
+                            {exhibition.venue_details && (
+                              <>
+                                <br />
+                                {exhibition.venue_details}
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      {exhibition.max_brands && (
+                        <div className="flex items-start space-x-4">
+                          <div className="p-3 bg-primary/10 rounded-xl">
+                            <Users className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-lg mb-1">Maximum Brands</p>
+                            <p className="text-muted-foreground">{exhibition.max_brands} brands</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {exhibition.price && (
+                        <div className="flex items-start space-x-4">
+                          <div className="p-3 bg-primary/10 rounded-xl">
+                            <Building2 className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-lg mb-1">Price</p>
+                            <p className="text-muted-foreground">
+                              {exhibition.currency || '£'}{exhibition.price}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="organiser">
+                  <Card className="border-0 shadow-lg bg-white/95 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle>Organiser Information</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-6 p-4 bg-primary/5 rounded-xl">
+                        {exhibition.organiser.avatar_url ? (
+                          <img
+                            src={exhibition.organiser.avatar_url}
+                            alt={exhibition.organiser.full_name}
+                            className="w-20 h-20 rounded-xl object-cover shadow-md"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 rounded-xl bg-primary/10 flex items-center justify-center shadow-md">
+                            <Users className="w-10 h-10 text-primary" />
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-semibold text-xl mb-2 text-primary">
+                            {exhibition.organiser.company_name || exhibition.organiser.full_name}
+                          </h3>
+                          {exhibition.organiser.email && (
+                            <p className="text-muted-foreground flex items-center gap-2">
+                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60" />
+                              {exhibition.organiser.email}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            {/* Right Column - Actions */}
+            <div className="space-y-6">
+              <Card className="border-0 shadow-lg bg-white/95 backdrop-blur-sm sticky top-24">
+                <CardHeader>
+                  <CardTitle>Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {user ? (
+                    <div className="space-y-4">
+                      {hasRegisteredInterest ? (
+                        <Button className="w-full bg-green-500 hover:bg-green-600" disabled>
+                          Interest Registered
+                        </Button>
+                      ) : (
+                        <Button
+                          className="w-full bg-primary hover:bg-primary/90 transition-all duration-300"
+                          onClick={handleRegisterInterest}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Registering...
+                            </>
+                          ) : (
+                            'Register Interest'
+                          )}
+                        </Button>
+                      )}
+                      <Separator className="bg-primary/10" />
+                      <Button
+                        variant="outline"
+                        className="w-full border-primary/20 hover:bg-primary/5 transition-all duration-300"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleFavorite();
+                        }}
+                        disabled={isFavoriteSubmitting}
+                      >
+                        {isFavoriteSubmitting ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Heart className={`mr-2 h-4 w-4 transition-colors duration-300 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
+                        )}
+                        {isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Please sign in to register interest or favorite this exhibition.
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="w-full border-primary/20 hover:bg-primary/5 transition-all duration-300"
+                        onClick={() => navigate('/auth/login')}
+                      >
+                        Sign In
+                      </Button>
+                    </div>
                   )}
-                </div>
-              </div>
-              
-              {user ? (
-                hasRegisteredInterest ? (
-                  <Button className="w-full" disabled>
-                    Interest Registered
-                  </Button>
-                ) : (
-                  <Button 
-                    className="w-full" 
-                    onClick={handleRegisterInterest}
-                    disabled={isSubmitting || !userProfile}
-                  >
-                    {isSubmitting ? "Registering..." : "Register Interest"}
-                  </Button>
-                )
-              ) : (
-                <Button className="w-full" onClick={() => navigate('/auth')}>
-                  Sign in to Register Interest
-                </Button>
-              )}
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>

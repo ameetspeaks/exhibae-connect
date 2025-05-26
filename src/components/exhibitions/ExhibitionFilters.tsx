@@ -1,14 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronUp, Calendar as CalendarIcon, MapPin, X } from 'lucide-react';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Card } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -16,10 +8,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, MapPin, Tag, X } from 'lucide-react';
 
 interface ExhibitionFiltersProps {
   eventTypes: Array<{ id: string; name: string }>;
@@ -31,226 +22,194 @@ interface ExhibitionFiltersProps {
     date: string | null;
     city: string | null;
   }) => void;
+  exhibitions?: any[]; // Make exhibitions optional
 }
 
-export function ExhibitionFilters({
-  eventTypes,
-  venueTypes,
-  cities,
+export const ExhibitionFilters = ({
+  eventTypes = [], // Provide default empty array
+  venueTypes = [], // Provide default empty array
+  cities = [], // Provide default empty array
   onFilterChange,
-}: ExhibitionFiltersProps) {
-  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
-  const [selectedVenueTypes, setSelectedVenueTypes] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [dateFilter, setDateFilter] = useState<string | null>(null);
-  const [showAllEventTypes, setShowAllEventTypes] = useState(false);
-  const [showAllVenueTypes, setShowAllVenueTypes] = useState(false);
+  exhibitions = [], // Provide default empty array
+}: ExhibitionFiltersProps) => {
+  const [selectedFilters, setSelectedFilters] = React.useState({
+    eventTypes: [] as string[],
+    venueTypes: [] as string[],
+    date: null as string | null,
+    city: null as string | null,
+  });
 
-  // Combine all filter changes into a single effect
-  useEffect(() => {
-    const filters = {
-      eventTypes: selectedEventTypes,
-      venueTypes: selectedVenueTypes,
-      date: dateFilter || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null),
-      city: selectedCity,
-    };
-    onFilterChange(filters);
-  }, [selectedEventTypes, selectedVenueTypes, dateFilter, selectedDate, selectedCity, onFilterChange]);
+  // Get used event types and venue types
+  const usedEventTypeIds = React.useMemo(() => {
+    return Array.from(new Set(exhibitions.map(e => e?.event_type?.id).filter(Boolean)));
+  }, [exhibitions]);
 
-  const toggleEventType = (id: string) => {
-    setSelectedEventTypes(prev =>
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-    );
-  };
+  const usedVenueTypeIds = React.useMemo(() => {
+    return Array.from(new Set(exhibitions.map(e => e?.venue_type?.id).filter(Boolean)));
+  }, [exhibitions]);
 
-  const toggleVenueType = (id: string) => {
-    setSelectedVenueTypes(prev =>
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-    );
-  };
+  // Filter event types and venue types to only show used ones
+  const filteredEventTypes = React.useMemo(() => {
+    return eventTypes.filter(type => usedEventTypeIds.includes(type.id));
+  }, [eventTypes, usedEventTypeIds]);
 
-  const handleDateOptionSelect = (option: string) => {
-    setDateFilter(option);
-    setSelectedDate(null);
+  const filteredVenueTypes = React.useMemo(() => {
+    return venueTypes.filter(type => usedVenueTypeIds.includes(type.id));
+  }, [venueTypes, usedVenueTypeIds]);
+
+  const handleFilterChange = (type: string, value: any) => {
+    let newFilters;
+    if (type === 'eventTypes' || type === 'venueTypes') {
+      newFilters = {
+        ...selectedFilters,
+        [type]: selectedFilters[type].includes(value)
+          ? selectedFilters[type].filter(t => t !== value)
+          : [...selectedFilters[type], value],
+      };
+    } else {
+      newFilters = {
+        ...selectedFilters,
+        [type]: value,
+      };
+    }
+    setSelectedFilters(newFilters);
+    onFilterChange(newFilters);
   };
 
   const clearFilters = () => {
-    setSelectedEventTypes([]);
-    setSelectedVenueTypes([]);
-    setSelectedDate(null);
-    setDateFilter(null);
-    setSelectedCity(null);
+    const newFilters = {
+      eventTypes: [],
+      venueTypes: [],
+      date: null,
+      city: null,
+    };
+    setSelectedFilters(newFilters);
+    onFilterChange(newFilters);
   };
 
-  const hasActiveFilters = selectedEventTypes.length > 0 || 
-    selectedVenueTypes.length > 0 || 
-    dateFilter !== null || 
-    selectedDate !== null || 
-    selectedCity !== null;
+  const hasActiveFilters = Object.values(selectedFilters).some(
+    value => Array.isArray(value) ? value.length > 0 : value !== null
+  );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-4">
-        {/* Event Type Filter */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium">Event Type</h3>
-          <div className="flex flex-wrap gap-2">
-            {eventTypes
-              .slice(0, showAllEventTypes ? undefined : 5)
-              .map((type) => (
-                <Badge
-                  key={type.id}
-                  variant={selectedEventTypes.includes(type.id) ? 'default' : 'outline'}
-                  className="cursor-pointer hover:bg-muted"
-                  onClick={() => toggleEventType(type.id)}
-                >
-                  {type.name}
-                </Badge>
-              ))}
-            {eventTypes.length > 5 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAllEventTypes(!showAllEventTypes)}
-              >
-                {showAllEventTypes ? (
-                  <>
-                    Show Less <ChevronUp className="ml-1 h-4 w-4" />
-                  </>
-                ) : (
-                  <>
-                    Show More <ChevronDown className="ml-1 h-4 w-4" />
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Venue Type Filter */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium">Venue Type</h3>
-          <div className="flex flex-wrap gap-2">
-            {venueTypes
-              .slice(0, showAllVenueTypes ? undefined : 5)
-              .map((type) => (
-                <Badge
-                  key={type.id}
-                  variant={selectedVenueTypes.includes(type.id) ? 'default' : 'outline'}
-                  className="cursor-pointer hover:bg-muted"
-                  onClick={() => toggleVenueType(type.id)}
-                >
-                  {type.name}
-                </Badge>
-              ))}
-            {venueTypes.length > 5 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAllVenueTypes(!showAllVenueTypes)}
-              >
-                {showAllVenueTypes ? (
-                  <>
-                    Show Less <ChevronUp className="ml-1 h-4 w-4" />
-                  </>
-                ) : (
-                  <>
-                    Show More <ChevronDown className="ml-1 h-4 w-4" />
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 items-center">
-        {/* Date Filter */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                'justify-start text-left font-normal',
-                (dateFilter || selectedDate) && 'text-primary'
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateFilter === 'today' && 'Today'}
-              {dateFilter === 'tomorrow' && 'Tomorrow'}
-              {dateFilter === 'this-week' && 'This Week'}
-              {selectedDate && format(selectedDate, 'PPP')}
-              {!dateFilter && !selectedDate && 'Pick a date'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <div className="p-2 border-b">
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => handleDateOptionSelect('today')}
-              >
-                Today
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => handleDateOptionSelect('tomorrow')}
-              >
-                Tomorrow
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => handleDateOptionSelect('this-week')}
-              >
-                This Week
-              </Button>
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg border border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
+          {/* Event Types - show only if there are used event types */}
+          {filteredEventTypes.length > 0 && (
+            <div className="lg:col-span-4">
+              <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Event Types
+              </label>
+              <div className="flex flex-wrap gap-1.5 min-h-[40px] bg-white/50 dark:bg-gray-900/50 rounded-lg p-2">
+                {filteredEventTypes.map(type => (
+                  <Badge
+                    key={type.id}
+                    variant={selectedFilters.eventTypes.includes(type.id) ? "default" : "outline"}
+                    className="cursor-pointer hover:bg-primary/90 transition-colors text-xs py-1"
+                    onClick={() => handleFilterChange('eventTypes', type.id)}
+                  >
+                    {type.name}
+                  </Badge>
+                ))}
+              </div>
             </div>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => {
-                setSelectedDate(date);
-                setDateFilter(null);
-              }}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+          )}
 
-        {/* City Filter */}
-        <Select
-          value={selectedCity || "all"}
-          onValueChange={(value) => setSelectedCity(value === "all" ? null : value)}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select city" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All cities</SelectItem>
-            {cities.filter(Boolean).map((city) => (
-              <SelectItem key={city} value={city}>
-                {city}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Venue Types - show only if there are used venue types */}
+          {filteredVenueTypes.length > 0 && (
+            <div className="lg:col-span-4">
+              <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Venue Types
+              </label>
+              <div className="flex flex-wrap gap-1.5 min-h-[40px] bg-white/50 dark:bg-gray-900/50 rounded-lg p-2">
+                {filteredVenueTypes.map(type => (
+                  <Badge
+                    key={type.id}
+                    variant={selectedFilters.venueTypes.includes(type.id) ? "default" : "outline"}
+                    className="cursor-pointer hover:bg-primary/90 transition-colors text-xs py-1"
+                    onClick={() => handleFilterChange('venueTypes', type.id)}
+                  >
+                    {type.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Clear Filters */}
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="gap-1"
-          >
-            <X className="h-4 w-4" />
-            Clear filters
-          </Button>
-        )}
-      </div>
-    </div>
+          {/* Date and City Filters */}
+          <div className="lg:col-span-3 flex flex-col sm:flex-row lg:flex-col gap-2">
+            <div className="flex-1">
+              <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Date
+              </label>
+              <Select
+                value={selectedFilters.date || "all"}
+                onValueChange={value => handleFilterChange('date', value === "all" ? null : value)}
+              >
+                <SelectTrigger className="w-full bg-white/50 dark:bg-gray-900/50">
+                  <SelectValue placeholder="Select date" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any date</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="tomorrow">Tomorrow</SelectItem>
+                  <SelectItem value="this-week">This week</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {cities.length > 0 && (
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  City
+                </label>
+                <Select
+                  value={selectedFilters.city || "all"}
+                  onValueChange={value => handleFilterChange('city', value === "all" ? null : value)}
+                >
+                  <SelectTrigger className="w-full bg-white/50 dark:bg-gray-900/50">
+                    <SelectValue placeholder="Select city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any city</SelectItem>
+                    {cities.map(city => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {/* Clear Filters */}
+          <div className="lg:col-span-1 flex items-end justify-end lg:justify-start">
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+    </motion.div>
   );
-} 
+};
+
+export default ExhibitionFilters; 

@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 interface MeasurementUnit {
   id: string;
@@ -22,9 +24,10 @@ const UNIT_TYPES = ['length', 'area', 'volume', 'weight', 'temperature', 'other'
 const MeasurementUnitsPage = () => {
   const [measurementUnits, setMeasurementUnits] = useState<MeasurementUnit[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newUnit, setNewUnit] = useState({ 
-    name: '', 
-    abbreviation: '', 
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newUnit, setNewUnit] = useState({
+    name: '',
+    abbreviation: '',
     type: 'length' as const,
     description: ''
   });
@@ -111,27 +114,35 @@ const MeasurementUnitsPage = () => {
   };
 
   const handleAddUnit = async () => {
+    if (!newUnit.name || !newUnit.abbreviation || !newUnit.type) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('measurement_units')
-        .insert([
-          {
-            name: newUnit.name,
-            abbreviation: newUnit.abbreviation,
-            type: newUnit.type,
-            description: newUnit.description || null,
-          },
-        ])
-        .select();
+        .insert([{
+          name: newUnit.name,
+          abbreviation: newUnit.abbreviation,
+          type: newUnit.type
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setMeasurementUnits([...(data as MeasurementUnit[]), ...measurementUnits]);
+      setMeasurementUnits([...measurementUnits, data]);
       setNewUnit({ name: '', abbreviation: '', type: 'length', description: '' });
+      setIsAddDialogOpen(false);
       
       toast({
-        title: "Measurement Unit Added",
-        description: "The measurement unit has been successfully added.",
+        title: "Success",
+        description: "Measurement unit added successfully",
       });
     } catch (error: any) {
       toast({
@@ -180,71 +191,53 @@ const MeasurementUnitsPage = () => {
               Add Default Units
             </Button>
           )}
-          <Button>
+          <Button onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Add Measurement Unit
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Add New Measurement Unit</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
-                <Input
-                  value={newUnit.name}
-                  onChange={(e) => setNewUnit({ ...newUnit, name: e.target.value })}
-                  placeholder="Enter unit name"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Abbreviation</label>
-                <Input
-                  value={newUnit.abbreviation}
-                  onChange={(e) => setNewUnit({ ...newUnit, abbreviation: e.target.value })}
-                  placeholder="Enter unit abbreviation"
-                />
-              </div>
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Measurement Unit</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                value={newUnit.name}
+                onChange={(e) => setNewUnit(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Square Meter"
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Type</label>
-                <Select
-                  value={newUnit.type}
-                  onValueChange={(value) => setNewUnit({ ...newUnit, type: value as typeof newUnit.type })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select unit type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UNIT_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description (Optional)</label>
-                <Input
-                  value={newUnit.description}
-                  onChange={(e) => setNewUnit({ ...newUnit, description: e.target.value })}
-                  placeholder="Enter unit description"
-                />
-              </div>
+            <div>
+              <Label htmlFor="abbreviation">Abbreviation</Label>
+              <Input
+                id="abbreviation"
+                value={newUnit.abbreviation}
+                onChange={(e) => setNewUnit(prev => ({ ...prev, abbreviation: e.target.value }))}
+                placeholder="e.g., m²"
+              />
             </div>
-            <Button onClick={handleAddUnit} className="w-full">
-              Add Measurement Unit
-            </Button>
+            <div>
+              <Label htmlFor="type">Type</Label>
+              <Input
+                id="type"
+                value={newUnit.type}
+                onChange={(e) => setNewUnit(prev => ({ ...prev, type: e.target.value as typeof prev.type }))}
+                placeholder="e.g., area"
+              />
+            </div>
           </div>
-        </CardContent>
-      </Card>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddUnit}>Add Unit</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>

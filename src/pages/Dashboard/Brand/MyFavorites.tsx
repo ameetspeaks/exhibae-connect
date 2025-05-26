@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
@@ -158,6 +158,26 @@ const MyFavorites = () => {
 // Exhibition card component with favorite toggle
 const ExhibitionCard = ({ exhibition }: { exhibition: Exhibition }) => {
   const { isFavorite, toggleFavorite, isSubmitting } = useExhibitionFavorite(exhibition.id);
+  const [bookedStalls, setBookedStalls] = useState(0);
+  const { user } = useAuth();
+
+  // Fetch booked stalls count when component mounts
+  useEffect(() => {
+    const fetchBookedStalls = async () => {
+      const { data, error } = await supabase
+        .from('stall_applications')
+        .select('id')
+        .eq('exhibition_id', exhibition.id)
+        .eq('brand_id', user?.id)
+        .eq('status', 'booked');
+
+      if (!error && data) {
+        setBookedStalls(data.length);
+      }
+    };
+
+    fetchBookedStalls();
+  }, [exhibition.id]);
   
   return (
     <Card className="bg-gray-50 border-none hover:bg-gray-100 transition-colors">
@@ -183,6 +203,7 @@ const ExhibitionCard = ({ exhibition }: { exhibition: Exhibition }) => {
               </div>
             </div>
           </div>
+          
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -203,9 +224,15 @@ const ExhibitionCard = ({ exhibition }: { exhibition: Exhibition }) => {
             <Button asChild variant="default" size="sm">
               <Link to={`/exhibitions/${exhibition.id}`}>View Details</Link>
             </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link to={`/dashboard/brand/exhibitions/${exhibition.id}`}>Apply</Link>
-            </Button>
+            {bookedStalls > 0 ? (
+              <Badge variant="secondary" className="ml-2">
+                {bookedStalls} stall{bookedStalls > 1 ? 's' : ''} booked
+              </Badge>
+            ) : (
+              <Button asChild variant="outline" size="sm">
+                <Link to={`/dashboard/brand/exhibitions/${exhibition.id}`}>Apply</Link>
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

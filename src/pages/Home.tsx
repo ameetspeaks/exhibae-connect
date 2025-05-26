@@ -11,6 +11,14 @@ const Home = () => {
   const { data: exhibitions, isLoading, error } = usePublishedExhibitions(6); // Increased to show more exhibitions
   const [searchQuery, setSearchQuery] = useState('');
   
+  const handleAppStoreClick = () => {
+    window.open('https://apps.apple.com/app/exhibae', '_blank');
+  };
+
+  const handlePlayStoreClick = () => {
+    window.open('https://play.google.com/store/apps/details?id=com.exhibae', '_blank');
+  };
+
   return (
     <div className="flex flex-col">
       {/* Hero Section with Search */}
@@ -205,13 +213,13 @@ const Home = () => {
                 Download our mobile app to get real-time updates about exhibitions, exclusive mobile-only deals, and easy navigation at the venue.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button className="bg-black hover:bg-opacity-90">
+                <Button className="bg-black hover:bg-opacity-90" onClick={handleAppStoreClick}>
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.78 1.18-.19 2.31-.89 3.51-.84 1.54.07 2.7.61 3.44 1.57-3.14 1.88-2.29 6.12.82 7.33-.64 1.87-1.49 3.71-2.85 4.13zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-1.66 4.23-3.74 4.25z"/>
                   </svg>
                   App Store
                 </Button>
-                <Button className="bg-black hover:bg-opacity-90">
+                <Button className="bg-black hover:bg-opacity-90" onClick={handlePlayStoreClick}>
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.184l2.81-2.81 4.383 2.54c.55.318.89.906.89 1.542 0 .636-.34 1.224-.89 1.542l-4.382 2.54-2.81-2.81 2.81-2.544-2.81-2.54z"/>
                   </svg>

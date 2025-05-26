@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import DashboardWidget from '@/components/dashboard/DashboardWidget';
 import { UserRole } from '@/types/auth';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle, Settings, User, BellRing, Mail, Phone, MapPin } from 'lucide-react';
+import { CheckCircle, Settings, User, BellRing, Mail, Phone, MapPin, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { z } from 'zod';
@@ -47,6 +47,7 @@ interface Profile {
   bio?: string;
   notification_email: boolean;
   notification_push: boolean;
+  role: string;
 }
 
 const profileFormSchema = z.object({
@@ -80,13 +81,46 @@ const ShopperSettings = () => {
   const { data: profile, isLoading } = useQuery({
     queryKey: ['user-profile', user?.id],
     queryFn: async () => {
+      if (!user?.id) return null;
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user?.id)
-        .single();
+        .eq('id', user.id)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching profile:', error);
+        throw error;
+      }
+
+      // If no profile exists, create one
+      if (!data) {
+        const newProfile = {
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || '',
+          role: 'shopper',
+          notification_email: true,
+          notification_push: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { data: createdProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert([newProfile])
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          throw createError;
+        }
+
+        return createdProfile as Profile;
+      }
+
       return data as Profile;
     },
     enabled: !!user?.id,
@@ -95,26 +129,26 @@ const ShopperSettings = () => {
   const profileForm = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      full_name: profile?.full_name || '',
-      email: profile?.email || user?.email || '',
-      phone: profile?.phone || '',
-      address: profile?.address || '',
-      city: profile?.city || '',
-      country: profile?.country || '',
-      bio: profile?.bio || '',
+      full_name: '',
+      email: '',
+      phone: '',
+      address: '',
+      city: '',
+      country: '',
+      bio: '',
     },
   });
 
   const notificationForm = useForm<z.infer<typeof notificationFormSchema>>({
     resolver: zodResolver(notificationFormSchema),
     defaultValues: {
-      notification_email: profile?.notification_email ?? true,
-      notification_push: profile?.notification_push ?? true,
+      notification_email: true,
+      notification_push: true,
     },
   });
 
-  // Update profile form when data is loaded
-  useState(() => {
+  // Update forms when profile data is loaded
+  useEffect(() => {
     if (profile) {
       profileForm.reset({
         full_name: profile.full_name || '',
@@ -131,15 +165,20 @@ const ShopperSettings = () => {
         notification_push: profile.notification_push ?? true,
       });
     }
-  });
+  }, [profile, user]);
 
   // Update profile mutation
   const updateProfile = useMutation({
     mutationFn: async (formData: Partial<Profile>) => {
+      if (!user?.id) throw new Error('User not found');
+
       const { error } = await supabase
         .from('profiles')
-        .update(formData)
-        .eq('id', user?.id);
+        .update({
+          ...formData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
 
       if (error) throw error;
       return true;
@@ -196,7 +235,7 @@ const ShopperSettings = () => {
         </Tabs>
       </DashboardWidget>
 
-      {activeTab === 'account' && (
+      {activeTab === 'account' ? (
         <DashboardWidget
           role={UserRole.SHOPPER}
           title="Profile Information"
@@ -248,13 +287,13 @@ const ShopperSettings = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={profileForm.control}
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
+                        <FormLabel>Phone</FormLabel>
                         <FormControl>
                           <Input placeholder="Your phone number" {...field} />
                         </FormControl>
@@ -262,35 +301,7 @@ const ShopperSettings = () => {
                       </FormItem>
                     )}
                   />
-                  
-                  <FormField
-                    control={profileForm.control}
-                    name="country"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Country</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Your country" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={profileForm.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Your city" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
+
                   <FormField
                     control={profileForm.control}
                     name="address"
@@ -304,8 +315,36 @@ const ShopperSettings = () => {
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={profileForm.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Your city" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={profileForm.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Your country" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                
+
                 <FormField
                   control={profileForm.control}
                   name="bio"
@@ -320,103 +359,101 @@ const ShopperSettings = () => {
                         />
                       </FormControl>
                       <FormDescription>
-                        This will be visible on your public profile.
+                        Write a short bio about yourself. This will be visible to others.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <Button 
                   type="submit" 
-                  disabled={updateProfile.isPending || !profileForm.formState.isDirty}
+                  disabled={updateProfile.isPending}
+                  className="w-full md:w-auto"
                 >
-                  {updateProfile.isPending ? "Saving..." : "Save Changes"}
+                  {updateProfile.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
                 </Button>
               </form>
             </Form>
           )}
         </DashboardWidget>
-      )}
-
-      {activeTab === 'notifications' && (
+      ) : (
         <DashboardWidget
           role={UserRole.SHOPPER}
           title="Notification Preferences"
           variant="outline"
         >
-          {isLoading ? (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-              <Skeleton className="h-10 w-32" />
-            </div>
-          ) : (
-            <Form {...notificationForm}>
-              <form onSubmit={notificationForm.handleSubmit(onNotificationSubmit)} className="space-y-6">
-                <div className="space-y-4">
-                  <FormField
-                    control={notificationForm.control}
-                    name="notification_email"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Email Notifications</FormLabel>
-                          <FormDescription>
-                            Receive emails about exhibition updates and recommendations.
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={notificationForm.control}
-                    name="notification_push"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Push Notifications</FormLabel>
-                          <FormDescription>
-                            Receive push notifications for important updates and reminders.
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  disabled={updateProfile.isPending || !notificationForm.formState.isDirty}
-                >
-                  {updateProfile.isPending ? "Saving..." : "Save Preferences"}
-                </Button>
-              </form>
-            </Form>
-          )}
+          <Form {...notificationForm}>
+            <form onSubmit={notificationForm.handleSubmit(onNotificationSubmit)} className="space-y-6">
+              <FormField
+                control={notificationForm.control}
+                name="notification_email"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Email Notifications</FormLabel>
+                      <FormDescription>
+                        Receive email notifications about your exhibitions and updates.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={notificationForm.control}
+                name="notification_push"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Push Notifications</FormLabel>
+                      <FormDescription>
+                        Receive push notifications about your exhibitions and updates.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <Button 
+                type="submit" 
+                disabled={updateProfile.isPending}
+                className="w-full md:w-auto"
+              >
+                {updateProfile.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Preferences'
+                )}
+              </Button>
+            </form>
+          </Form>
         </DashboardWidget>
       )}
     </div>
   );
-};
+}
 
 export default ShopperSettings; 

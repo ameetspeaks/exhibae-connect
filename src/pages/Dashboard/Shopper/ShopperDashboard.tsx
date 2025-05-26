@@ -20,6 +20,9 @@ interface Exhibition {
   address: string;
   city: string;
   created_at: string;
+  category?: {
+    name: string;
+  };
 }
 
 const ShopperDashboard = () => {
@@ -36,27 +39,35 @@ const ShopperDashboard = () => {
   const { data: attendingExhibitions, isLoading: isLoadingAttending } = useQuery({
     queryKey: ['shopper-attending-exhibitions', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('exhibition_attending')
-        .select(`
-          exhibition_id,
-          exhibitions (
-            id,
-            title,
-            start_date,
-            end_date,
-            address,
-            city,
-            created_at
-          )
-        `)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+      if (!user?.id) return [];
 
-      if (error) throw error;
-      
-      // Transform the data to get the exhibitions directly
-      return data.map((item: any) => item.exhibitions) as Exhibition[];
+      // First get the attending records
+      const { data: attending, error: attendingError } = await supabase
+        .from('exhibition_attending')
+        .select('exhibition_id')
+        .eq('user_id', user.id);
+
+      if (attendingError) {
+        console.error('Error fetching attending records:', attendingError);
+        return [];
+      }
+
+      if (!attending || attending.length === 0) return [];
+
+      // Then fetch the exhibition details
+      const exhibitionIds = attending.map(a => a.exhibition_id);
+      const { data: exhibitions, error: exhibitionsError } = await supabase
+        .from('exhibitions')
+        .select('id, title, start_date, end_date, address, city, created_at')
+        .in('id', exhibitionIds)
+        .order('start_date', { ascending: true });
+
+      if (exhibitionsError) {
+        console.error('Error fetching exhibitions:', exhibitionsError);
+        return [];
+      }
+
+      return exhibitions as Exhibition[];
     },
     enabled: !!user?.id,
   });
@@ -65,36 +76,57 @@ const ShopperDashboard = () => {
   const { data: statistics, isLoading: isLoadingStats } = useQuery({
     queryKey: ['shopper-statistics', user?.id],
     queryFn: async () => {
+      if (!user?.id) return { totalAttending: 0, upcomingExhibitions: 0 };
+
+      try {
       // Get count of attending exhibitions
       const { count: attendingCount, error: attendingError } = await supabase
         .from('exhibition_attending')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user?.id);
+          .eq('user_id', user.id);
 
       if (attendingError) throw attendingError;
 
-      // Get upcoming exhibitions (attending exhibitions that haven't ended yet)
-      const { data: upcomingData, error: upcomingError } = await supabase
+        // Get attending records with exhibition dates
+        const { data: attending, error: upcomingError } = await supabase
         .from('exhibition_attending')
-        .select(`
-          exhibitions (
-            id,
-            end_date
-          )
-        `)
-        .eq('user_id', user?.id);
+          .select('exhibition_id')
+          .eq('user_id', user.id);
 
       if (upcomingError) throw upcomingError;
 
+        if (!attending || attending.length === 0) {
+          return {
+            totalAttending: 0,
+            upcomingExhibitions: 0
+          };
+        }
+
+        // Get exhibition details for upcoming count
+        const exhibitionIds = attending.map(a => a.exhibition_id);
+        const { data: exhibitions, error: exhibitionsError } = await supabase
+          .from('exhibitions')
+          .select('id, end_date')
+          .in('id', exhibitionIds);
+
+        if (exhibitionsError) throw exhibitionsError;
+
       const now = new Date();
-      const upcomingCount = upcomingData.filter(
-        (item: any) => new Date(item.exhibitions.end_date) >= now
+        const upcomingCount = (exhibitions || []).filter(
+          exhibition => new Date(exhibition.end_date) >= now
       ).length;
 
       return {
         totalAttending: attendingCount || 0,
-        upcomingExhibitions: upcomingCount || 0,
+          upcomingExhibitions: upcomingCount || 0
       };
+      } catch (error) {
+        console.error('Error fetching statistics:', error);
+        return {
+          totalAttending: 0,
+          upcomingExhibitions: 0
+        };
+      }
     },
     enabled: !!user?.id,
   });
@@ -105,12 +137,25 @@ const ShopperDashboard = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('exhibitions')
-        .select('*')
+        .select(`
+          id,
+          title,
+          start_date,
+          end_date,
+          address,
+          city,
+          created_at,
+          category:exhibition_categories(name)
+        `)
         .gte('end_date', new Date().toISOString())
         .order('start_date', { ascending: true })
         .limit(3);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching recommended exhibitions:', error);
+        return [];
+      }
+
       return data as Exhibition[];
     },
   });

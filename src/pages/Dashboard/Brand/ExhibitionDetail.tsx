@@ -15,6 +15,8 @@ import { format, isPast } from 'date-fns';
 import { useGalleryImages } from '@/hooks/useGalleryData';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface PaymentSubmission {
   id: string;
@@ -340,268 +342,208 @@ const ExhibitionDetail = () => {
   const layoutImages = galleryImages?.filter(img => img.image_type === 'layout') || [];
 
   return (
-    <div className="space-y-6">
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div>
-        <h1 className="text-2xl font-bold">{exhibition.title}</h1>
-        <p className="text-gray-600">{exhibition.description}</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Exhibition Details</CardTitle>
-          <CardDescription>View exhibition information and available stalls</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <h3 className="font-medium">Location</h3>
-              <p className="text-gray-600">{exhibition.location}</p>
-            </div>
-            <div>
-              <h3 className="font-medium">Dates</h3>
-              <p className="text-gray-600">
-                {new Date(exhibition.start_date).toLocaleDateString()} - {new Date(exhibition.end_date).toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-
-          {isLoadingGalleryImages ? (
-            <div className="mb-6">
-              <h3 className="font-medium mb-4">Stall Layout</h3>
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
-              </div>
-            </div>
-          ) : layoutImages.length > 0 && (
-            <div className="mb-6">
-              <h3 className="font-medium mb-4">Stall Layout</h3>
-              <Carousel>
-                <CarouselContent>
-                  {layoutImages.map((image) => (
-                    <CarouselItem key={image.id}>
-                      <AspectRatio ratio={16/9}>
-                        <img 
-                          src={image.image_url} 
-                          alt="Stall Layout" 
-                          className="w-full h-full object-contain rounded-md"
-                        />
-                      </AspectRatio>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious />
-                <CarouselNext />
-              </Carousel>
-            </div>
-          )}
-
-          <div className="flex justify-end mb-6">
-            <Button
-              onClick={() => navigate(`/exhibitions/${exhibition.id}`)}
-              className="bg-exhibae-navy hover:bg-opacity-90"
-            >
-              View Stall Layout
+    <div className="container mx-auto p-6">
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
+        </div>
+      ) : error ? (
+        <div className="text-center text-red-600">
+          <p>{error}</p>
+        </div>
+      ) : exhibition ? (
+        <>
+          <div className="flex items-center gap-4 mb-6">
+            <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4" />
             </Button>
+            <h1 className="text-2xl font-bold">{exhibition.title}</h1>
           </div>
 
-          <div className="mb-6">
-            <h3 className="font-medium mb-2">Your Applications</h3>
-            {userApplications.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
-                {userApplications.map((app) => {
-                  const stall = stalls.find(s => s.id === app.stall_id);
-                  const showPaymentButton = app.status === 'payment_pending' && 
-                    app.booking_deadline &&
-                    !isPast(new Date(app.booking_deadline));
+          <Card>
+            <CardHeader>
+              <CardTitle>Exhibition Details</CardTitle>
+              <CardDescription>View exhibition information and available stalls</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <h3 className="font-medium">Location</h3>
+                  <p className="text-gray-600">{exhibition.location}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium">Dates</h3>
+                  <p className="text-gray-600">
+                    {new Date(exhibition.start_date).toLocaleDateString()} - {new Date(exhibition.end_date).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
 
-                  return (
-                    <Card key={app.id} className="bg-gray-50">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col gap-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium">{stall?.name}</h4>
-                              <p className="text-sm text-gray-600">
-                                Applied: {new Date(app.created_at).toLocaleDateString()}
-                              </p>
-                              {app.booking_deadline && (
+              {isLoadingGalleryImages ? (
+                <div className="mb-6">
+                  <h3 className="font-medium mb-4">Stall Layout</h3>
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
+                  </div>
+                </div>
+              ) : layoutImages.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-medium mb-4">Stall Layout</h3>
+                  <Carousel>
+                    <CarouselContent>
+                      {layoutImages.map((image) => (
+                        <CarouselItem key={image.id}>
+                          <AspectRatio ratio={16/9}>
+                            <img 
+                              src={image.image_url} 
+                              alt="Stall Layout" 
+                              className="w-full h-full object-contain rounded-md"
+                            />
+                          </AspectRatio>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious />
+                    <CarouselNext />
+                  </Carousel>
+                </div>
+              )}
+
+              <div className="flex justify-end mb-6">
+                <Button
+                  onClick={() => navigate(`/exhibitions/${exhibition.id}`)}
+                  className="bg-exhibae-navy hover:bg-opacity-90"
+                >
+                  View Stall Layout
+                </Button>
+              </div>
+
+              {userApplications.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-medium mb-2">Your Stalls</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    {userApplications.map((app) => {
+                      const stall = stalls.find(s => s.id === app.stall_id);
+                      if (!stall) return null;
+
+                      return (
+                        <Card key={app.id} className={`${app.status === 'booked' ? 'bg-green-50' : 'bg-gray-50'}`}>
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-medium">{stall.name}</h4>
                                 <p className="text-sm text-gray-600">
-                                  Payment Deadline: {format(new Date(app.booking_deadline), 'PPP')}
+                                  Size: {stall.length}m × {stall.width}m
                                 </p>
+                                <p className="text-sm text-gray-600">
+                                  Price: ₹{stall.price}
+                                </p>
+                                {app.status === 'booked' && (
+                                  <Badge variant="secondary" className="mt-2 bg-green-100 text-green-800">
+                                    Booked
+                                  </Badge>
+                                )}
+                              </div>
+                              {app.status === 'booked' && (
+                                <div className="text-right">
+                                  <p className="text-sm text-gray-600">
+                                    Booking confirmed on:
+                                  </p>
+                                  <p className="text-sm font-medium">
+                                    {format(new Date(app.created_at), 'MMM d, yyyy')}
+                                  </p>
+                                </div>
                               )}
                             </div>
-                            <span className={getStatusBadge(app.status)}>
-                              {app.status.split('_').map(word => 
-                                word.charAt(0).toUpperCase() + word.slice(1)
-                              ).join(' ')}
-                            </span>
-                          </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
-                          {app.status === 'payment_pending' && (
-                            <Alert>
-                              <AlertDescription>
-                                Please complete the payment to confirm your booking. 
-                                {app.booking_deadline && (
-                                  <> Payment must be made by {format(new Date(app.booking_deadline), 'PPP')}.</>
-                                )}
-                              </AlertDescription>
-                            </Alert>
-                          )}
-
-                          <div className="flex flex-col gap-2">
-                            {app.status === 'payment_pending' && (
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button className="w-full bg-exhibae-navy hover:bg-opacity-90">
-                                    Pay Now
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl">
-                                  <DialogHeader>
-                                    <DialogTitle>Complete Payment</DialogTitle>
-                                    <DialogDescription>
-                                      Submit your payment details to confirm your stall booking
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <PaymentSubmissionForm
-                                    applicationId={app.id}
-                                    stallPrice={stall?.price || 0}
-                                    exhibitionId={exhibition.id}
-                                    onSuccess={handlePaymentSuccess}
-                                    bookingDeadline={app.booking_deadline}
-                                  />
-                                </DialogContent>
-                              </Dialog>
-                            )}
-
-                            {app.payment_submission?.proof_file_url && (
-                              <a
-                                href={app.payment_submission.proof_file_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-exhibae-navy bg-white border border-exhibae-navy rounded-md hover:bg-exhibae-navy hover:text-white transition-colors"
-                              >
-                                View Payment Proof
-                              </a>
-                            )}
-                          </div>
-                        </div>
+              <div className="mb-6">
+                <h3 className="font-medium mb-2">Available Stalls</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {stalls.filter(stall => stall.status === 'available').map((stall) => (
+                    <Card 
+                      key={stall.id} 
+                      className="cursor-pointer hover:border-exhibae-navy bg-gray-50"
+                      onClick={() => handleStallSelect(stall)}
+                    >
+                      <CardContent className="p-4">
+                        <h4 className="font-medium">{stall.name}</h4>
+                        <p className="text-sm text-gray-600">
+                          Size: {stall.length}m × {stall.width}m
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Price: ₹{stall.price}
+                        </p>
+                        <Badge variant="outline" className="mt-2">
+                          Available
+                        </Badge>
                       </CardContent>
                     </Card>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            ) : (
-              <p className="text-gray-500">You haven't applied to any stalls yet.</p>
-            )}
-          </div>
+            </CardContent>
+          </Card>
 
-          <h3 className="font-medium">Available Stalls</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {stalls.map((stall) => (
-              <Card 
-                key={stall.id} 
-                className={`transition-colors ${
-                  stall.status === 'available' 
-                    ? 'cursor-pointer hover:border-exhibae-navy' 
-                    : 'cursor-not-allowed opacity-75'
-                } ${
-                  stall.status === 'available' ? 'bg-green-50 border-green-200' :
-                  stall.status === 'pending' ? 'bg-yellow-50 border-yellow-200' :
-                  stall.status === 'confirmed' ? 'bg-blue-50 border-blue-200' :
-                  'bg-red-50 border-red-200'
-                }`}
-                onClick={() => stall.status === 'available' && handleStallSelect(stall)}
-              >
-                <CardContent className="p-4">
-                  <h4 className="font-medium">{stall.name}</h4>
-                  <p className="text-sm text-gray-600">
-                    Size: {stall.length}m × {stall.width}m
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Price: ₹{stall.price}
-                  </p>
-                  <div className="mt-2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      stall.status === 'available' ? 'bg-green-100 text-green-800' :
-                      stall.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      stall.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {stall.status.charAt(0).toUpperCase() + stall.status.slice(1)}
-                    </span>
+          {/* Apply Dialog */}
+          <Dialog open={isApplyDialogOpen} onOpenChange={setIsApplyDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Apply for Stall</DialogTitle>
+                <DialogDescription>
+                  Submit your application for the selected stall.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {selectedStall && (
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium">{selectedStall.name}</h4>
+                    <p className="text-sm text-gray-600">
+                      Size: {selectedStall.length}m × {selectedStall.width}m
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Price: ₹{selectedStall.price}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isApplyDialogOpen} onOpenChange={(open) => {
-        if (!open) {
-          setApplicationText('Interested in participating in this exhibition.');
-        }
-        setIsApplyDialogOpen(open);
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Apply for Stall {selectedStall?.name}</DialogTitle>
-            <DialogDescription>
-              Review your stall selection
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Stall Details</Label>
-              <p className="text-sm text-gray-600">{selectedStall?.name}</p>
-              <p className="text-sm text-gray-600">
-                Size: {selectedStall?.length}m × {selectedStall?.width}m
-              </p>
-              <p className="text-sm text-gray-600">Price: ₹{selectedStall?.price}</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="application-text">Notes (Optional)</Label>
-              <Textarea
-                id="application-text"
-                value={applicationText || 'Interested in participating in this exhibition.'}
-                onChange={(e) => setApplicationText(e.target.value)}
-                className="min-h-[80px]"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsApplyDialogOpen(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleApplySubmit}
-              disabled={submitting}
-              className="bg-exhibae-navy hover:bg-opacity-90"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                'Submit Application'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="message">Message (Optional)</Label>
+                  <Textarea
+                    id="message"
+                    placeholder="Add any specific requirements or message for the organizer..."
+                    value={applicationText}
+                    onChange={(e) => setApplicationText(e.target.value)}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsApplyDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleApplySubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit Application'
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : null}
     </div>
   );
 };

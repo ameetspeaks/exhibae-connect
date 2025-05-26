@@ -16,10 +16,10 @@ BEGIN
 END $$;
 
 -- Create new, non-recursive policies
--- Allow all authenticated users to read profiles
+-- Allow all users (including unauthenticated) to read profiles
 CREATE POLICY "profiles_read_policy" 
 ON profiles FOR SELECT 
-TO authenticated 
+TO public 
 USING (true);
 
 -- Allow users to insert their own profile only

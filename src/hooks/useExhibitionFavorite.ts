@@ -25,12 +25,12 @@ export function useExhibitionFavorite(exhibitionId: string) {
       try {
         const { data, error } = await supabase
           .from('exhibition_favorites')
-          .select('*')
+          .select('exhibition_id')
           .eq('exhibition_id', exhibitionId)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error) {
           console.error('Error checking favorite status:', error);
           return false;
         }
@@ -54,7 +54,7 @@ export function useExhibitionFavorite(exhibitionId: string) {
       try {
         const { count, error } = await supabase
           .from('exhibition_favorites')
-          .select('*', { count: 'exact', head: true })
+          .select('exhibition_id', { count: 'exact', head: true })
           .eq('exhibition_id', exhibitionId);
 
         if (error) {
@@ -81,10 +81,10 @@ export function useExhibitionFavorite(exhibitionId: string) {
         .from('profiles')
         .select('id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
       // If no profile exists, create one
-      if (profileError && profileError.code === 'PGRST116') {
+      if (!profile) {
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
@@ -93,7 +93,9 @@ export function useExhibitionFavorite(exhibitionId: string) {
             role: user.user_metadata?.role || 'shopper',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
-          });
+          })
+          .select()
+          .single();
           
         if (insertError) {
           console.error('Error creating profile:', insertError);
@@ -130,7 +132,7 @@ export function useExhibitionFavorite(exhibitionId: string) {
             user_id: user.id
           }
         ])
-        .select()
+        .select('exhibition_id')
         .single();
 
       if (error) throw error;
@@ -197,13 +199,9 @@ export function useExhibitionFavorite(exhibitionId: string) {
 
   return {
     isFavorite: isFavorite || false,
-    isLoading,
-    isLoadingCount,
-    favoritesCount: favoritesCount || 0,
-    toggleFavorite,
-    addFavorite,
-    removeFavorite,
+    isLoading: isLoading || isLoadingCount,
     isSubmitting: addFavorite.isPending || removeFavorite.isPending,
-    refetchFavorite
+    favoritesCount,
+    toggleFavorite
   };
 } 

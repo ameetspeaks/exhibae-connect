@@ -26,12 +26,12 @@ export function useExhibitionAttendance(exhibitionId: string) {
       try {
         const { data, error } = await supabase
           .from('exhibition_attending')
-          .select('*')
+          .select('exhibition_id')
           .eq('exhibition_id', exhibitionId)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error) {
           console.error('Error checking attendance:', error);
           return false;
         }
@@ -55,7 +55,7 @@ export function useExhibitionAttendance(exhibitionId: string) {
       try {
         const { count, error } = await supabase
           .from('exhibition_attending')
-          .select('*', { count: 'exact', head: true })
+          .select('exhibition_id', { count: 'exact', head: true })
           .eq('exhibition_id', exhibitionId);
 
         if (error) {
@@ -82,10 +82,10 @@ export function useExhibitionAttendance(exhibitionId: string) {
         .from('profiles')
         .select('id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
       // If no profile exists, create one
-      if (profileError && profileError.code === 'PGRST116') {
+      if (!profile) {
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
@@ -94,7 +94,9 @@ export function useExhibitionAttendance(exhibitionId: string) {
             role: user.user_metadata?.role || 'shopper',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
-          });
+          })
+          .select()
+          .single();
           
         if (insertError) {
           console.error('Error creating profile:', insertError);
@@ -131,7 +133,7 @@ export function useExhibitionAttendance(exhibitionId: string) {
             user_id: user.id
           }
         ])
-        .select()
+        .select('exhibition_id')
         .single();
 
       if (error) throw error;
@@ -198,13 +200,9 @@ export function useExhibitionAttendance(exhibitionId: string) {
 
   return {
     isAttending: isAttending || false,
-    isLoading: isCheckingAttendance,
-    isLoadingCount,
-    attendanceCount: attendanceCount || 0,
-    toggleAttendance,
-    addAttendance,
-    removeAttendance,
+    isLoading: isCheckingAttendance || isLoadingCount,
     isSubmitting: addAttendance.isPending || removeAttendance.isPending,
-    refetchAttendance
+    attendanceCount,
+    toggleAttendance
   };
 } 
