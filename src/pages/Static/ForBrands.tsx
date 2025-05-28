@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Search, ShoppingBag, BarChart3, Calendar, Users, Globe } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function ForBrands() {
   const navigate = useNavigate();
@@ -57,9 +58,9 @@ export default function ForBrands() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen bg-[#F5E4DA]">
       {/* Hero Section */}
-      <div className="text-center mb-16">
+      <div className="text-center mb-16 py-12">
         <h1 className="text-4xl font-bold text-exhibae-navy mb-4">
           Grow Your Brand Through Exhibitions
         </h1>
@@ -70,13 +71,14 @@ export default function ForBrands() {
         <div className="flex justify-center gap-4">
           <Button 
             onClick={() => navigate("/auth/register")}
-            className="bg-exhibae-coral hover:bg-exhibae-coral/90"
+            className="bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]"
           >
             Get Started
           </Button>
           <Button 
             variant="outline" 
             onClick={() => navigate("/exhibitions")}
+            className="border-[#4B1E25] text-[#4B1E25] hover:bg-[#4B1E25] hover:text-[#F5E4DA]"
           >
             Browse Exhibitions
           </Button>
@@ -84,9 +86,9 @@ export default function ForBrands() {
       </div>
 
       {/* Features Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 px-6">
         {features.map((feature, index) => (
-          <div key={index} className="p-6 border rounded-lg hover:shadow-lg transition-shadow">
+          <div key={index} className="p-6 border rounded-lg hover:shadow-lg transition-shadow bg-[#F5E4DA]">
             <div className="mb-4">{feature.icon}</div>
             <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
             <p className="text-gray-600">{feature.description}</p>
@@ -95,7 +97,7 @@ export default function ForBrands() {
       </div>
 
       {/* Success Stats */}
-      <div className="bg-gray-50 p-8 rounded-lg mb-16">
+      <div className="bg-[#F5E4DA] p-8 rounded-lg mb-16">
         <h2 className="text-2xl font-bold text-center mb-8">Why Brands Choose ExhiBae</h2>
         <div className="grid md:grid-cols-4 gap-8 text-center">
           <div>
@@ -134,18 +136,19 @@ export default function ForBrands() {
       </div>
 
       {/* CTA Section */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-4">Ready to Showcase Your Brand?</h2>
-        <p className="text-gray-600 mb-6">
-          Join ExhiBae today and take your brand to the next level
-        </p>
-        <Button 
-          onClick={() => navigate("/auth/register")}
-          className="bg-exhibae-navy hover:bg-exhibae-navy/90"
-        >
-          Create Your Brand Account
-        </Button>
-      </div>
+      <section className="py-16 bg-[#4B1E25] text-[#F5E4DA]">
+        <div className="container mx-auto px-6 text-center">
+          <h2 className="text-3xl font-bold mb-6">
+            Ready to Showcase Your Brand?
+          </h2>
+          <p className="text-xl mb-8 max-w-2xl mx-auto">
+            Join thousands of successful brands on ExhiBae and take your business to the next level.
+          </p>
+          <Button className="bg-[#F5E4DA] text-[#4B1E25] hover:bg-[#F5E4DA]/90" asChild>
+            <Link to="/auth/register">Get Started Today</Link>
+          </Button>
+        </div>
+      </section>
     </div>
   );
 } 

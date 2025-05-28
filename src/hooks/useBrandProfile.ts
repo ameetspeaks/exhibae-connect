@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/integrations/supabase/AuthProvider';
 
 export interface BrandProfile {
   id: string;
@@ -11,12 +12,11 @@ export interface BrandProfile {
   contact_email: string;
   contact_phone?: string;
   logo_url?: string;
-  social_media: {
-    facebook?: string;
-    twitter?: string;
-    instagram?: string;
-    linkedin?: string;
-  };
+  cover_image_url?: string;
+  facebook_url?: string;
+  instagram_url?: string;
+  twitter_url?: string;
+  linkedin_url?: string;
 }
 
 export interface NotificationSettings {
@@ -30,34 +30,61 @@ export interface NotificationSettings {
 
 export const useBrandProfile = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const fetchProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No user found');
+  return useQuery<BrandProfile, Error>({
+    queryKey: ['brandProfile', user?.id],
+    queryFn: async () => {
+      if (!user) throw new Error('User not authenticated');
 
-    const { data, error } = await supabase
-      .from('brand_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+      const { data, error } = await supabase
+        .from('brand_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-    if (error) {
-      throw error;
-    }
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        toast({
+          title: "Error",
+          description: "Failed to fetch brand profile",
+          variant: "destructive",
+        });
+        throw error;
+      }
 
-    return data;
-  };
+      // If no profile exists, create one
+      if (!data) {
+        const newProfile = {
+          user_id: user.id,
+          company_name: user.user_metadata?.company_name || '',
+          description: user.user_metadata?.description || '',
+          website: user.user_metadata?.website_url || '',
+          contact_phone: user.user_metadata?.phone || '',
+          contact_email: user.email || '',
+          logo_url: '',
+          cover_image_url: '',
+          facebook_url: '',
+          instagram_url: '',
+          twitter_url: '',
+          linkedin_url: ''
+        };
 
-  return useQuery<BrandProfile>({
-    queryKey: ['brandProfile'],
-    queryFn: fetchProfile,
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch brand profile. Please try again.',
-        variant: 'destructive',
-      });
+        const { data: createdProfile, error: createError } = await supabase
+          .from('brand_profiles')
+          .insert([newProfile])
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        return createdProfile;
+      }
+
+      return data;
     },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // 30 minutes
   });
 };
 
@@ -65,73 +92,57 @@ export const useUpdateBrandProfile = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (data: Partial<BrandProfile>) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
-
-      const { error } = await supabase
+  return useMutation<BrandProfile, Error, Partial<BrandProfile>>({
+    mutationFn: async (profile) => {
+      const { data, error } = await supabase
         .from('brand_profiles')
-        .upsert({
-          user_id: user.id,
-          ...data,
-        });
+        .update(profile)
+        .eq('id', profile.id)
+        .select()
+        .single();
 
       if (error) throw error;
+      return data as BrandProfile;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['brandProfile'] });
+    onSuccess: (data) => {
+      queryClient.setQueryData(['brandProfile'], data);
       toast({
-        title: 'Success',
-        description: 'Brand profile updated successfully.',
+        title: "Success",
+        description: "Profile updated successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
-        title: 'Error',
-        description: 'Failed to update brand profile. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive",
       });
-    },
+    }
   });
 };
 
 export const useNotificationSettings = () => {
   const { toast } = useToast();
 
-  const fetchSettings = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No user found');
-
-    const { data, error } = await supabase
-      .from('notification_settings')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-      throw error;
-    }
-
-    // Return default settings if none exist
-    return data || {
-      email_notifications: true,
-      application_updates: true,
-      new_exhibitions: true,
-      marketing_emails: false,
-    };
-  };
-
-  return useQuery<NotificationSettings>({
+  return useQuery<NotificationSettings, Error>({
     queryKey: ['notificationSettings'],
-    queryFn: fetchSettings,
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch notification settings. Please try again.',
-        variant: 'destructive',
-      });
-    },
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notification_settings')
+        .select('*')
+        .single();
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch notification settings",
+          variant: "destructive",
+        });
+        throw error;
+      }
+
+      return data as NotificationSettings;
+    }
   });
 };
 
@@ -139,33 +150,31 @@ export const useUpdateNotificationSettings = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (data: Partial<NotificationSettings>) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
-
-      const { error } = await supabase
+  return useMutation<NotificationSettings, Error, Partial<NotificationSettings>>({
+    mutationFn: async (settings) => {
+      const { data, error } = await supabase
         .from('notification_settings')
-        .upsert({
-          user_id: user.id,
-          ...data,
-        });
+        .update(settings)
+        .eq('id', settings.id)
+        .select()
+        .single();
 
       if (error) throw error;
+      return data as NotificationSettings;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notificationSettings'] });
+    onSuccess: (data) => {
+      queryClient.setQueryData(['notificationSettings'], data);
       toast({
-        title: 'Success',
-        description: 'Notification settings updated successfully.',
+        title: "Success",
+        description: "Notification settings updated successfully",
       });
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
-        title: 'Error',
-        description: 'Failed to update notification settings. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to update notification settings",
+        variant: "destructive",
       });
-    },
+    }
   });
 }; 

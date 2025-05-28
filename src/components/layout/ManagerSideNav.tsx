@@ -10,11 +10,15 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  Tag,
-  FileText
+  Tag,Coupon Details
+
+  FileText,
+  Calendar,
+  Ticket
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
+import { Logo } from '@/components/ui/logo';
 
 interface ManagerSideNavProps {
   onLogout: () => void;
@@ -30,6 +34,11 @@ const ManagerSideNav: React.FC<ManagerSideNavProps> = ({ onLogout }) => {
       icon: LayoutDashboard,
       href: '/dashboard/manager',
       exact: true
+    },
+    {
+      title: 'Event Types',
+      icon: Calendar,
+      href: '/dashboard/manager/events'
     },
     {
       title: 'Exhibitions',
@@ -57,6 +66,11 @@ const ManagerSideNav: React.FC<ManagerSideNavProps> = ({ onLogout }) => {
       href: '/dashboard/manager/measurement-units'
     },
     {
+      title: 'Coupons',
+      icon: Ticket,
+      href: '/dashboard/manager/coupons'
+    },
+    {
       title: 'Users',
       icon: Users,
       href: '/dashboard/manager/users'
@@ -77,9 +91,7 @@ const ManagerSideNav: React.FC<ManagerSideNavProps> = ({ onLogout }) => {
     <aside className="w-64 bg-white border-r fixed inset-y-0 flex flex-col">
       <div className="p-6">
         <Link to="/" className="flex items-center">
-          <span className="text-xl font-bold text-exhibae-navy">
-            Exhi<span className="text-exhibae-coral">Bae</span>
-          </span>
+          <Logo preset="sidebar" />
         </Link>
       </div>
       

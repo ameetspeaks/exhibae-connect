@@ -105,8 +105,8 @@ export default function Signup() {
   };
 
   return (
-    <div className="container flex h-screen w-screen flex-col items-center justify-center">
-      <Card className="w-[400px]">
+    <div className="container flex h-screen w-screen flex-col items-center justify-center bg-[#F5E4DA]/10">
+      <Card className="w-[400px] border-[#4B1E25]/10">
         <CardHeader>
           <CardTitle>Create an account</CardTitle>
           <CardDescription>Enter your details below to create your account</CardDescription>
@@ -120,7 +120,13 @@ export default function Signup() {
                 control={control}
                 render={({ field, fieldState: { error } }) => (
                   <>
-                    <Input {...field} type="email" id="email" placeholder="Enter your email" />
+                    <Input 
+                      {...field} 
+                      type="email" 
+                      id="email" 
+                      placeholder="Enter your email"
+                      className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
+                    />
                     {error && <p className="text-sm text-red-500">{error.message}</p>}
                   </>
                 )}
@@ -134,7 +140,13 @@ export default function Signup() {
                 control={control}
                 render={({ field, fieldState: { error } }) => (
                   <>
-                    <Input {...field} type="password" id="password" placeholder="Enter your password" />
+                    <Input 
+                      {...field} 
+                      type="password" 
+                      id="password" 
+                      placeholder="Enter your password"
+                      className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
+                    />
                     {error && <p className="text-sm text-red-500">{error.message}</p>}
                   </>
                 )}
@@ -148,7 +160,12 @@ export default function Signup() {
                 control={control}
                 render={({ field, fieldState: { error } }) => (
                   <>
-                    <Input {...field} id="full_name" placeholder="Enter your full name" />
+                    <Input 
+                      {...field} 
+                      id="full_name" 
+                      placeholder="Enter your full name"
+                      className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
+                    />
                     {error && <p className="text-sm text-red-500">{error.message}</p>}
                   </>
                 )}
@@ -163,7 +180,7 @@ export default function Signup() {
                 render={({ field, fieldState: { error } }) => (
                   <>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]">
                         <SelectValue placeholder="Select your role" />
                       </SelectTrigger>
                       <SelectContent>
@@ -186,7 +203,12 @@ export default function Signup() {
                   control={control}
                   render={({ field, fieldState: { error } }) => (
                     <>
-                      <Input {...field} id="company_name" placeholder="Enter your company name" />
+                      <Input 
+                        {...field} 
+                        id="company_name" 
+                        placeholder="Enter your company name"
+                        className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
+                      />
                       {error && <p className="text-sm text-red-500">{error.message}</p>}
                     </>
                   )}
@@ -196,10 +218,10 @@ export default function Signup() {
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full">Sign Up</Button>
+            <Button type="submit" className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]">Sign Up</Button>
             <p className="text-sm text-gray-500">
               Already have an account?{' '}
-              <Link to="/auth/login" className="text-primary hover:underline">
+              <Link to="/auth/login" className="text-[#4B1E25] hover:text-[#4B1E25]/80">
                 Sign in
               </Link>
             </p>

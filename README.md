@@ -4,22 +4,87 @@ A modern web application for managing exhibitions and connecting brands with org
 
 ## Features
 - Brand Management
+  - Brand profile creation and management
+  - Brand portfolio pages with company information
+  - Brand discovery with search and filtering
+  - Brand gallery for showcasing products
+  - Look books for brand catalogs
+  - Brand statistics and analytics
+  - Activity logging for brand actions
+  - Materials management
 - Exhibition Organization
+  - Exhibition creation and editing
+  - Exhibition details page with comprehensive information
+  - Exhibition discovery with search and filtering
+  - Exhibition gallery for venue visualization
+  - Exhibition categorization and venue types
+  - Date and time management for exhibitions
+- Stall Management
+  - Advanced stall booking workflow
+  - Multiple stall statuses (available, pending, payment_pending, booked, under_maintenance)
+  - Stall configuration with customizable dimensions
+  - Stall pricing and quantity management
+  - Stall layout designer with positioning
+  - Stall maintenance tracking
+  - Booking deadline management
+- Application System
+  - Comprehensive application workflow
+  - Status tracking (pending, payment_pending, payment_review, booked, rejected)
+  - Automated status updates
+  - Payment integration
+  - Email notifications for status changes
+  - Application approval workflow
 - User Dashboard with:
   - Profile Management (personal info, contact details, bio)
   - Notification Preferences (email and push notifications)
   - Favorites System (brands and exhibitions)
   - Exhibition Attendance Tracking
-- Secure Authentication with Row Level Security (RLS)
-- Real-time Updates
-- Responsive Design
+  - Real-time application updates
+  - Statistics and analytics
+- Communication Tools
+  - Direct messaging between brands and organizers
+  - Email notification system
+  - Real-time updates and notifications
+  - Conversation tracking
+- Payment System
+  - Secure payment processing
+  - Payment status tracking
+  - Transaction history
+  - Partial payment support
+- Security Features
+  - Secure Authentication with Row Level Security (RLS)
+  - Role-based access control
+  - Data privacy policies
+  - Secure payment handling
+- Modern UI/UX
+  - Clean and intuitive navigation
+  - Optimized hero sections
+  - Interactive exhibition cards
+  - Dynamic sliders and galleries
+  - Toast notifications
+  - Loading states and error handling
+  - Form validation
 
 ## Database Features
-- Brand Favorites
-- Exhibition Favorites
-- Exhibition Attendance Tracking
-- Profile Management
-- Notification Preferences
+- Brand Statistics
+  - Total applications tracking
+  - Approved/rejected applications count
+  - Active stalls monitoring
+  - Total exhibitions participated
+  - Revenue tracking
+- Activity Logging
+  - Application submissions
+  - Status changes
+  - Exhibition participation
+  - Payment transactions
+- Advanced Relationships
+  - Brand-Exhibition connections
+  - Stall-Application mapping
+  - User-Role associations
+- Performance Optimized
+  - Indexed queries
+  - Efficient data structures
+  - Real-time capabilities
 
 ## Deployment
 The application is automatically deployed via GitHub Actions when changes are pushed to the master branch.
@@ -33,12 +98,33 @@ npm install
 
 # Start development server
 npm run dev
+
+# To run with email service
+npm run email-server
+
+# To run everything (frontend + backend + email)
+npm run start:all
 ```
 
 ## Production Build
 ```bash
 npm run build
 ```
+
+### Build Optimization
+The production build includes several optimizations:
+- TypeScript compilation
+- Asset minification
+- CSS optimization
+- Bundle splitting
+- Dynamic imports for code splitting
+- Chunk size optimization
+- Tree shaking
+
+For better performance, consider:
+- Using dynamic imports for code splitting
+- Configuring manual chunks in `vite.config.ts`
+- Adjusting chunk size warnings in build configuration
 
 ## Tech Stack
 - React
@@ -48,12 +134,16 @@ npm run build
   - Authentication
   - Real-time Database
   - Row Level Security (RLS)
+  - Stored Procedures
+  - Database Triggers
 - Tailwind CSS
 - React Query (Tanstack Query)
 - React Hook Form
 - Zod Validation
 - Lucide Icons
 - Shadcn/ui Components
+- Node.js Email Service
+- Swiper for Sliders
 
 ## Project info
 
@@ -89,6 +179,9 @@ npm i
 
 # Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
+
+# Optional: Start email service for full functionality
+npm run email-server
 ```
 
 **Edit a file directly in GitHub**

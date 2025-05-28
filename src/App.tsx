@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { UserRole } from "@/types/auth";
 import Layout from "./components/layout/Layout";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
+import ManagerLayout from "./components/layout/ManagerLayout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./integrations/supabase/AuthProvider";
 import { NotificationProvider } from "./hooks/useNotifications";
@@ -47,6 +48,14 @@ import ApplicationsPage from "./pages/Dashboard/Manager/ApplicationsPage";
 import TestNotifications from "./pages/Dashboard/Manager/TestNotifications";
 import ContactMessagesPage from "./pages/Dashboard/Manager/ContactMessagesPage";
 import BrandInterestsPage from "./pages/Dashboard/Manager/BrandInterestsPage";
+import ManagerEventsPage from "./pages/Dashboard/Manager/EventsPage";
+import EventsPage from "@/pages/Dashboard/Manager/EventsPage";
+import EventTypeViewPage from "@/pages/Dashboard/Manager/EventTypeViewPage";
+import EventTypeEditPage from "@/pages/Dashboard/Manager/EventTypeEditPage";
+import SliderPage from './pages/Dashboard/Manager/SliderPage';
+import CreateSlider from './pages/Dashboard/Manager/CreateSlider';
+import EditSlider from './pages/Dashboard/Manager/EditSlider';
+import ViewSlider from './pages/Dashboard/Manager/ViewSlider';
 
 // Email Admin
 import { EmailAdmin } from "./components/email";
@@ -102,7 +111,16 @@ import { default as ShopperMyFavorites } from "@/pages/Dashboard/Shopper/MyFavor
 
 import EmailTester from './components/EmailTester';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => {
   return (
@@ -171,6 +189,10 @@ const App = () => {
                     }
                   >
                     <Route index element={<ManagerDashboard />} />
+                    <Route path="sliders" element={<SliderPage />} />
+                    <Route path="sliders/create" element={<CreateSlider />} />
+                    <Route path="sliders/:id" element={<ViewSlider />} />
+                    <Route path="sliders/:id/edit" element={<EditSlider />} />
                     <Route path="exhibitions" element={<ManagerExhibitionsPage />} />
                     <Route path="exhibitions/create" element={<CreateExhibitionPage />} />
                     <Route path="exhibitions/:id" element={<ManagerExhibitionDetail />} />
@@ -182,12 +204,15 @@ const App = () => {
                     <Route path="measurement-units" element={<MeasurementUnitsPage />} />
                     <Route path="users" element={<UsersPage />} />
                     <Route path="contact-messages" element={<ContactMessagesPage />} />
-                    <Route path="settings" element={<ManagerSettings />} />
-                    <Route path="settings/notifications" element={<NotificationSettings />} />
-                    <Route path="settings/test-notifications" element={<TestNotifications />} />
+                    <Route path="events" element={<EventsPage />} />
+                    <Route path="events/:id" element={<EventTypeViewPage />} />
+                    <Route path="events/:id/edit" element={<EventTypeEditPage />} />
                     <Route path="coupons" element={<ManagerCouponsPage />} />
                     <Route path="coupons/create" element={<ManagerCreateCoupon />} />
                     <Route path="coupons/:id/edit" element={<ManagerEditCoupon />} />
+                    <Route path="settings" element={<ManagerSettings />} />
+                    <Route path="settings/notifications" element={<NotificationSettings />} />
+                    <Route path="settings/test-notifications" element={<TestNotifications />} />
                     <Route path="chat" element={<ChatPage />} />
                     <Route path="email" element={<EmailAdmin />} />
                   </Route>

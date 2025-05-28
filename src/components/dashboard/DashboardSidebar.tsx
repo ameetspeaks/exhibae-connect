@@ -22,11 +22,13 @@ import {
   Heart,
   MessageSquare,
   LogOut,
-  Star
+  Star,
+  SlidersHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Logo } from '@/components/ui/logo';
 
 interface DashboardSidebarProps {
   role: UserRole;
@@ -93,6 +95,16 @@ export default function DashboardSidebar({ role, onLogout }: DashboardSidebarPro
         return [
           ...baseItems,
           {
+            name: 'Hero Sliders',
+            path: `/dashboard/manager/sliders`,
+            icon: <SlidersHorizontal className="w-5 h-5" />,
+          },
+          {
+            name: 'Event Types',
+            path: `/dashboard/manager/events`,
+            icon: <Calendar className="w-5 h-5" />,
+          },
+          {
             name: 'Exhibitions',
             path: `/dashboard/manager/exhibitions`,
             icon: <Calendar className="w-5 h-5" />,
@@ -126,6 +138,11 @@ export default function DashboardSidebar({ role, onLogout }: DashboardSidebarPro
             name: 'Measurement Units',
             path: `/dashboard/manager/measurement-units`,
             icon: <Ruler className="w-5 h-5" />,
+          },
+          {
+            name: 'Coupons',
+            path: `/dashboard/manager/coupons`,
+            icon: <Ticket className="w-5 h-5" />,
           },
           {
             name: 'Users',
@@ -296,7 +313,7 @@ export default function DashboardSidebar({ role, onLogout }: DashboardSidebarPro
     <div className="h-full w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm">
       <div className="p-6 flex items-center justify-center">
         <Link to="/" className="flex items-center">
-          <span className="text-xl font-bold text-exhibae-navy">Exhi<span className="text-exhibae-coral">Bae</span></span>
+          <Logo preset="sidebar" />
         </Link>
       </div>
       

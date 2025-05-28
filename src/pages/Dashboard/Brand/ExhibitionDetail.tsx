@@ -17,6 +17,7 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Calendar, MapPin } from 'lucide-react';
 
 interface PaymentSubmission {
   id: string;
@@ -52,11 +53,28 @@ interface Exhibition {
   id: string;
   title: string;
   description: string;
+  address: string;
   start_date: string;
   end_date: string;
-  location: string;
-  organiser_id: string;
   status: string;
+  category?: {
+    id: string;
+    name: string;
+  };
+  price_range?: string;
+  application_deadline?: string;
+  organiser?: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+  };
+  stalls: Array<{
+    id: string;
+    name: string;
+    price: number;
+    status: string;
+  }>;
 }
 
 const ExhibitionDetail = () => {
@@ -308,7 +326,7 @@ const ExhibitionDetail = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
+        <Loader2 className="h-8 w-8 animate-spin text-font-color" />
       </div>
     );
   }
@@ -329,9 +347,9 @@ const ExhibitionDetail = () => {
   if (isExpired) {
     return (
       <div className="text-center py-8">
-        <h2 className="text-2xl font-bold">Exhibition has expired</h2>
-        <p className="text-gray-600 mt-2">This exhibition is no longer available.</p>
-        <Button onClick={() => navigate('/dashboard/brand/find')} className="mt-4">
+        <h2 className="text-2xl font-bold header-text">Exhibition has expired</h2>
+        <p className="text-font-color-muted subheading-text mt-2">This exhibition is no longer available.</p>
+        <Button onClick={() => navigate('/dashboard/brand/find')} className="button-primary subheading-text mt-4">
           Browse Other Exhibitions
         </Button>
       </div>
@@ -345,50 +363,67 @@ const ExhibitionDetail = () => {
     <div className="container mx-auto p-6">
       {loading ? (
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
+          <Loader2 className="h-8 w-8 animate-spin text-font-color" />
         </div>
       ) : error ? (
-        <div className="text-center text-red-600">
+        <div className="text-center text-red-600 subheading-text">
           <p>{error}</p>
         </div>
-      ) : exhibition ? (
-        <>
-          <div className="flex items-center gap-4 mb-6">
-            <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold">{exhibition.title}</h1>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Exhibition Details</CardTitle>
-              <CardDescription>View exhibition information and available stalls</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <h3 className="font-medium">Location</h3>
-                  <p className="text-gray-600">{exhibition.location}</p>
+      ) : (
+        <div className="space-y-8">
+          {/* Header Section */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+              <h1 className="text-3xl font-bold mb-2 header-text">{exhibition.title}</h1>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center text-font-color-muted">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <span className="subheading-text">
+                    {format(new Date(exhibition.start_date), 'MMM d')} - {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
+                  </span>
                 </div>
-                <div>
-                  <h3 className="font-medium">Dates</h3>
-                  <p className="text-gray-600">
-                    {new Date(exhibition.start_date).toLocaleDateString()} - {new Date(exhibition.end_date).toLocaleDateString()}
-                  </p>
+                <div className="flex items-center text-font-color-muted">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  <span className="subheading-text">{exhibition.address}</span>
                 </div>
               </div>
+            </div>
+            <div className="flex gap-4 mt-4 md:mt-0">
+              <Button variant="outline" className="button-secondary subheading-text" onClick={() => navigate(-1)}>
+                Back
+              </Button>
+              <Button className="button-primary subheading-text" onClick={() => navigate(`/dashboard/brand/exhibitions/${exhibition.id}/stalls`)}>
+                View Stalls
+              </Button>
+            </div>
+          </div>
 
+          {/* Main Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Details */}
+            <div className="lg:col-span-2">
+              <Card className="card">
+                <CardHeader>
+                  <CardTitle className="header-text">About the Exhibition</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="prose max-w-none">
+                    <p className="text-lg text-font-color-muted subheading-text">{exhibition.description}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Gallery Section */}
               {isLoadingGalleryImages ? (
                 <div className="mb-6">
-                  <h3 className="font-medium mb-4">Stall Layout</h3>
+                  <h3 className="font-medium header-text mb-4">Stall Layout</h3>
                   <div className="flex items-center justify-center py-16">
-                    <Loader2 className="h-8 w-8 animate-spin text-exhibae-navy" />
+                    <Loader2 className="h-8 w-8 animate-spin text-font-color" />
                   </div>
                 </div>
               ) : layoutImages.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="font-medium mb-4">Stall Layout</h3>
+                  <h3 className="font-medium header-text mb-4">Stall Layout</h3>
                   <Carousel>
                     <CarouselContent>
                       {layoutImages.map((image) => (
@@ -408,142 +443,65 @@ const ExhibitionDetail = () => {
                   </Carousel>
                 </div>
               )}
+            </div>
 
-              <div className="flex justify-end mb-6">
-                <Button
-                  onClick={() => navigate(`/exhibitions/${exhibition.id}`)}
-                  className="bg-exhibae-navy hover:bg-opacity-90"
-                >
-                  View Stall Layout
-                </Button>
-              </div>
-
-              {userApplications.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="font-medium mb-2">Your Stalls</h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    {userApplications.map((app) => {
-                      const stall = stalls.find(s => s.id === app.stall_id);
-                      if (!stall) return null;
-
-                      return (
-                        <Card key={app.id} className={`${app.status === 'booked' ? 'bg-green-50' : 'bg-gray-50'}`}>
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-medium">{stall.name}</h4>
-                                <p className="text-sm text-gray-600">
-                                  Size: {stall.length}m × {stall.width}m
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  Price: ₹{stall.price}
-                                </p>
-                                {app.status === 'booked' && (
-                                  <Badge variant="secondary" className="mt-2 bg-green-100 text-green-800">
-                                    Booked
-                                  </Badge>
-                                )}
-                              </div>
-                              {app.status === 'booked' && (
-                                <div className="text-right">
-                                  <p className="text-sm text-gray-600">
-                                    Booking confirmed on:
-                                  </p>
-                                  <p className="text-sm font-medium">
-                                    {format(new Date(app.created_at), 'MMM d, yyyy')}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+            {/* Right Column - Additional Info */}
+            <div>
+              <Card className="card mb-6">
+                <CardHeader>
+                  <CardTitle className="header-text">Exhibition Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-font-color subheading-text mb-2">Category</h4>
+                      <Badge className="badge subheading-text">{exhibition.category?.name}</Badge>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-font-color subheading-text mb-2">Available Stalls</h4>
+                      <p className="text-font-color-muted subheading-text">{stalls.filter(stall => stall.status === 'available').length} stalls available</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-font-color subheading-text mb-2">Price Range</h4>
+                      <p className="text-font-color-muted subheading-text">{exhibition.price_range || 'Price on request'}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-font-color subheading-text mb-2">Application Deadline</h4>
+                      <p className="text-font-color-muted subheading-text">
+                        {exhibition.application_deadline
+                          ? format(new Date(exhibition.application_deadline), 'MMM d, yyyy')
+                          : 'No deadline specified'}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
 
-              <div className="mb-6">
-                <h3 className="font-medium mb-2">Available Stalls</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {stalls.filter(stall => stall.status === 'available').map((stall) => (
-                    <Card 
-                      key={stall.id} 
-                      className="cursor-pointer hover:border-exhibae-navy bg-gray-50"
-                      onClick={() => handleStallSelect(stall)}
-                    >
-                      <CardContent className="p-4">
-                        <h4 className="font-medium">{stall.name}</h4>
-                        <p className="text-sm text-gray-600">
-                          Size: {stall.length}m × {stall.width}m
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Price: ₹{stall.price}
-                        </p>
-                        <Badge variant="outline" className="mt-2">
-                          Available
-                        </Badge>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Apply Dialog */}
-          <Dialog open={isApplyDialogOpen} onOpenChange={setIsApplyDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Apply for Stall</DialogTitle>
-                <DialogDescription>
-                  Submit your application for the selected stall.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                {selectedStall && (
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-medium">{selectedStall.name}</h4>
-                    <p className="text-sm text-gray-600">
-                      Size: {selectedStall.length}m × {selectedStall.width}m
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Price: ₹{selectedStall.price}
-                    </p>
+              <Card className="card">
+                <CardHeader>
+                  <CardTitle className="header-text">Contact Organizer</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-font-color subheading-text mb-2">Organizer</h4>
+                      <p className="text-font-color-muted subheading-text">{exhibition.organiser?.name}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-font-color subheading-text mb-2">Email</h4>
+                      <p className="text-font-color-muted subheading-text">{exhibition.organiser?.email}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-font-color subheading-text mb-2">Phone</h4>
+                      <p className="text-font-color-muted subheading-text">{exhibition.organiser?.phone || 'Not provided'}</p>
+                    </div>
                   </div>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="message">Message (Optional)</Label>
-                  <Textarea
-                    id="message"
-                    placeholder="Add any specific requirements or message for the organizer..."
-                    value={applicationText}
-                    onChange={(e) => setApplicationText(e.target.value)}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsApplyDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleApplySubmit}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    'Submit Application'
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </>
-      ) : null}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

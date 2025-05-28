@@ -9,6 +9,7 @@ import {
   Section,
   Text,
 } from '@react-email/components';
+import { LOGO_CONFIG } from '@/config/logo';
 
 interface BaseTemplateProps {
   previewText: string;
@@ -27,15 +28,19 @@ export const BaseTemplate: React.FC<BaseTemplateProps> = ({
         <Container style={container}>
           <Section style={logoSection}>
             <img
-              src="https://exhibae-connect.com/logo.png"
-              alt="Exhibae Connect"
-              style={logo}
+              src={LOGO_CONFIG.MAIN.FULL}
+              alt="Exhibae"
+              style={{
+                ...logo,
+                height: LOGO_CONFIG.DIMENSIONS.EMAIL.height,
+                width: LOGO_CONFIG.DIMENSIONS.EMAIL.width,
+              }}
             />
           </Section>
           {children}
           <Section style={footer}>
             <Text style={footerText}>
-              © {new Date().getFullYear()} Exhibae Connect. All rights reserved.
+              © {new Date().getFullYear()} Exhibae. All rights reserved.
             </Text>
             <Text style={footerText}>
               This is an automated message, please do not reply directly to this email.

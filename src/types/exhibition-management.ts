@@ -49,6 +49,7 @@ export interface Exhibition {
   venue_type_id?: string;
   event_type_id?: string;
   measuring_unit_id?: string;
+  price_range?: string;
   stalls?: Stall[];
   category?: ExhibitionCategory;
   venue_type?: VenueType;

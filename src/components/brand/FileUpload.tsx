@@ -86,7 +86,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         </p>
       </div>
 
-      {selectedFiles.length > 0 && (
+      {selectedFiles.length > 0 &&
         <div className="space-y-2">
           {selectedFiles.map((file, index) => (
             <div
@@ -129,7 +129,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             </div>
           ))}
         </div>
-      )}
+      }
     </div>
   );
 }; 

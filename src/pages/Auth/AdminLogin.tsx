@@ -117,13 +117,13 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-900 to-gray-800 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm shadow-xl">
+    <div className="min-h-screen flex items-center justify-center bg-[#4B1E25] py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md bg-[#F5E4DA]/95 backdrop-blur-sm shadow-xl border-[#4B1E25]/10">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <Shield className="h-12 w-12 text-exhibae-navy" />
+            <Shield className="h-12 w-12 text-[#4B1E25]" />
           </div>
-          <CardTitle className="text-2xl font-bold text-center text-exhibae-navy">Administrator Access</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center text-[#4B1E25]">Administrator Access</CardTitle>
           <CardDescription className="text-center text-gray-500">
             Secure login portal for system administrators
           </CardDescription>
@@ -134,7 +134,7 @@ const AdminLogin = () => {
           <div className="space-y-2">
             <Button 
               type="button"
-              className="w-full bg-exhibae-coral hover:bg-opacity-90 flex items-center justify-center gap-2"
+              className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA] flex items-center justify-center gap-2"
               onClick={handleQuickLogin}
               disabled={isLoading}
             >
@@ -148,10 +148,10 @@ const AdminLogin = () => {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-300" />
+              <span className="w-full border-t border-[#4B1E25]/20" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or use credentials</span>
+              <span className="px-2 bg-[#F5E4DA] text-gray-500">Or use credentials</span>
             </div>
           </div>
 
@@ -164,7 +164,7 @@ const AdminLogin = () => {
                   type="email"
                   placeholder="admin@exhibae.com"
                   {...register('email')}
-                  className="w-full"
+                  className="w-full border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
                   autoComplete="email"
                 />
                 {errors.email && (
@@ -179,7 +179,7 @@ const AdminLogin = () => {
                   type="password"
                   placeholder="Enter your password"
                   {...register('password')}
-                  className="w-full"
+                  className="w-full border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
                   autoComplete="current-password"
                 />
                 {errors.password && (
@@ -189,7 +189,7 @@ const AdminLogin = () => {
 
               <Button 
                 type="submit" 
-                className="w-full bg-exhibae-navy hover:bg-opacity-90"
+                className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? 'Authenticating...' : 'Access Admin Dashboard'}
@@ -200,7 +200,7 @@ const AdminLogin = () => {
 
         <CardFooter className="flex flex-col space-y-2 text-center text-sm text-gray-600">
           <p>This is a restricted access point for system administrators only.</p>
-          <Link to="/login" className="text-exhibae-navy hover:underline">
+          <Link to="/login" className="text-[#4B1E25] hover:text-[#4B1E25]/80">
             Return to regular login
           </Link>
         </CardFooter>

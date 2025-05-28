@@ -4,15 +4,15 @@ import { Card } from '@/components/ui/card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, Tag, Heart, Image as ImageIcon } from 'lucide-react';
+import { Calendar, MapPin, Tag, Heart, Image as ImageIcon, Clock, IndianRupee } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useExhibitionFavorite } from '@/hooks/useExhibitionFavorite';
 
 interface ExhibitionCardProps {
   exhibition: any;
-  isLast: boolean;
-  lastExhibitionRef: (node: HTMLDivElement | null) => void;
+  isLast?: boolean;
+  lastExhibitionRef?: (node: HTMLDivElement | null) => void;
   onNavigate: () => void;
 }
 
@@ -30,81 +30,101 @@ export const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNaviga
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      whileHover={{ scale: 1.02, rotateY: 2 }}
+      whileHover={{ scale: 1.02 }}
       className="group cursor-pointer"
       onClick={onNavigate}
     >
-      <Card className="overflow-hidden bg-white dark:bg-gray-800 transform-gpu transition-all duration-300 hover:shadow-xl h-full">
+      <Card className="overflow-hidden transform-gpu transition-all duration-300 hover:shadow-xl h-full">
         <div className="relative">
           <AspectRatio ratio={4/3}>
             {imageError ? (
-              <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <ImageIcon className="h-12 w-12 text-gray-400 dark:text-gray-500" />
+              <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                <ImageIcon className="h-12 w-12 text-font-color-muted" />
               </div>
             ) : (
               <img
                 src={exhibition.banner_image || exhibition.cover_image || '/placeholder-exhibition.jpg'}
                 alt={exhibition.title}
                 className="object-cover w-full h-full transform transition-transform duration-300 group-hover:scale-105"
-                style={{
-                  objectPosition: 'center',
-                }}
+                style={{ objectPosition: 'center' }}
                 loading="lazy"
                 onError={handleImageError}
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-          </AspectRatio>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "absolute top-2 right-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-800 transition-colors z-10",
-              isFavorite && "text-red-500 hover:text-red-600"
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
+            
+            {/* Price Badge */}
+            {exhibition.price_range && (
+              <div className="absolute top-3 left-3">
+                <div className="bg-white/90 text-black font-medium px-2.5 py-1 rounded-md text-sm">
+                  <Badge variant="default">
+                    <IndianRupee className="h-3 w-3 mr-1 inline-block" />
+                    {exhibition.price_range} onwards
+                  </Badge>
+                </div>
+              </div>
             )}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFavorite();
-            }}
-            disabled={isSubmitting}
-          >
-            <Heart className={cn("h-5 w-5", isFavorite && "fill-current")} />
-          </Button>
 
-          <div className="absolute bottom-0 left-0 right-0 p-3">
-            <h3 className="text-base font-semibold text-white mb-1 line-clamp-2">
-              {exhibition.title}
-            </h3>
-            <div className="flex items-center gap-1.5 text-white/90 text-sm">
-              <MapPin className="h-3.5 w-3.5" />
-              <span className="truncate">{exhibition.city}, {exhibition.state}</span>
+            {/* Favorite Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-3 right-3 bg-white/80 hover:bg-white text-gray-700 h-7 w-7 rounded-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFavorite();
+              }}
+              disabled={isSubmitting}
+            >
+              <Heart 
+                className={cn(
+                  "h-3.5 w-3.5 transition-colors",
+                  isFavorite ? "fill-red-500 text-red-500" : "text-gray-600"
+                )} 
+              />
+            </Button>
+
+            {/* Title and Event Type */}
+            <div className="absolute bottom-3 left-3 right-3">
+              <h3 className="text-white font-semibold text-base line-clamp-2 mb-2">
+                {exhibition.title}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {exhibition.event_type && (
+                  <div className="bg-white/20 text-white border-white/30 rounded-md px-2 py-0.5 text-xs">
+                    <Badge variant="default">
+                      <Tag className="h-3 w-3 mr-1" />
+                      {exhibition.event_type.name}
+                    </Badge>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </AspectRatio>
         </div>
 
-        <div className="p-3 space-y-3">
-          <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300">
-            <Calendar className="h-3.5 w-3.5" />
+        {/* Details Section */}
+        <div className="p-3 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-xs text-font-color-muted">
+            <Calendar className="h-3 w-3 flex-shrink-0" />
             <span className="truncate">
               {format(new Date(exhibition.start_date), 'MMM d')} - {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            {exhibition.event_type && (
-              <Badge variant="secondary" className="flex items-center gap-1 text-xs py-0.5">
-                <Tag className="h-3 w-3" />
-                {exhibition.event_type.name}
-              </Badge>
-            )}
-            {exhibition.venue_type && (
-              <Badge variant="outline" className="flex items-center gap-1 text-xs py-0.5">
-                <MapPin className="h-3 w-3" />
-                {exhibition.venue_type.name}
-              </Badge>
-            )}
+          <div className="flex items-center gap-1.5 text-xs text-font-color-muted">
+            <MapPin className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">
+              {exhibition.venue_type?.name}, {exhibition.city}
+            </span>
           </div>
+
+          {exhibition.timing && (
+            <div className="flex items-center gap-1.5 text-xs text-font-color-muted">
+              <Clock className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{exhibition.timing}</span>
+            </div>
+          )}
         </div>
       </Card>
     </motion.div>

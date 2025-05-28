@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
-import { LayoutDashboard, Users, Ruler, Building2, CalendarDays, Tag, LucideIcon, FileText, MessageSquare, Heart } from 'lucide-react';
+import { LayoutDashboard, Users, Ruler, Building2, CalendarDays, Tag, LucideIcon, FileText, MessageSquare, Heart, SlidersHorizontal } from 'lucide-react';
 
 type CustomRouteObject = RouteObject & {
   icon?: LucideIcon;
@@ -24,6 +24,10 @@ const CreateCoupon = lazy(() => import('./CreateCoupon'));
 const EditCoupon = lazy(() => import('./EditCoupon'));
 const ContactMessagesPage = lazy(() => import('./ContactMessagesPage'));
 const BrandInterestsPage = lazy(() => import('./BrandInterestsPage'));
+const SliderPage = lazy(() => import('./SliderPage'));
+const CreateSlider = lazy(() => import('./CreateSlider'));
+const EditSlider = lazy(() => import('./EditSlider'));
+const ViewSlider = lazy(() => import('./ViewSlider'));
 
 export const managerRoutes: CustomRouteObject[] = [
   {
@@ -31,6 +35,24 @@ export const managerRoutes: CustomRouteObject[] = [
     element: <ManagerDashboard />,
     icon: LayoutDashboard,
     name: 'Dashboard',
+  },
+  {
+    path: 'sliders',
+    element: <SliderPage />,
+    icon: SlidersHorizontal,
+    name: 'Hero Sliders',
+  },
+  {
+    path: 'sliders/create',
+    element: <CreateSlider />,
+  },
+  {
+    path: 'sliders/:id',
+    element: <ViewSlider />,
+  },
+  {
+    path: 'sliders/:id/edit',
+    element: <EditSlider />,
   },
   {
     path: 'exhibitions',

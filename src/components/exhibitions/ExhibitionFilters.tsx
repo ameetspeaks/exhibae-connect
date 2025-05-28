@@ -50,8 +50,9 @@ export const ExhibitionFilters = ({
 
   // Filter event types and venue types to only show used ones
   const filteredEventTypes = React.useMemo(() => {
-    return eventTypes.filter(type => usedEventTypeIds.includes(type.id));
-  }, [eventTypes, usedEventTypeIds]);
+    // Always show event types if they exist, regardless of whether they're used
+    return eventTypes;
+  }, [eventTypes]);
 
   const filteredVenueTypes = React.useMemo(() => {
     return venueTypes.filter(type => usedVenueTypeIds.includes(type.id));
@@ -99,15 +100,15 @@ export const ExhibitionFilters = ({
     >
       <Card className="p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg border border-gray-200 dark:border-gray-700">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4">
-          {/* Event Types - show only if there are used event types */}
-          {filteredEventTypes.length > 0 && (
+          {/* Event Types - show if there are any event types */}
+          {eventTypes.length > 0 && (
             <div className="lg:col-span-4">
               <label className="text-sm font-medium mb-2 block text-gray-700 dark:text-gray-300 flex items-center gap-2">
                 <Tag className="h-4 w-4" />
                 Event Types
               </label>
               <div className="flex flex-wrap gap-1.5 min-h-[40px] bg-white/50 dark:bg-gray-900/50 rounded-lg p-2">
-                {filteredEventTypes.map(type => (
+                {eventTypes.map(type => (
                   <Badge
                     key={type.id}
                     variant={selectedFilters.eventTypes.includes(type.id) ? "default" : "outline"}

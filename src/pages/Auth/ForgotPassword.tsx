@@ -49,11 +49,11 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="container mx-auto flex items-center justify-center min-h-screen py-8">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Reset Password</CardTitle>
-          <CardDescription className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-[#F5E4DA]/10 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md border-[#4B1E25]/10">
+        <CardHeader>
+          <CardTitle>Reset Password</CardTitle>
+          <CardDescription>
             Enter your email address and we'll send you a link to reset your password
           </CardDescription>
         </CardHeader>
@@ -81,11 +81,12 @@ const ForgotPassword = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
                 />
               </div>
               <Button
                 type="submit"
-                className="w-full bg-exhibae-navy hover:bg-opacity-90"
+                className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]"
                 disabled={loading}
               >
                 {loading ? (
@@ -100,7 +101,7 @@ const ForgotPassword = () => {
               <div className="text-center">
                 <Link
                   to="/auth/login"
-                  className="text-sm text-gray-600 hover:text-exhibae-navy"
+                  className="text-sm text-[#4B1E25] hover:text-[#4B1E25]/80"
                 >
                   Back to Login
                 </Link>

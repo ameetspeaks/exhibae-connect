@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, CheckCheck, X, Search, Briefcase, Loader2, IndianRupee, TrendingUp, Activity, AlertCircle } from 'lucide-react';
+import { Calendar, CheckCheck, X, Search, Briefcase, Loader2, IndianRupee, TrendingUp, Activity, AlertCircle, FileText, MapPin } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -291,22 +291,22 @@ const BrandDashboard = () => {
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="body-text">{error}</AlertDescription>
         </Alert>
       )}
 
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Dashboard Overview</h2>
-          <p className="text-gray-600">Welcome back! Here's your exhibition activity summary.</p>
+          <h2 className="text-2xl font-bold header-text">Dashboard Overview</h2>
+          <p className="subheading-text text-font-color-muted">Welcome back! Here's your exhibition activity summary.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" className="border-exhibae-navy text-exhibae-navy hover:bg-exhibae-navy hover:text-white" asChild>
+          <Button variant="outline" className="button-secondary subheading-text" asChild>
             <Link to={`/brands/${user?.id}`}>
               View Profile
             </Link>
           </Button>
-          <Button className="bg-exhibae-navy hover:bg-opacity-90" asChild>
+          <Button className="button-primary subheading-text" asChild>
             <Link to="/dashboard/brand/find">
               <Search className="h-4 w-4 mr-2" />
               Find Exhibitions
@@ -315,140 +315,127 @@ const BrandDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Active Stalls */}
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="card">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Active Stalls</CardTitle>
-            <Briefcase className="h-5 w-5 text-exhibae-navy" />
+            <CardTitle className="text-sm font-medium header-text">Total Applications</CardTitle>
+            <FileText className="h-5 w-5 text-font-color" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statistics.active_stalls}</div>
-            <p className="text-xs text-muted-foreground">Current exhibitions</p>
+            <div className="text-2xl font-bold header-text">{statistics.total_applications}</div>
+            <p className="text-xs text-font-color-muted subheading-text">Submitted</p>
           </CardContent>
         </Card>
-
-        {/* Total Applications */}
-        <Card>
+        
+        <Card className="card">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
-            <Calendar className="h-5 w-5 text-exhibae-navy" />
+            <CardTitle className="text-sm font-medium header-text">Active Stalls</CardTitle>
+            <Briefcase className="h-5 w-5 text-font-color" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statistics.total_applications}</div>
-            <div className="flex gap-2 mt-1">
-              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                {statistics.approved_applications} Approved
-              </Badge>
-              <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">
-                {statistics.pending_applications} Pending
-              </Badge>
-              <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50">
-                {statistics.rejected_applications} Rejected
-              </Badge>
-            </div>
+            <div className="text-2xl font-bold header-text">{statistics.active_stalls}</div>
+            <p className="text-xs text-font-color-muted subheading-text">Current exhibitions</p>
           </CardContent>
         </Card>
-
-        {/* Total Exhibitions */}
-        <Card>
+        
+        <Card className="card">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Exhibitions</CardTitle>
-            <Activity className="h-5 w-5 text-exhibae-navy" />
+            <CardTitle className="text-sm font-medium header-text">Total Exhibitions</CardTitle>
+            <Activity className="h-5 w-5 text-font-color" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statistics.total_exhibitions_participated}</div>
-            <p className="text-xs text-muted-foreground">Participated in</p>
+            <div className="text-2xl font-bold header-text">{statistics.total_exhibitions_participated}</div>
+            <p className="text-xs text-font-color-muted subheading-text">Participated in</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Your latest exhibition activities</CardDescription>
-              </div>
+      <Card className="card">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="header-text">Recent Activity</CardTitle>
+              <CardDescription className="subheading-text text-font-color-muted">Your latest exhibition activities</CardDescription>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {dashboardData.recentActivity.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
-              ) : (
-                dashboardData.recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center space-x-4">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                      {getActivityIcon(activity.activity_type)}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{formatActivityMessage(activity)}</p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(activity.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {dashboardData.recentActivity.length === 0 ? (
+              <p className="text-center py-8 text-font-color-muted subheading-text">No recent activity</p>
+            ) : (
+              dashboardData.recentActivity.map((activity) => (
+                <div key={activity.id} className="flex items-center space-x-4">
+                  <div className="w-8 h-8 rounded-full bg-background-primary flex items-center justify-center">
+                    {getActivityIcon(activity.activity_type)}
                   </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium subheading-text">{formatActivityMessage(activity)}</p>
+                    <p className="text-xs text-font-color-muted subheading-text">
+                      {new Date(activity.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Upcoming Exhibitions */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Upcoming Exhibitions</CardTitle>
-                <CardDescription>Latest exhibition opportunities</CardDescription>
-              </div>
-              <Button variant="link" size="sm" className="text-exhibae-coral" asChild>
-                <Link to="/dashboard/brand/find">View All</Link>
-              </Button>
+      <Card className="card">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="header-text">Upcoming Exhibitions</CardTitle>
+              <CardDescription className="subheading-text text-font-color-muted">Latest exhibition opportunities</CardDescription>
             </div>
-          </CardHeader>
-          <CardContent>
+            <Button variant="outline" className="button-secondary subheading-text" asChild>
+              <Link to="/dashboard/brand/find">View All</Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {dashboardData.upcomingExhibitions.length === 0 ? (
+            <p className="text-center py-8 text-font-color-muted subheading-text">No upcoming exhibitions at the moment.</p>
+          ) : (
             <div className="space-y-4">
-              {dashboardData.upcomingExhibitions.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">No upcoming exhibitions</p>
-              ) : (
-                dashboardData.upcomingExhibitions.map((exhibition) => (
-                  <Card key={exhibition.id}>
-                    <CardContent className="p-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-start">
-                          <h3 className="font-medium">{exhibition.title}</h3>
-                          <Badge variant="outline">
-                            {exhibition.availableStallsCount} stalls available
-                          </Badge>
-                        </div>
-                        <div className="flex items-center space-x-2 text-gray-600">
-                          <Calendar className="h-4 w-4" />
-                          <span className="text-sm">
-                            {new Date(exhibition.start_date).toLocaleDateString()} - {new Date(exhibition.end_date).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="flex justify-end">
-                          <Button 
-                            size="sm"
-                            className="bg-exhibae-navy hover:bg-opacity-90"
-                            onClick={() => navigate(`/dashboard/brand/exhibitions/${exhibition.id}`)}
-                          >
-                            View Details
-                          </Button>
-                        </div>
+              {dashboardData.upcomingExhibitions.map((exhibition) => (
+                <Card key={exhibition.id} className="card">
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-medium header-text">{exhibition.title}</h3>
+                        <Badge className="badge subheading-text">
+                          {exhibition.availableStallsCount} stalls available
+                        </Badge>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
+                      <div className="flex items-center space-x-2 text-font-color-muted">
+                        <Calendar className="h-4 w-4" />
+                        <span className="text-sm subheading-text">
+                          {new Date(exhibition.start_date).toLocaleDateString()} - {new Date(exhibition.end_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-font-color-muted">
+                        <MapPin className="h-4 w-4" />
+                        <span className="text-sm subheading-text">{exhibition.address}</span>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button 
+                          size="sm"
+                          className="button-primary subheading-text"
+                          onClick={() => navigate(`/dashboard/brand/exhibitions/${exhibition.id}`)}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

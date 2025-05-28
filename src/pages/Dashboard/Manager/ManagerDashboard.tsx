@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Users, Building2, Tags, LayoutDashboard, Ruler, CalendarDays, MessageSquare, FileText, Heart } from 'lucide-react';
+import { Users, Building2, Tags, LayoutDashboard, Ruler, CalendarDays, MessageSquare, FileText, Heart, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -78,6 +78,11 @@ const navigation = [
         name: 'Brand Interests',
         href: '/dashboard/manager/brand-interests',
         icon: Heart,
+    },
+    {
+        name: 'Hero Sliders',
+        href: '/dashboard/manager/sliders',
+        icon: LayoutDashboard,
     },
     {
         name: 'Users',
@@ -268,6 +273,9 @@ const ManagerDashboard = () => {
       case 'interests':
         navigate('/dashboard/manager/brand-interests');
         break;
+      case 'sliders':
+        navigate('/dashboard/manager/sliders');
+        break;
     }
   };
 
@@ -336,231 +344,111 @@ const ManagerDashboard = () => {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-1">
+      {/* Quick Actions */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Quick Actions Card */}
+        <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            {recentActivity.length > 0 ? (
-              <div className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between text-sm">
-                    <span>{activity.action} {activity.target}</span>
-                    <span className="text-gray-500">
-                      {new Date(activity.timestamp).toLocaleDateString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No recent activity to display.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>Recent Contact Messages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {contactMessages.length > 0 ? (
-              <div className="space-y-4">
-                {contactMessages.map((message) => (
-                  <div key={message.id} className="text-sm">
-                    <div className="flex justify-between">
-                      <span className="font-medium">{message.name}</span>
-                      <Badge 
-                        className={message.status === 'unread' ? 
-                          'bg-blue-100 text-blue-800' : 
-                          message.status === 'replied' ? 
-                          'bg-green-100 text-green-800' : 
-                          'bg-gray-100 text-gray-800'
-                        }
-                      >
-                        {message.status}
-                      </Badge>
-                    </div>
-                    <p className="text-muted-foreground line-clamp-1">{message.subject}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(message.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))}
-                <div className="pt-4">
-                  <Button asChild variant="outline" className="w-full">
-                    <Link to="/dashboard/manager/contact-messages">View All Messages</Link>
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-muted-foreground">No recent messages</p>
-                <Button asChild variant="outline" className="mt-2">
-                  <Link to="/dashboard/manager/contact-messages">View Messages</Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => handleQuickAction('applications')}
+                variant="outline"
+                className="w-full justify-start text-sm"
+                onClick={() => handleQuickAction('sliders')}
               >
-                <FileText className="h-4 w-4 mr-2" />
-                View Applications
+                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                Manage Hero Sliders
               </Button>
               <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => handleQuickAction('interests')}
-              >
-                <Heart className="h-4 w-4 mr-2" />
-                View Brand Interests
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
+                variant="outline"
+                className="w-full justify-start text-sm"
                 onClick={() => handleQuickAction('category')}
               >
+                <Tags className="mr-2 h-4 w-4" />
                 Manage Categories
               </Button>
               <Button
-                variant="ghost"
-                className="w-full justify-start"
+                variant="outline"
+                className="w-full justify-start text-sm"
                 onClick={() => handleQuickAction('venue')}
               >
+                <Building2 className="mr-2 h-4 w-4" />
                 Manage Venue Types
               </Button>
               <Button
-                variant="ghost"
-                className="w-full justify-start"
+                variant="outline"
+                className="w-full justify-start text-sm"
                 onClick={() => handleQuickAction('users')}
               >
+                <Users className="mr-2 h-4 w-4" />
                 Manage Users
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => handleQuickAction('units')}
-              >
-                Manage Measurement Units
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => navigate('/dashboard/manager/contact-messages')}
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                View Contact Messages
               </Button>
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Recent Applications */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+        {/* Recent Applications */}
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Recent Stall Applications</CardTitle>
-            <CardDescription>
-              Recent applications from brands for exhibition stalls
-            </CardDescription>
+            <CardTitle>Recent Applications</CardTitle>
+            <CardDescription>Latest stall applications from brands</CardDescription>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-              </div>
-            ) : applications.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">No recent applications</p>
-            ) : (
-              <div className="space-y-4">
-                {applications.slice(0, 3).map((application) => (
-                  <Card key={application.id} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <div className="font-medium">{application.brand.company_name}</div>
-                        <div className="text-sm text-gray-500">{application.brand.full_name}</div>
-                        <div className="text-sm">
-                          Applied for <span className="font-medium">{application.stall.name}</span> in{' '}
-                          <Link 
-                            to={`/dashboard/manager/exhibitions/${application.exhibition.id}`}
-                            className="text-exhibae-navy hover:underline"
-                          >
-                            {application.exhibition.title}
-                          </Link>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Price: ₹{application.stall.price}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Applied: {new Date(application.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                      <Badge className={getStatusBadgeColor(application.status)}>
-                        {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                      </Badge>
-                    </div>
-                  </Card>
-                ))}
-                <div className="text-center pt-4">
-                  <Button asChild variant="outline">
-                    <Link to="/dashboard/manager/applications">View All Applications</Link>
-                  </Button>
+            <div className="space-y-4">
+              {applications.slice(0, 5).map((application) => (
+                <div key={application.id} className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">{application.brand.company_name}</p>
+                    <p className="text-xs text-gray-500">{application.exhibition.title}</p>
+                  </div>
+                  <Badge className={getStatusBadgeColor(application.status)}>
+                    {application.status}
+                  </Badge>
                 </div>
-              </div>
-            )}
+              ))}
+              {applications.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">No recent applications</p>
+              )}
+            </div>
+            <Button
+              variant="link"
+              className="mt-4 w-full"
+              onClick={() => handleQuickAction('applications')}
+            >
+              View all applications
+            </Button>
           </CardContent>
         </Card>
 
-        <Card>
+        {/* Brand Interests */}
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Brand Interests</CardTitle>
-            <CardDescription>
-              Brands showing interest in exhibitions
-            </CardDescription>
+            <CardDescription>Recent exhibition interests</CardDescription>
           </CardHeader>
           <CardContent>
-            {brandInterests.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">No recent brand interests</p>
-            ) : (
-              <div className="space-y-4">
-                {brandInterests.map((interest) => (
-                  <div key={interest.id} className="border rounded-md p-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-medium">{interest.brand?.company_name || 'Unknown Brand'}</div>
-                        <div className="text-sm text-gray-500">{interest.brand?.full_name}</div>
-                        <div className="text-sm">
-                          Interested in{' '}
-                          <Link 
-                            to={`/dashboard/manager/exhibitions/${interest.exhibition?.id}`}
-                            className="text-exhibae-navy hover:underline"
-                          >
-                            {interest.exhibition?.title || 'Unknown Exhibition'}
-                          </Link>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Registered: {new Date(interest.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {brandInterests.slice(0, 6).map((interest) => (
+                <div key={interest.id} className="flex flex-col space-y-1 p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium">{interest.brand.company_name}</p>
+                  <p className="text-xs text-gray-500">{interest.exhibition.title}</p>
+                </div>
+              ))}
+              {brandInterests.length === 0 && (
+                <div className="col-span-full">
+                  <p className="text-sm text-gray-500 text-center py-4">No recent interests</p>
+                </div>
+              )}
+            </div>
+            <Button
+              variant="link"
+              className="mt-6 w-full"
+              onClick={() => handleQuickAction('interests')}
+            >
+              View all interests
+            </Button>
           </CardContent>
         </Card>
       </div>

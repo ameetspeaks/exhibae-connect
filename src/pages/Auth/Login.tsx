@@ -129,8 +129,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-[#F5E4DA]/10 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md border-[#4B1E25]/10">
         <CardHeader>
           <CardTitle>Welcome Back</CardTitle>
           <CardDescription>Sign in to your account to continue</CardDescription>
@@ -145,6 +145,7 @@ const Login = () => {
                 placeholder="Enter your email"
                 {...register('email')}
                 autoComplete="email"
+                className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
               />
               {errors.email && (
                 <p className="text-sm text-red-500">{errors.email.message}</p>
@@ -158,6 +159,7 @@ const Login = () => {
                 placeholder="Enter your password"
                 {...register('password')}
                 autoComplete="current-password"
+                className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
               />
               {errors.password && (
                 <p className="text-sm text-red-500">{errors.password.message}</p>
@@ -165,7 +167,7 @@ const Login = () => {
               <div className="text-right">
                 <Link
                   to="/forgot-password"
-                  className="text-sm text-gray-600 hover:text-exhibae-navy"
+                  className="text-sm text-[#4B1E25] hover:text-[#4B1E25]/80"
                 >
                   Forgot Password?
                 </Link>
@@ -175,14 +177,14 @@ const Login = () => {
           <CardFooter className="flex flex-col space-y-4">
             <Button 
               type="submit" 
-              className="w-full bg-exhibae-navy hover:bg-opacity-90"
+              className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Signing in...' : 'Sign in'}
             </Button>
             <p className="text-sm text-center text-gray-600">
               Don't have an account?{' '}
-              <Link to="/auth/register" className="text-exhibae-navy hover:underline">
+              <Link to="/auth/register" className="text-[#4B1E25] hover:text-[#4B1E25]/80">
                 Sign up
               </Link>
             </p>

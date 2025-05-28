@@ -65,10 +65,10 @@ const SuperAdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md bg-white">
+    <div className="min-h-screen flex items-center justify-center bg-[#4B1E25] py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md bg-[#F5E4DA]/95 backdrop-blur-sm shadow-xl border-[#4B1E25]/10">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center text-exhibae-navy">Super Admin Access</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center text-[#4B1E25]">Super Admin Access</CardTitle>
           <CardDescription className="text-center text-gray-500">
             Restricted access for system administrators only
           </CardDescription>
@@ -82,7 +82,7 @@ const SuperAdminLogin = () => {
                 type="email"
                 placeholder="admin@exhibae.com"
                 {...register('email')}
-                className="w-full"
+                className="w-full border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
                 autoComplete="email"
               />
               {errors.email && (
@@ -96,7 +96,7 @@ const SuperAdminLogin = () => {
                 type="password"
                 placeholder="Enter your password"
                 {...register('password')}
-                className="w-full"
+                className="w-full border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
                 autoComplete="current-password"
               />
               {errors.password && (
@@ -105,7 +105,7 @@ const SuperAdminLogin = () => {
             </div>
             <Button 
               type="submit" 
-              className="w-full bg-exhibae-navy hover:bg-opacity-90"
+              className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Authenticating...' : 'Access Dashboard'}

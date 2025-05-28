@@ -5,10 +5,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Settings } from "lucide-react";
+import { Settings, Facebook, Instagram, Twitter, Linkedin } from "lucide-react";
+import { useBrandProfile, type BrandProfile as BrandProfileType } from "@/hooks/useBrandProfile";
 
 const BrandProfile = () => {
   const { user } = useAuth();
+  const { data: profile } = useBrandProfile() as { data: BrandProfileType | undefined };
 
   return (
     <div className="container mx-auto py-8">
@@ -21,89 +23,118 @@ const BrandProfile = () => {
           </Link>
         </Button>
       </div>
+
+      {/* Cover Image */}
+      <div className="relative w-full h-48 mb-16 rounded-lg overflow-hidden bg-gray-100">
+        {profile?.cover_image_url ? (
+          <img
+            src={profile.cover_image_url}
+            alt="Cover"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400">
+            No cover image
+          </div>
+        )}
+        
+        {/* Logo Image - Positioned at the bottom of cover image */}
+        <div className="absolute -bottom-8 left-8">
+          <div className="w-24 h-24 rounded-full border-4 border-white bg-white overflow-hidden">
+            {profile?.logo_url ? (
+              <img
+                src={profile.logo_url}
+                alt="Logo"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                {profile?.company_name?.charAt(0) || "B"}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
       
       <Card>
-        <CardHeader className="flex flex-row items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={user?.user_metadata?.avatar_url} />
-            <AvatarFallback>{getInitials(user?.user_metadata?.company_name || user?.email || '')}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h2 className="text-xl font-semibold">{user?.user_metadata?.company_name || 'Company Name'}</h2>
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
-          </div>
+        <CardHeader>
+          <h2 className="text-xl font-semibold">{profile?.company_name || "Brand Name"}</h2>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div>
-              <h3 className="font-medium mb-2">Business Information</h3>
-              <div className="space-y-2">
-                <div>
-                  <span className="text-sm text-muted-foreground">Full Name: </span>
-                  <span className="text-sm">{user?.user_metadata?.full_name || 'Not provided'}</span>
-                </div>
-                <div>
-                  <span className="text-sm text-muted-foreground">Phone: </span>
-                  <span className="text-sm">{user?.user_metadata?.phone || 'Not provided'}</span>
-                </div>
-                <div>
-                  <span className="text-sm text-muted-foreground">Website: </span>
-                  <span className="text-sm">
-                    {user?.user_metadata?.website_url ? (
-                      <a 
-                        href={user.user_metadata.website_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {user.user_metadata.website_url}
-                      </a>
-                    ) : (
-                      'Not provided'
-                    )}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-sm text-muted-foreground">Social Media: </span>
-                  <div className="flex gap-4 mt-1">
-                    {user?.user_metadata?.instagram_url && (
-                      <a 
-                        href={user.user_metadata.instagram_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                        </svg>
-                        Instagram
-                      </a>
-                    )}
-                    {user?.user_metadata?.facebook_url && (
-                      <a 
-                        href={user.user_metadata.facebook_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-                        </svg>
-                        Facebook
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <label className="text-sm font-medium text-gray-500">Description</label>
+              <p className="mt-1">{profile?.description || "No description available"}</p>
             </div>
             
             <div>
-              <h3 className="font-medium mb-2">About</h3>
-              <p className="text-sm text-muted-foreground">
-                {user?.user_metadata?.description || 'No description provided'}
-              </p>
+              <label className="text-sm font-medium text-gray-500">Contact Email</label>
+              <p className="mt-1">{profile?.contact_email}</p>
+            </div>
+            
+            {profile?.contact_phone && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Contact Phone</label>
+                <p className="mt-1">{profile.contact_phone}</p>
+              </div>
+            )}
+            
+            {profile?.website && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Website</label>
+                <p className="mt-1">
+                  <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {profile.website}
+                  </a>
+                </p>
+              </div>
+            )}
+            
+            {/* Social Media Links */}
+            <div>
+              <label className="text-sm font-medium text-gray-500">Social Media</label>
+              <div className="mt-2 flex gap-4">
+                {profile?.facebook_url && (
+                  <a
+                    href={profile.facebook_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Facebook className="h-5 w-5" />
+                  </a>
+                )}
+                {profile?.instagram_url && (
+                  <a
+                    href={profile.instagram_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Instagram className="h-5 w-5" />
+                  </a>
+                )}
+                {profile?.twitter_url && (
+                  <a
+                    href={profile.twitter_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Twitter className="h-5 w-5" />
+                  </a>
+                )}
+                {profile?.linkedin_url && (
+                  <a
+                    href={profile.linkedin_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Linkedin className="h-5 w-5" />
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>

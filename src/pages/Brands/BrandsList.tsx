@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,15 +31,12 @@ interface BrandMetadata {
   company_name: string;
   logo_url?: string;
   description?: string;
-  role: string;
 }
 
 interface Brand {
   id: string;
-  email?: string;
   user_metadata: BrandMetadata;
   created_at?: string;
-  event_count?: number;
   isFavorite?: boolean;
 }
 
@@ -51,7 +48,7 @@ interface PaginatedResponse {
 type SortField = 'company_name' | 'created_at';
 type SortOrder = 'asc' | 'desc';
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 20;
 
 const BrandCard: React.FC<{ brand: Brand }> = ({ brand }) => {
   const navigate = useNavigate();
@@ -66,19 +63,6 @@ const BrandCard: React.FC<{ brand: Brand }> = ({ brand }) => {
       .toUpperCase();
   };
 
-  // Generate a random gradient for brands without logos
-  const getRandomGradient = () => {
-    const gradients = [
-      'from-blue-500 to-purple-500',
-      'from-emerald-500 to-teal-500',
-      'from-pink-500 to-rose-500',
-      'from-amber-500 to-orange-500',
-      'from-indigo-500 to-blue-500',
-      'from-green-500 to-emerald-500',
-    ];
-    return gradients[Math.floor(Math.random() * gradients.length)];
-  };
-
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation when clicking the favorite button
     toggleFavorite();
@@ -87,73 +71,54 @@ const BrandCard: React.FC<{ brand: Brand }> = ({ brand }) => {
   return (
     <div
       onClick={() => navigate(`/brands/${brand.id}`)}
-      className="group cursor-pointer"
+      className="group cursor-pointer flex flex-col items-center"
     >
-      <div className="relative flex flex-col h-full overflow-hidden bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
-        <div className="relative p-6 flex flex-col items-center">
-          {/* Favorite Button */}
+      <div className="relative mb-4">
+        <div className="w-40 h-40 rounded-full overflow-hidden bg-background hover:shadow-lg transition-all duration-300">
+          {brand.user_metadata.logo_url ? (
+            <img
+              src={brand.user_metadata.logo_url}
+              alt={brand.user_metadata.company_name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-background">
+              <span className="text-3xl font-medium text-font-color">
+                {getInitials(brand.user_metadata.company_name)}
+              </span>
+            </div>
+          )}
           {user && (
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-4 top-4 h-8 w-8 hover:bg-primary/10"
+              className="absolute right-2 top-2 h-8 w-8 bg-background/80 hover:bg-[#4B1E25] hover:text-[#F5E4DA] shadow-sm"
               onClick={handleFavoriteClick}
               disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Heart className={`h-4 w-4 ${brand.isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-400 hover:text-red-500'}`} />
+                <Heart className={`h-4 w-4 ${brand.isFavorite ? 'fill-[#4B1E25] text-[#4B1E25]' : 'text-font-color-muted hover:text-[#F5E4DA]'}`} />
               )}
             </Button>
           )}
-
-          <div className="relative mb-6">
-            <div className="relative">
-              <Avatar className="w-32 h-32 transition-all duration-300 group-hover:scale-105 shadow-lg">
-                <AvatarImage 
-                  src={brand.user_metadata.logo_url} 
-                  alt={brand.user_metadata.company_name} 
-                  className="object-cover"
-                />
-                <AvatarFallback className={`text-3xl bg-gradient-to-br ${getRandomGradient()} text-white`}>
-                  {getInitials(brand.user_metadata.company_name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white shadow-md text-primary text-xs font-medium px-4 py-1.5 rounded-full border border-primary/10">
-                {brand.event_count || 0} {brand.event_count === 1 ? 'event' : 'events'}
-              </div>
-            </div>
-          </div>
-
-          <h3 className="text-xl font-semibold text-center mb-3 group-hover:text-primary transition-colors">
-            {brand.user_metadata.company_name}
-          </h3>
-          
-          <div className="mt-auto pt-4 w-full">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full justify-between"
-            >
-              <span>View Profile</span>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
+      <h3 className="text-lg font-medium text-center header-text group-hover:text-font-color transition-colors">
+        {brand.user_metadata.company_name}
+      </h3>
     </div>
   );
 };
 
-const fetchBrands = async (user: User | null) => {
+const fetchBrands = async (user: User | null, searchQuery: string) => {
   try {
-    // Fetch brand users from the profiles table
+    // Fetch brand profiles from the brand_profiles table
     const { data: brandProfiles, error: brandsError } = await supabase
-      .from('profiles')
-      .select('id, email, full_name, company_name, avatar_url, role, created_at');
+      .from('brand_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (brandsError) throw brandsError;
 
@@ -168,27 +133,28 @@ const fetchBrands = async (user: User | null) => {
       favorites = (favoritesData || []).map(f => f.brand_id);
     }
 
-    // Filter for brands and map with favorite status
-    const filteredBrandUsers = [];
-    
-    for (const profile of brandProfiles || []) {
-      if (profile.role === 'brand') {
-        filteredBrandUsers.push({
-          id: profile.id,
-          email: profile.email,
-          user_metadata: {
-            company_name: profile.company_name || 'Brand',
-            logo_url: profile.avatar_url,
-            description: '',
-            role: profile.role
-          },
-          created_at: profile.created_at,
-          isFavorite: favorites.includes(profile.id)
-        });
-      }
+    // Map profile data to the expected Brand structure
+    let brands = brandProfiles?.map(profile => ({
+      id: profile.id,
+      user_metadata: {
+        company_name: profile.company_name || 'Brand',
+        logo_url: profile.logo_url,
+        description: profile.description || ''
+      },
+      created_at: profile.created_at,
+      isFavorite: favorites.includes(profile.id)
+    })) || [];
+
+    // Filter brands based on search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      brands = brands.filter(brand => 
+        brand.user_metadata.company_name.toLowerCase().includes(query) ||
+        brand.user_metadata.description.toLowerCase().includes(query)
+      );
     }
 
-    return filteredBrandUsers;
+    return brands;
   } catch (err) {
     console.error('Error fetching brands:', err);
     throw err;
@@ -202,6 +168,16 @@ const BrandsList = () => {
   const sortField = (searchParams.get('sort') as SortField) || 'company_name';
   const sortOrder = (searchParams.get('order') as SortOrder) || 'asc';
   const searchQuery = searchParams.get('q') || '';
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+
+  // Debounce search query updates
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const updateParams = (updates: Record<string, string>) => {
     const newParams = new URLSearchParams(searchParams);
@@ -216,12 +192,29 @@ const BrandsList = () => {
   };
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['brands', user?.id, page, searchQuery, sortField, sortOrder],
-    queryFn: () => fetchBrands(user),
+    queryKey: ['brands', user?.id, page, debouncedSearchQuery, sortField, sortOrder],
+    queryFn: () => fetchBrands(user, debouncedSearchQuery),
     retry: false
   });
 
-  const totalPages = Math.ceil((data?.length || 0) / ITEMS_PER_PAGE);
+  // Sort the filtered data
+  const sortedData = useMemo(() => {
+    if (!data) return [];
+    
+    return [...data].sort((a, b) => {
+      if (sortField === 'company_name') {
+        const compareResult = a.user_metadata.company_name.localeCompare(b.user_metadata.company_name);
+        return sortOrder === 'asc' ? compareResult : -compareResult;
+      } else if (sortField === 'created_at') {
+        const aDate = new Date(a.created_at || 0).getTime();
+        const bDate = new Date(b.created_at || 0).getTime();
+        return sortOrder === 'asc' ? aDate - bDate : bDate - aDate;
+      }
+      return 0;
+    });
+  }, [data, sortField, sortOrder]);
+
+  const totalPages = Math.ceil((sortedData?.length || 0) / ITEMS_PER_PAGE);
 
   const handleSearch = (value: string) => {
     updateParams({ q: value, page: '1' });
@@ -234,12 +227,12 @@ const BrandsList = () => {
 
   if (error) {
     return (
-      <div className="bg-gray-50">
+      <div className="bg-background">
         <div className="container mx-auto py-8">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error loading brands</AlertTitle>
-            <AlertDescription>
+            <AlertTitle className="header-text">Error loading brands</AlertTitle>
+            <AlertDescription className="subheading-text">
               {error instanceof Error ? error.message : 'An unexpected error occurred. Please try again later.'}
               {process.env.NODE_ENV === 'development' && (
                 <pre className="mt-2 text-xs">
@@ -254,62 +247,47 @@ const BrandsList = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-[#F5E4DA]">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-primary/90 to-primary text-white">
-        <div className="container mx-auto py-12 px-4">
+      <div className="bg-[#F5E4DA] py-10">
+        <div className="container mx-auto px-6">
           <div className="max-w-3xl">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Discover Amazing Brands</h1>
-            <p className="text-white/90 text-lg mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-gray-900">Discover Amazing Brands</h1>
+            <p className="text-gray-600 text-lg">
               Connect with innovative brands showcasing their unique products and collections at our exhibitions
             </p>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
-                <Users className="h-5 w-5" />
-                <span className="font-medium">{data?.length || 0} Brands</span>
-              </div>
-              <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
-                <Bookmark className="h-5 w-5" />
-                <span className="font-medium">Featured Collections</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto py-8 px-4">
+      <div className="container mx-auto py-8 px-6">
         {/* Filters */}
-        <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-sm mb-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <h2 className="text-xl font-semibold text-gray-800">Browse All Brands</h2>
+        <div className="bg-background card p-6 rounded-2xl shadow-sm mb-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <h2 className="text-2xl font-semibold header-text">Browse All Brands</h2>
             
             {/* Search and Sort */}
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
               <div className="relative flex-1 sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/60" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-font-color-muted" />
                 <Input
                   type="text"
                   placeholder="Search brands..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-9 bg-white/50 border-primary/20 focus-visible:ring-primary/30 rounded-xl"
+                  className="pl-9 input subheading-text"
                 />
               </div>
               <Select
-                value={`${sortField}-${sortOrder}`}
-                onValueChange={(value) => {
-                  const [field, order] = value.split('-') as [SortField, SortOrder];
-                  updateParams({ sort: field, order, page: '1' });
-                }}
+                value={sortField}
+                onValueChange={(value) => handleSort(value as SortField)}
               >
-                <SelectTrigger className="w-full sm:w-[180px] bg-white/50 border-primary/20 rounded-xl">
+                <SelectTrigger className="w-[180px] input subheading-text">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="company_name-asc">Name (A-Z)</SelectItem>
-                  <SelectItem value="company_name-desc">Name (Z-A)</SelectItem>
-                  <SelectItem value="created_at-desc">Newest First</SelectItem>
-                  <SelectItem value="created_at-asc">Oldest First</SelectItem>
+                  <SelectItem value="company_name" className="subheading-text">Company Name</SelectItem>
+                  <SelectItem value="created_at" className="subheading-text">Date Joined</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -317,115 +295,64 @@ const BrandsList = () => {
         </div>
 
         {/* Loading State */}
-        {isLoading && (
-          <div className="flex items-center justify-center min-h-[400px] bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm">
-            <div className="text-center">
-              <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading brands...</p>
-            </div>
+        {isLoading ? (
+          <div className="flex justify-center items-center min-h-[300px]">
+            <Loader2 className="h-8 w-8 animate-spin text-font-color" />
           </div>
-        )}
-
-        {/* No Results */}
-        {!isLoading && (!data?.length) && (
-          <div className="text-center py-16 bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm">
-            <Users className="h-12 w-12 text-primary/30 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No brands found</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              {searchQuery 
-                ? "We couldn't find any brands matching your search criteria. Try adjusting your search terms."
-                : "There are no brands to display yet. Check back soon for updates."}
+        ) : sortedData.length === 0 ? (
+          <div className="text-center py-12">
+            <h3 className="text-xl font-semibold mb-3 header-text">No Brands Found</h3>
+            <p className="text-font-color-muted subheading-text">
+              Try adjusting your search criteria
             </p>
-            {searchQuery && (
-              <Button
-                variant="outline"
-                onClick={() => handleSearch('')}
-                className="border-primary/20 hover:bg-primary/5"
-              >
-                Clear search
-              </Button>
-            )}
           </div>
-        )}
+        ) : (
+          <>
+            {/* Brands Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-8">
+              {sortedData
+                .slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
+                .map((brand) => (
+                  <BrandCard key={brand.id} brand={brand} />
+                ))}
+            </div>
 
-        {/* Brands Grid */}
-        {!isLoading && data?.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {data.map((brand) => (
-              <BrandCard key={brand.id} brand={brand} />
-            ))}
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-8 flex justify-center">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious 
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (page > 1) updateParams({ page: (page - 1).toString() });
-                    }}
-                    className={`rounded-xl transition-colors duration-300 ${page <= 1 ? 'pointer-events-none opacity-50' : 'hover:bg-primary/5'}`}
-                  />
-                </PaginationItem>
-                
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                  .map((p, i, arr) => {
-                    if (i > 0 && arr[i - 1] !== p - 1) {
-                      return (
-                        <React.Fragment key={`ellipsis-${p}`}>
-                          <PaginationItem>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                          <PaginationItem>
-                            <PaginationLink
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                updateParams({ page: p.toString() });
-                              }}
-                              className={`rounded-xl transition-colors duration-300 ${page === p ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'hover:bg-primary/5'}`}
-                            >
-                              {p}
-                            </PaginationLink>
-                          </PaginationItem>
-                        </React.Fragment>
-                      );
-                    }
-                    return (
-                      <PaginationItem key={p}>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-8 mb-6">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={() => updateParams({ page: String(Math.max(1, page - 1)) })}
+                        className={`border-[#4B1E25] text-[#4B1E25] hover:bg-[#4B1E25] hover:text-[#F5E4DA] ${page === 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <PaginationItem key={pageNum}>
                         <PaginationLink
                           href="#"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            updateParams({ page: p.toString() });
-                          }}
-                          className={`rounded-xl transition-colors duration-300 ${page === p ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'hover:bg-primary/5'}`}
+                          onClick={() => updateParams({ page: String(pageNum) })}
+                          isActive={pageNum === page}
+                          className={`${pageNum === page ? 'bg-[#4B1E25] text-[#F5E4DA]' : 'border-[#4B1E25] text-[#4B1E25] hover:bg-[#4B1E25] hover:text-[#F5E4DA]'}`}
                         >
-                          {p}
+                          {pageNum}
                         </PaginationLink>
                       </PaginationItem>
-                    );
-                  })}
-
-                <PaginationItem>
-                  <PaginationNext 
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (page < totalPages) updateParams({ page: (page + 1).toString() });
-                    }}
-                    className={`rounded-xl transition-colors duration-300 ${page >= totalPages ? 'pointer-events-none opacity-50' : 'hover:bg-primary/5'}`}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={() => updateParams({ page: String(Math.min(totalPages, page + 1)) })}
+                        className={`border-[#4B1E25] text-[#4B1E25] hover:bg-[#4B1E25] hover:text-[#F5E4DA] ${page === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

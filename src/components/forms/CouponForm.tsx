@@ -83,11 +83,11 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
       type: initialData?.type || 'percentage',
       value: initialData?.value || 0,
       scope: initialData?.scope || 'all_exhibitions',
-      exhibition_id: initialData?.exhibition_id,
-      brand_id: initialData?.brand_id,
-      min_booking_amount: initialData?.min_booking_amount,
-      max_discount_amount: initialData?.max_discount_amount,
-      usage_limit: initialData?.usage_limit,
+      exhibition_id: initialData?.exhibition_id || undefined,
+      brand_id: initialData?.brand_id || undefined,
+      min_booking_amount: initialData?.min_booking_amount || undefined,
+      max_discount_amount: initialData?.max_discount_amount || undefined,
+      usage_limit: initialData?.usage_limit || undefined,
       start_date: initialData?.start_date ? new Date(initialData.start_date) : undefined,
       end_date: initialData?.end_date ? new Date(initialData.end_date) : undefined,
     },
@@ -168,7 +168,7 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
 
       const formattedData: CreateCouponDTO = {
         code: values.code,
-        description: values.description,
+        description: values.description || '',
         type: values.type,
         value: values.value,
         scope: values.scope,
@@ -184,7 +184,6 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
       await onSubmit(formattedData);
     } catch (error) {
       console.error('Error submitting form:', error);
-      // Handle error appropriately
     }
   };
 
@@ -198,7 +197,7 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
             <FormItem>
               <FormLabel>Coupon Code</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="SUMMER2024" onBlur={handleCodeBlur} />
+                <Input {...field} value={field.value || ''} placeholder="SUMMER2024" onBlur={handleCodeBlur} />
               </FormControl>
               <FormDescription>
                 Enter a unique code for this coupon
@@ -215,7 +214,7 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea {...field} placeholder="Summer sale discount" />
+                <Textarea {...field} value={field.value || ''} placeholder="Summer sale discount" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -229,7 +228,7 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Discount Type</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select discount type" />
@@ -255,7 +254,8 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
                   <Input
                     type="number"
                     {...field}
-                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                    value={field.value || ''}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                     placeholder={watchType === 'percentage' ? '10' : '100'}
                   />
                 </FormControl>
@@ -274,7 +274,7 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
           render={({ field }) => (
             <FormItem>
               <FormLabel>Scope</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select scope" />
@@ -299,7 +299,7 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Exhibition</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select an exhibition" />
@@ -326,7 +326,7 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Brand</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a brand" />
@@ -357,7 +357,8 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
                   <Input
                     type="number"
                     {...field}
-                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                    value={field.value || ''}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
                     placeholder="0"
                   />
                 </FormControl>
@@ -379,7 +380,8 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
                   <Input
                     type="number"
                     {...field}
-                    onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                    value={field.value || ''}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
                     placeholder="0"
                   />
                 </FormControl>
@@ -402,7 +404,8 @@ export function CouponForm({ initialData, onSubmit, isLoading }: CouponFormProps
                 <Input
                   type="number"
                   {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  value={field.value || ''}
+                  onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
                   placeholder="No limit"
                 />
               </FormControl>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { Logo } from '@/components/ui/logo';
 import {
   LayoutDashboard,
   CalendarDays,
@@ -67,7 +68,7 @@ const SideNav: React.FC<SideNavProps> = ({ onLogout }) => {
     <nav className="w-64 bg-white border-r h-screen fixed left-0 top-0 flex flex-col">
       <div className="p-6">
         <Link to="/" className="flex items-center">
-          <span className="text-xl font-bold text-exhibae-navy">Exhi<span className="text-exhibae-coral">Bae</span></span>
+          <Logo preset="sidebar" />
         </Link>
       </div>
 

@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Mail, Phone, MapPin, Clock, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 export default function Contact() {
   const { toast } = useToast();
@@ -60,153 +62,148 @@ export default function Contact() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold mb-8">Contact Us</h1>
+    <div className="min-h-screen bg-[#F5E4DA]/10">
+      {/* Hero Section */}
+      <section className="py-16 bg-[#F5E4DA]">
+        <div className="container mx-auto px-6">
+          <div className="max-w-3xl mx-auto text-center">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              Get in Touch
+            </h1>
+            <p className="text-xl text-gray-600">
+              Have questions? We're here to help and would love to hear from you.
+            </p>
+          </div>
+        </div>
+      </section>
 
-      <div className="grid md:grid-cols-2 gap-12">
-        {/* Contact Information */}
-        <div>
-          <h2 className="text-2xl font-semibold mb-6">Get in Touch</h2>
-          <div className="space-y-6">
-            <div className="flex items-start space-x-4">
-              <Mail className="w-6 h-6 text-exhibae-navy mt-1" />
-              <div>
-                <h3 className="font-medium">Email</h3>
-                <p className="text-gray-600">
-                  General Inquiries: info@exhibae.com
-                  <br />
-                  Support: support@exhibae.com
-                </p>
-              </div>
+      {/* Contact Form Section */}
+      <section className="py-16">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            {/* Contact Form */}
+            <div className="lg:col-span-2">
+              <Card className="border-[#E6C5B6]/20">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold text-gray-900">Send us a Message</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">First Name</Label>
+                        <Input
+                          id="firstName"
+                          name="firstName"
+                          required
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input
+                          id="lastName"
+                          name="lastName"
+                          required
+                          className="bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="subject">Subject</Label>
+                      <Input
+                        id="subject"
+                        name="subject"
+                        required
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="message">Message</Label>
+                      <Textarea
+                        id="message"
+                        name="message"
+                        required
+                        className="min-h-[150px] bg-white"
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        'Send Message'
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="flex items-start space-x-4">
-              <Phone className="w-6 h-6 text-exhibae-navy mt-1" />
+            {/* Contact Information */}
+            <div className="space-y-8">
               <div>
-                <h3 className="font-medium">Phone</h3>
-                <p className="text-gray-600">
-                  India: +91 (22) 4567-8900
-                  <br />
-                  International: +1 (555) 123-4567
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Contact Information</h2>
+                <p className="text-gray-600 mb-8">
+                  Our team is available Monday through Friday, 9:00 AM to 6:00 PM IST.
                 </p>
               </div>
-            </div>
 
-            <div className="flex items-start space-x-4">
-              <MapPin className="w-6 h-6 text-exhibae-navy mt-1" />
-              <div>
-                <h3 className="font-medium">Address</h3>
-                <p className="text-gray-600">
-                  ExhiBae Technologies
-                  <br />
-                  Level 23, Trade Centre
-                  <br />
-                  Bandra Kurla Complex
-                  <br />
-                  Mumbai, Maharashtra 400051
-                </p>
-              </div>
-            </div>
+              <div className="grid gap-6">
+                <Card className="border-[#E6C5B6]/20">
+                  <CardContent className="flex items-center space-x-4 p-6">
+                    <Mail className="h-6 w-6 text-[#4B1E25]" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Email</h3>
+                      <p className="text-gray-600">support@exhibae.com</p>
+                    </div>
+                  </CardContent>
+                </Card>
 
-            <div className="flex items-start space-x-4">
-              <Clock className="w-6 h-6 text-exhibae-navy mt-1" />
-              <div>
-                <h3 className="font-medium">Business Hours</h3>
-                <p className="text-gray-600">
-                  Monday - Friday: 9:00 AM - 6:00 PM IST
-                  <br />
-                  Saturday: 10:00 AM - 2:00 PM IST
-                  <br />
-                  Sunday: Closed
-                </p>
+                <Card className="border-[#E6C5B6]/20">
+                  <CardContent className="flex items-center space-x-4 p-6">
+                    <Phone className="h-6 w-6 text-[#4B1E25]" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Phone</h3>
+                      <p className="text-gray-600">+91 (800) 123-4567</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-[#E6C5B6]/20">
+                  <CardContent className="flex items-center space-x-4 p-6">
+                    <MapPin className="h-6 w-6 text-[#4B1E25]" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Address</h3>
+                      <p className="text-gray-600">
+                        123 Exhibition Street<br />
+                        Mumbai, Maharashtra 400001<br />
+                        India
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Contact Form */}
-        <div>
-          <h2 className="text-2xl font-semibold mb-6">Send us a Message</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-2">
-                Name
-              </label>
-              <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                placeholder="Your name"
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-2">
-                Email
-              </label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                placeholder="your@email.com"
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="subject" className="block text-sm font-medium mb-2">
-                Subject
-              </label>
-              <Input
-                id="subject"
-                name="subject"
-                value={formData.subject}
-                onChange={handleChange}
-                required
-                placeholder="What is this regarding?"
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="message" className="block text-sm font-medium mb-2">
-                Message
-              </label>
-              <Textarea
-                id="message"
-                name="message"
-                value={formData.message}
-                onChange={handleChange}
-                required
-                placeholder="Your message"
-                rows={5}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full bg-exhibae-navy hover:bg-exhibae-navy/90"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                "Send Message"
-              )}
-            </Button>
-          </form>
-        </div>
-      </div>
+      </section>
     </div>
   );
 } 

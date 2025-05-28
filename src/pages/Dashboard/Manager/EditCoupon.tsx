@@ -119,12 +119,22 @@ const EditCoupon = () => {
         return;
       }
 
+      // Prepare update data
+      const updateData = {
+        ...data,
+        updated_at: new Date().toISOString(),
+        // Only include exhibition_id if scope is specific_exhibition
+        exhibition_id: data.scope === 'specific_exhibition' ? data.exhibition_id : null,
+        // Only include brand_id if scope is specific_brand
+        brand_id: data.scope === 'specific_brand' ? data.brand_id : null,
+        // Convert dates to ISO strings if they exist
+        start_date: data.start_date ? new Date(data.start_date).toISOString() : null,
+        end_date: data.end_date ? new Date(data.end_date).toISOString() : null,
+      };
+
       const { error } = await supabase
         .from('coupons')
-        .update({
-          ...data,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;

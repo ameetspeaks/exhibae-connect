@@ -4,6 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import ManagerSideNav from './ManagerSideNav';
 import DashboardHeader from './DashboardHeader';
+import { cn } from '@/lib/utils';
 
 const ManagerLayout = () => {
   const navigate = useNavigate();
@@ -28,15 +29,25 @@ const ManagerLayout = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <ManagerSideNav onLogout={handleLogout} />
-      <div className="pl-64">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <DashboardHeader />
-        <main className="bg-gray-50 min-h-[calc(100vh-4rem)]">
-          <div className="container mx-auto py-8 px-6">
-            <Outlet />
+        <div className="flex-1 overflow-auto bg-gradient-to-br from-indigo-50 to-slate-100">
+          <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <div className={cn(
+              "rounded-lg",
+              "bg-white",
+              "shadow-md",
+              "border",
+              "border-indigo-100"
+            )}>
+              <div className="p-6">
+                <Outlet />
+              </div>
+            </div>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );

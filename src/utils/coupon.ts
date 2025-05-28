@@ -8,32 +8,26 @@ interface CouponQueryResult {
 
 export async function checkCouponCodeExists(code: string, excludeId?: string): Promise<boolean> {
   try {
-    let query = supabase
+    const query = supabase
       .from('coupons')
-      .select('id');
+      .select('id')
+      .eq('code', code);
     
     // If we're updating an existing coupon, exclude it from the check
     if (excludeId) {
-      query = query.neq('id', excludeId);
+      query.neq('id', excludeId);
     }
 
-    query = query.eq('code', code);
-    const { data, error } = await query.single();
+    const { data, error } = await query;
 
     if (error) {
-      if (error.code === 'PGRST116') { // No rows returned
-        return false;
-      }
-      throw error;
+      console.error('Error checking coupon code:', error);
+      return false;
     }
 
-    return !!data;
+    return data && data.length > 0;
   } catch (error) {
-    if (error instanceof PostgrestError) {
-      console.error('Database error checking coupon code:', error.message);
-    } else {
-      console.error('Error checking coupon code:', error);
-    }
+    console.error('Error checking coupon code:', error);
     return false;
   }
 }

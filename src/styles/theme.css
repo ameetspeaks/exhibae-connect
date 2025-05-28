@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Colors */
+  --background-primary: #E6C5B6;
+  --background-secondary: #E6C5B6;
+  --background: #F5E4DA;
+  --font-color: #1C1C1C;
+  --font-color-muted: rgba(28, 28, 28, 0.7);
+  
+  /* Typography */
+  --font-heading: 'Playfair Display', serif;
+  --font-subheading: 'Montserrat', sans-serif;
+  --font-body: 'Montserrat', sans-serif;
+}
+
+/* Global styles */
+.header-text {
+  font-family: var(--font-heading);
+  color: var(--font-color);
+}
+
+.subheading-text {
+  font-family: var(--font-subheading);
+  color: var(--font-color);
+}
+
+.body-text {
+  font-family: var(--font-body);
+  color: var(--font-color);
+}
+
+/* Button styles */
+.button-primary {
+  background-color: var(--background-primary);
+  color: var(--font-color);
+}
+
+.button-primary:hover {
+  opacity: 0.9;
+}
+
+.button-secondary {
+  background-color: var(--background-secondary);
+  color: var(--font-color);
+}
+
+.button-secondary:hover {
+  opacity: 0.9;
+}
+
+/* Card styles */
+.card {
+  background-color: var(--background);
+  color: var(--font-color);
+}
+
+/* Badge styles */
+.badge {
+  background-color: var(--background-primary);
+  color: var(--font-color);
+}
+
+/* Input styles */
+.input {
+  background-color: var(--background);
+  color: var(--font-color);
+  border-color: var(--background-primary);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  color: var(--font-color);
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--font-color);
+  background-color: var(--background);
+}
+
+/* Custom utility classes */
+.bg-primary {
+  background-color: var(--background-primary);
+}
+
+.bg-secondary {
+  background-color: var(--background-secondary);
+}
+
+.text-primary {
+  color: var(--background-primary);
+}
+
+.text-secondary {
+  color: var(--background-secondary);
+} 

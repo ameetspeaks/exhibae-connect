@@ -6,6 +6,7 @@ import { useAuth } from '@/integrations/supabase/AuthProvider';
 import ProfileDropdown from './ProfileDropdown';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
+import { Logo } from '@/components/ui/logo';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -65,72 +66,46 @@ const Header = ({
   };
 
   return (
-    <header className="w-full bg-white shadow-sm py-4 px-6 sticky top-0 z-50">
+    <header className="w-full bg-[#E6C5B6] shadow-sm py-4 px-6 sticky top-0 z-50">
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center">
           <Link to="/" className="flex items-center">
-            <span className="text-2xl font-bold text-exhibae-navy">Exhi<span className="text-exhibae-coral">Bae</span></span>
+            <Logo preset="header" className="h-14" />
           </Link>
         </div>
 
         <nav className="hidden md:flex space-x-6">
           <Link 
             to="/" 
-            className={`font-medium ${location.pathname === '/' ? 'text-exhibae-navy' : 'text-gray-600 hover:text-exhibae-navy'}`}
+            className={`subheading-text ${location.pathname === '/' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
           >
             Home
           </Link>
           
-          <NavigationMenu>
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>Solutions</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <div className="grid gap-3 p-4 md:w-[400px] lg:w-[500px]">
-                    <Link 
-                      to="/for-organizers"
-                      className="block p-3 space-y-1 hover:bg-gray-50 rounded-lg"
-                    >
-                      <div className="font-medium">For Organizers</div>
-                      <p className="text-sm text-gray-600">Create and manage exhibitions with powerful tools</p>
-                    </Link>
-                    <Link 
-                      to="/for-brands"
-                      className="block p-3 space-y-1 hover:bg-gray-50 rounded-lg"
-                    >
-                      <div className="font-medium">For Brands</div>
-                      <p className="text-sm text-gray-600">Find and participate in relevant exhibitions</p>
-                    </Link>
-                  </div>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-
           <Link 
             to="/exhibitions" 
-            className={`font-medium ${location.pathname === '/exhibitions' ? 'text-exhibae-navy' : 'text-gray-600 hover:text-exhibae-navy'}`}
+            className={`subheading-text ${location.pathname === '/exhibitions' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
           >
             Exhibitions
           </Link>
           
           <Link 
             to="/brands" 
-            className={`font-medium ${location.pathname.startsWith('/brands') ? 'text-exhibae-navy' : 'text-gray-600 hover:text-exhibae-navy'}`}
+            className={`subheading-text ${location.pathname.startsWith('/brands') ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
           >
             Brands
           </Link>
           
           <Link 
             to="/about" 
-            className={`font-medium ${location.pathname === '/about' ? 'text-exhibae-navy' : 'text-gray-600 hover:text-exhibae-navy'}`}
+            className={`subheading-text ${location.pathname === '/about' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
           >
             About
           </Link>
           
           <Link 
             to="/contact" 
-            className={`font-medium ${location.pathname === '/contact' ? 'text-exhibae-navy' : 'text-gray-600 hover:text-exhibae-navy'}`}
+            className={`subheading-text ${location.pathname === '/contact' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
           >
             Contact
           </Link>
@@ -144,13 +119,13 @@ const Header = ({
               <Button 
                 variant="ghost"
                 onClick={onLogin}
-                className="text-gray-600 hover:text-exhibae-navy"
+                className="text-font-color hover:text-[#4B1E25] subheading-text"
               >
                 Log In
               </Button>
               <Button 
                 onClick={onSignUp}
-                className="bg-exhibae-coral hover:bg-opacity-90 text-white"
+                className="bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA] subheading-text"
               >
                 Sign Up
               </Button>

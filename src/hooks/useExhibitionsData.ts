@@ -85,19 +85,31 @@ export const useEventTypes = () => {
     queryKey: ['eventTypes'],
     queryFn: async () => {
       console.log('Fetching event types...');
-      const { data, error } = await supabase
-        .from('event_types')
-        .select('*')
-        .order('name');
+      try {
+        const { data, error } = await supabase
+          .from('event_types')
+          .select('*')
+          .order('name');
 
-      if (error) {
-        console.error('Error fetching event types:', error);
-        throw new Error(error.message);
+        if (error) {
+          console.error('Error fetching event types:', error);
+          return []; // Return empty array instead of throwing error for guest users
+        }
+
+        if (!data) {
+          console.log('No event types found');
+          return [];
+        }
+
+        console.log('Event types loaded:', data);
+        return data as EventType[];
+      } catch (error) {
+        console.error('Error in useEventTypes:', error);
+        return []; // Return empty array for any errors
       }
-
-      console.log('Event types loaded:', data);
-      return data as EventType[];
-    }
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 2 // Retry failed requests twice
   });
 };
 
@@ -327,7 +339,8 @@ export const usePublishedExhibitions = (limit?: number) => {
             )
           `)
           .eq('status', 'published')
-          .order('created_at', { ascending: false })
+          .gte('end_date', new Date().toISOString()) // Only get exhibitions that haven't ended
+          .order('start_date', { ascending: true }) // Order by start date to show nearest upcoming first
           .limit(limit || 10);
 
         console.log('Exhibitions with details:', withDetails);

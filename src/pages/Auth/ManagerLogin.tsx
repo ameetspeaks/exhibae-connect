@@ -70,8 +70,8 @@ const ManagerLogin = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-full max-w-md">
+    <div className="flex items-center justify-center min-h-screen bg-[#F5E4DA]/10">
+      <Card className="w-full max-w-md border-[#4B1E25]/10">
         <CardHeader>
           <CardTitle>Manager Login</CardTitle>
           <CardDescription>
@@ -91,6 +91,7 @@ const ManagerLogin = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
               />
             </div>
             <div className="space-y-2">
@@ -104,16 +105,17 @@ const ManagerLogin = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
             <div className="text-center text-sm">
               <span className="text-muted-foreground">Don't have an account? </span>
               <Button
                 variant="link"
-                className="p-0 h-auto"
+                className="p-0 h-auto text-[#4B1E25] hover:text-[#4B1E25]/80"
                 onClick={() => navigate('/auth/manager/register')}
               >
                 Register here
