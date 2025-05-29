@@ -8,7 +8,7 @@ export const LOGO_CONFIG = {
   // Default dimensions
   DIMENSIONS: {
     HEADER: {
-      height: 56,
+      height: 72,
       width: 'auto',
     },
     SIDEBAR: {

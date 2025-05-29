@@ -6,7 +6,8 @@ import { useAuth } from '@/integrations/supabase/AuthProvider';
 import ProfileDropdown from './ProfileDropdown';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
-import { Logo } from '@/components/ui/logo';
+import { ExhibaeLogo } from '@/components/ui/ExhibaeLogo';
+import { SearchBar } from '@/components/ui/SearchBar';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -66,52 +67,52 @@ const Header = ({
   };
 
   return (
-    <header className="w-full bg-[#E6C5B6] shadow-sm py-4 px-6 sticky top-0 z-50">
-      <div className="container mx-auto flex items-center justify-between">
-        <div className="flex items-center">
+    <header className="w-full bg-[#E6C5B6] shadow-sm sticky top-0 z-50">
+      <div className="container mx-auto flex items-center justify-between px-6 h-16">
+        <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center">
-            <Logo preset="header" className="h-14" />
+            <ExhibaeLogo variant="header" className="h-12" />
           </Link>
+          <SearchBar className="hidden md:flex w-[300px]" />
+          <nav className="hidden md:flex items-center space-x-8">
+            <Link 
+              to="/" 
+              className={`subheading-text ${location.pathname === '/' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
+            >
+              Home
+            </Link>
+            
+            <Link 
+              to="/exhibitions" 
+              className={`subheading-text ${location.pathname === '/exhibitions' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
+            >
+              Exhibitions
+            </Link>
+            
+            <Link 
+              to="/brands" 
+              className={`subheading-text ${location.pathname.startsWith('/brands') ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
+            >
+              Brands
+            </Link>
+            
+            <Link 
+              to="/about" 
+              className={`subheading-text ${location.pathname === '/about' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
+            >
+              About
+            </Link>
+            
+            <Link 
+              to="/contact" 
+              className={`subheading-text ${location.pathname === '/contact' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
+            >
+              Contact
+            </Link>
+          </nav>
         </div>
 
-        <nav className="hidden md:flex space-x-6">
-          <Link 
-            to="/" 
-            className={`subheading-text ${location.pathname === '/' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
-          >
-            Home
-          </Link>
-          
-          <Link 
-            to="/exhibitions" 
-            className={`subheading-text ${location.pathname === '/exhibitions' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
-          >
-            Exhibitions
-          </Link>
-          
-          <Link 
-            to="/brands" 
-            className={`subheading-text ${location.pathname.startsWith('/brands') ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
-          >
-            Brands
-          </Link>
-          
-          <Link 
-            to="/about" 
-            className={`subheading-text ${location.pathname === '/about' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
-          >
-            About
-          </Link>
-          
-          <Link 
-            to="/contact" 
-            className={`subheading-text ${location.pathname === '/contact' ? 'text-[#4B1E25]' : 'text-font-color hover:text-[#4B1E25]'}`}
-          >
-            Contact
-          </Link>
-        </nav>
-
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-6">
           {isAuthenticated ? (
             <ProfileDropdown onLogout={handleLogout} />
           ) : (

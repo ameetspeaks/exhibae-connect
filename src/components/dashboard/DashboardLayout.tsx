@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import DashboardHeader from './DashboardHeader';
 import DashboardSidebar from './DashboardSidebar';
 import DashboardBreadcrumb from './DashboardBreadcrumb';
+import WhatsAppSupport from '@/components/WhatsAppSupport';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { useToast } from '@/components/ui/use-toast';
 import { UserRole } from '@/types/auth';
@@ -88,27 +89,18 @@ const DashboardLayout = ({ role, title }: DashboardLayoutProps) => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <DashboardSidebar role={role} onLogout={handleLogout} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardHeader role={role} title={title} />
-        <div className={cn("flex-1 overflow-auto", roleStyle.bgGradient)}>
-          <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <DashboardBreadcrumb role={role} />
-            <div className={cn(
-              "rounded-lg", 
-              roleStyle.contentBg, 
-              roleStyle.shadow,
-              "border",
-              roleStyle.border
-            )}>
-              <div className="p-6">
-                <Outlet />
-              </div>
-            </div>
+    <div className={cn('min-h-screen flex flex-col', roleStyle.bgGradient)}>
+      <DashboardHeader role={role} title={title} />
+      <div className="flex-1 flex">
+        <DashboardSidebar role={role} onLogout={handleLogout} />
+        <main className="flex-1 p-6">
+          <DashboardBreadcrumb role={role} />
+          <div className={cn('mt-4 p-6 rounded-lg', roleStyle.contentBg, roleStyle.shadow, roleStyle.border)}>
+            <Outlet />
           </div>
-        </div>
+        </main>
       </div>
+      <WhatsAppSupport />
     </div>
   );
 };

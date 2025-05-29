@@ -388,7 +388,56 @@ export default function ExhibitionDetail() {
               <TabsContent value="about" className="space-y-6">
                 <Card className="border-0 shadow-lg">
                   <CardHeader>
-                    <CardTitle className="text-3xl font-bold text-[#4B1E25]">{exhibition.title}</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-3xl font-bold text-[#4B1E25]">{exhibition.title}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        {isShopper() && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "bg-white/80 hover:bg-white/90 border-[#4B1E25]/10",
+                              isAttending && "bg-[#4B1E25] text-[#F5E4DA] hover:bg-[#4B1E25]/90"
+                            )}
+                            onClick={() => {
+                              if (!user) {
+                                navigate('/auth/login');
+                                return;
+                              }
+                              toggleAttendance();
+                            }}
+                            disabled={isAttendanceSubmitting}
+                          >
+                            {isAttendanceSubmitting ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                {isAttending ? 'Going' : 'Love to go'}
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-10 w-10 bg-white/80 hover:bg-white/90 rounded-full"
+                          onClick={() => {
+                            if (!user) {
+                              navigate('/auth/login');
+                              return;
+                            }
+                            toggleFavorite();
+                          }}
+                          disabled={isFavoriteSubmitting}
+                        >
+                          {isFavoriteSubmitting ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Heart className={`h-5 w-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-[#4B1E25]'}`} />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <p className="text-lg text-muted-foreground leading-relaxed">

@@ -10,11 +10,11 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  Tag,Coupon Details
-
+  Tag,
   FileText,
   Calendar,
-  Ticket
+  Ticket,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
@@ -49,6 +49,11 @@ const ManagerSideNav: React.FC<ManagerSideNavProps> = ({ onLogout }) => {
       title: 'Applications',
       icon: FileText,
       href: '/dashboard/manager/applications'
+    },
+    {
+      title: 'Email Analytics',
+      icon: Mail,
+      href: '/dashboard/manager/email'
     },
     {
       title: 'Categories',

@@ -1,6 +1,7 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
-import { LayoutDashboard, Users, Ruler, Building2, CalendarDays, Tag, LucideIcon, FileText, MessageSquare, Heart, SlidersHorizontal } from 'lucide-react';
+import { LayoutDashboard, Users, Ruler, Building2, CalendarDays, Tag, LucideIcon, FileText, MessageSquare, Heart, SlidersHorizontal, LogOut, Calendar, Ticket, Mail } from 'lucide-react';
+import { EmailAdmin } from '@/components/email';
 
 type CustomRouteObject = RouteObject & {
   icon?: LucideIcon;
@@ -133,6 +134,12 @@ export const managerRoutes: CustomRouteObject[] = [
   {
     path: 'chat',
     element: <ChatPage />,
+  },
+  {
+    path: 'email',
+    element: <EmailAdmin />,
+    icon: Mail,
+    name: 'Email Analytics',
   },
 ];
 

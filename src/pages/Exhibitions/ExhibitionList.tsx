@@ -3,19 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { usePublishedExhibitions, useEventTypes, useVenueTypes } from '@/hooks/useExhibitionsData';
 import { format, isToday, isTomorrow, isThisWeek, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, ChevronLeft, ChevronRight, Search, Calendar, MapPin, Users } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Search, Calendar, MapPin, Users, Heart } from 'lucide-react';
 import ExhibitionCard from '@/components/exhibitions/ExhibitionCard';
 import { ExhibitionFilters } from '@/components/exhibitions/ExhibitionFilters';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/integrations/supabase/AuthProvider';
+import { useExhibitionFavorite } from '@/hooks/useExhibitionFavorite';
+import { useToast } from '@/hooks/use-toast';
+import { useSubscription } from '@/hooks/useSubscription';
+import { SubscriptionForm } from '@/components/SubscriptionForm';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function ExhibitionList() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { data: subscription } = useSubscription();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentExhibitionId, setCurrentExhibitionId] = useState<string | null>(null);
   
   const [selectedFilters, setSelectedFilters] = useState({
     eventTypes: [] as string[],
@@ -24,9 +33,10 @@ export default function ExhibitionList() {
     city: null as string | null,
   });
 
-  const { data: exhibitions = [], isLoading: isLoadingExhibitions } = usePublishedExhibitions();
+  const { data: exhibitions = [], isLoading: isLoadingExhibitions, refetch: refetchExhibitions } = usePublishedExhibitions();
   const { data: eventTypes = [], isLoading: isLoadingEventTypes } = useEventTypes();
   const { data: venueTypes = [], isLoading: isLoadingVenueTypes } = useVenueTypes();
+  const { toggleFavorite: toggleFavoriteAction, isSubmitting: isFavoriteSubmitting } = useExhibitionFavorite(currentExhibitionId || '');
 
   // Reset page when filters change
   useEffect(() => {
@@ -110,6 +120,29 @@ export default function ExhibitionList() {
 
   const isLoading = isLoadingExhibitions || isLoadingEventTypes || isLoadingVenueTypes;
 
+  // Function to handle favorite toggle
+  const handleFavoriteClick = async (e: React.MouseEvent, exhibitionId: string) => {
+    e.stopPropagation(); // Prevent navigation when clicking the favorite button
+    
+    if (!user) {
+      navigate('/auth/login');
+      return;
+    }
+
+    try {
+      setCurrentExhibitionId(exhibitionId);
+      await toggleFavoriteAction();
+      // Refetch exhibitions to update the favorite status
+      refetchExhibitions();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update favorite status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -121,18 +154,16 @@ export default function ExhibitionList() {
   return (
     <div className="min-h-screen bg-[#F5E4DA]">
       {/* Hero Section */}
-      <section className="bg-[#F5E4DA] py-10">
-        <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+      <div className="py-16 text-center">
+        <div className="container mx-auto px-4">
+          <h1 className="text-4xl font-bold text-[#4B1E25] mb-4">
               Discover Amazing Exhibitions
             </h1>
-            <p className="text-xl text-gray-600">
+          <p className="text-lg text-[#4B1E25]/80 max-w-2xl mx-auto">
               Find and participate in the most exciting exhibitions across various industries
             </p>
           </div>
         </div>
-      </section>
 
       {/* Filters Section */}
       <div className="container mx-auto py-8 px-4 space-y-4">
@@ -169,6 +200,19 @@ export default function ExhibitionList() {
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 bg-white/80 hover:bg-white/90 h-8 w-8 rounded-full"
+                      onClick={(e) => handleFavoriteClick(e, exhibition.id)}
+                      disabled={isFavoriteSubmitting && currentExhibitionId === exhibition.id}
+                    >
+                      {isFavoriteSubmitting && currentExhibitionId === exhibition.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Heart className={`h-4 w-4 ${exhibition.isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+                      )}
+                    </Button>
                   </div>
                   <CardContent className="p-6">
                     <h3 className="text-xl font-semibold mb-3">{exhibition.title}</h3>
@@ -246,6 +290,15 @@ export default function ExhibitionList() {
           </motion.div>
         )}
       </div>
+
+      {/* Newsletter Subscription Section */}
+      {!user && !subscription && (
+        <section className="py-16 bg-[#4B1E25]/5">
+          <div className="container mx-auto px-6 max-w-lg">
+            <SubscriptionForm />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

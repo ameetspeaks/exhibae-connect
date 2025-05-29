@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import ImageSlider, { SliderStatus } from '@/components/ImageSlider';
 import ExhibitionCard from '@/components/exhibitions/ExhibitionCard';
+import { ShopperSections } from '@/components/home/ShopperSections';
 import {
   Select,
   SelectContent,
@@ -107,11 +108,6 @@ const Home = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {selectedCity && (
-                  <p className="text-[#1C1C1C]/80 text-sm">
-                    in {selectedCity}
-                  </p>
-                )}
               </div>
               <Button variant="link" className="text-[#4B1E25] hover:text-[#4B1E25]/80 font-medium subheading-text" asChild>
                 <Link to="/exhibitions">View All</Link>
@@ -155,6 +151,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Shopper Sections */}
+      <ShopperSections />
 
       {/* Newsletter Section */}
       <section className="py-20 bg-[#F5E4DA]">

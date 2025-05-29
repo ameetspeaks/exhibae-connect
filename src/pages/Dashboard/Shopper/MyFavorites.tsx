@@ -120,7 +120,7 @@ const MyFavorites = () => {
       // Get brand IDs
       const brandIds = favorites.map((fav) => fav.brand_id);
 
-      // First fetch the brand details
+      // Fetch the brand details from profiles table
       const { data: brandsData, error: brandsError } = await supabase
         .from('profiles')
         .select('id, company_name, avatar_url, description')

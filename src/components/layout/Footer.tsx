@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Logo } from '@/components/ui/logo';
+import { ExhibaeLogo } from '@/components/ui/ExhibaeLogo';
 import { Facebook, Instagram, Twitter } from 'lucide-react';
 
 const Footer = () => {
@@ -9,17 +9,40 @@ const Footer = () => {
   return (
     <footer className="bg-[#E6C5B6] text-[#1C1C1C] border-t border-[#4B1E25]/10">
       <div className="container mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Logo and Description */}
-          <div className="col-span-1 md:col-span-2 space-y-4">
-            <Logo preset="footer" className="h-14" />
-            <p className="text-sm text-[#4B1E25]/80 mt-4 max-w-md">
-              Discover and participate in the most exciting exhibitions. Connect with brands, organizers, and fellow enthusiasts.
-            </p>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+          {/* Logo and Description Column */}
+          <div className="md:col-span-6">
+            <div className="flex items-center gap-2">
+              <div className="w-[120px] flex-shrink-0">
+                <ExhibaeLogo variant="footer" className="h-12" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-[#4B1E25] mb-0.5">Exhibae</h2>
+                <p className="text-sm text-[#4B1E25]/80">
+                  Discover and participate in the most exciting exhibitions. Connect with brands, organizers, and fellow enthusiasts.
+                </p>
+              </div>
+            </div>
+            
+            {/* Social Links */}
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 text-[#4B1E25]">Follow Us</h3>
+              <div className="flex space-x-4">
+                <a href="#" className="text-[#4B1E25]/80 hover:text-[#4B1E25]">
+                  <Facebook className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-[#4B1E25]/80 hover:text-[#4B1E25]">
+                  <Instagram className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-[#4B1E25]/80 hover:text-[#4B1E25]">
+                  <Twitter className="h-5 w-5" />
+                </a>
+              </div>
+            </div>
           </div>
 
           {/* Quick Links */}
-          <div className="space-y-4">
+          <div className="md:col-span-3 space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-[#4B1E25]">Quick Links</h3>
             <ul className="space-y-2">
               <li>
@@ -46,7 +69,7 @@ const Footer = () => {
           </div>
 
           {/* Solutions */}
-          <div className="space-y-4">
+          <div className="md:col-span-3 space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-[#4B1E25]">Solutions</h3>
             <ul className="space-y-2">
               <li>
@@ -60,22 +83,6 @@ const Footer = () => {
                 </Link>
               </li>
             </ul>
-
-            {/* Social Links */}
-            <div className="pt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 text-[#4B1E25]">Follow Us</h3>
-              <div className="flex space-x-4">
-                <a href="#" className="text-[#4B1E25]/80 hover:text-[#4B1E25]">
-                  <Facebook className="h-5 w-5" />
-                </a>
-                <a href="#" className="text-[#4B1E25]/80 hover:text-[#4B1E25]">
-                  <Instagram className="h-5 w-5" />
-                </a>
-                <a href="#" className="text-[#4B1E25]/80 hover:text-[#4B1E25]">
-                  <Twitter className="h-5 w-5" />
-                </a>
-              </div>
-            </div>
           </div>
         </div>
 

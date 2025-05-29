@@ -24,16 +24,44 @@ export const useBrandFavorite = (brandId: string) => {
 
     try {
       // Check if the user is a shopper
-      const { data: userProfile } = await supabase
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
 
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        toast({
+          title: 'Error',
+          description: 'Failed to verify user role. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       if (userProfile?.role !== 'shopper') {
         toast({
           title: 'Action not allowed',
           description: 'Only shoppers can favorite brands.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // First verify that the brand exists in profiles table and is a brand
+      const { data: brandProfile, error: brandError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', brandId)
+        .eq('role', 'brand')
+        .single();
+
+      if (brandError || !brandProfile) {
+        console.error('Error verifying brand:', brandError);
+        toast({
+          title: 'Error',
+          description: 'Brand not found. Please try again.',
           variant: 'destructive',
         });
         return;
@@ -81,9 +109,12 @@ export const useBrandFavorite = (brandId: string) => {
       }
 
       // Invalidate relevant queries
-      queryClient.invalidateQueries(['brand-favorites']);
-      queryClient.invalidateQueries(['brand', brandId]);
-      queryClient.invalidateQueries(['brands']);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['brand-favorites'] }),
+        queryClient.invalidateQueries({ queryKey: ['brand', brandId] }),
+        queryClient.invalidateQueries({ queryKey: ['brands'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-favorites-brands'] })
+      ]);
     } catch (error) {
       console.error('Error toggling brand favorite:', error);
       toast({

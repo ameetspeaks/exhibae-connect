@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, EffectFade, Navigation } from 'swiper/modules';
+import { Autoplay, EffectFade } from 'swiper/modules';
 import { useSupabase } from '@/lib/supabase/supabase-provider';
 import 'swiper/css';
 import 'swiper/css/effect-fade';
-import 'swiper/css/navigation';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface HeroSlider {
   id: string;
@@ -64,17 +62,13 @@ const ImageSlider: React.FC<ImageSliderProps> = ({ onStatusChange }) => {
   return (
     <div className="relative w-full h-[500px] max-w-6xl mx-auto px-4">
       <Swiper
-        modules={[Autoplay, EffectFade, Navigation]}
+        modules={[Autoplay, EffectFade]}
         spaceBetween={0}
         slidesPerView={1}
         effect="fade"
         autoplay={{
           delay: 5000,
           disableOnInteraction: false,
-        }}
-        navigation={{
-          prevEl: '.swiper-button-prev',
-          nextEl: '.swiper-button-next',
         }}
         loop={true}
         className="w-full h-full rounded-2xl overflow-hidden shadow-xl"
@@ -110,14 +104,6 @@ const ImageSlider: React.FC<ImageSliderProps> = ({ onStatusChange }) => {
           </SwiperSlide>
         ))}
       </Swiper>
-      
-      {/* Custom Navigation Buttons */}
-      <button className="swiper-button-prev absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white rounded-full p-2 shadow-md transition-all">
-        <ChevronLeft className="w-6 h-6 text-gray-800" />
-      </button>
-      <button className="swiper-button-next absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white rounded-full p-2 shadow-md transition-all">
-        <ChevronRight className="w-6 h-6 text-gray-800" />
-      </button>
     </div>
   );
 };
