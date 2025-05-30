@@ -21,7 +21,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const { user } = useAuth();
-  const { isEnabled } = useNotificationSettings();
+  const { isEnabled, settings, updateSettings } = useNotificationSettings();
   const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(null);
   const hasInitialized = useRef(false);
   const hasFetchedNotifications = useRef(false);
@@ -220,6 +220,76 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       console.error('Error adding notification:', error);
     }
   };
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Listen for service worker messages
+    if ('serviceWorker' in navigator) {
+      const messageHandler = (event: MessageEvent) => {
+        if (event.data.type === 'NOTIFICATION_STATUS') {
+          const permission = event.data.permission;
+          if (permission === 'granted' && settings?.desktop_notifications) {
+            // Re-enable notifications if they were previously disabled
+            updateSettings({ desktop_notifications: true });
+          } else if (permission !== 'granted' && settings?.desktop_notifications) {
+            // Disable notifications if permission was revoked
+            updateSettings({ desktop_notifications: false });
+          }
+        }
+      };
+
+      navigator.serviceWorker.addEventListener('message', messageHandler);
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', messageHandler);
+      };
+    }
+  }, [user, settings]);
+
+  // Handle new notifications
+  useEffect(() => {
+    if (!user || !settings?.desktop_notifications) return;
+
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, async (payload) => {
+        const notification = payload.new as AppNotification;
+        
+        // Check if notification type is enabled
+        const notificationTypeEnabled = settings[`${notification.type}_enabled` as keyof typeof settings];
+        if (!notificationTypeEnabled) return;
+
+        try {
+          // Process the notification with sound and desktop notification
+          processNotification(
+            notification,
+            settings.sound_enabled,
+            settings.desktop_notifications
+          );
+
+          // Update local state
+          setNotifications(prev => [notification, ...prev]);
+          setUnreadCount(prev => prev + 1);
+        } catch (error) {
+          console.error('Error processing notification:', error);
+        }
+      });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('Subscribed to notifications channel');
+      }
+    });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [user, settings]);
 
   return (
     <NotificationContext.Provider

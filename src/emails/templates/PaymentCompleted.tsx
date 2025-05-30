@@ -6,13 +6,13 @@ import {
   Text,
 } from '@react-email/components';
 import BaseTemplate from '../components/BaseTemplate';
-import { formatDate, formatCurrency } from '@/services/emailService';
+import { formatCurrency } from '@/services/emailService';
 
 interface PaymentCompletedProps {
   exhibitionTitle: string;
   brandName: string;
   paymentAmount: number;
-  paymentDate: Date;
+  paymentDate: string;
   stallDetails: string;
 }
 
@@ -35,7 +35,7 @@ export const PaymentCompletedTemplate: React.FC<PaymentCompletedProps> = ({
         </Text>
         
         <Text style={text}>
-          We are pleased to confirm that your payment for "{exhibitionTitle}" has been successfully processed on {formatDate(paymentDate)}.
+          We are pleased to confirm that your payment for "{exhibitionTitle}" has been successfully processed on {paymentDate}.
         </Text>
 
         <Section style={detailsBox}>
@@ -43,7 +43,7 @@ export const PaymentCompletedTemplate: React.FC<PaymentCompletedProps> = ({
           <Text style={detailsText}>
             <strong>Exhibition:</strong> {exhibitionTitle}<br />
             <strong>Amount Paid:</strong> {formatCurrency(paymentAmount)}<br />
-            <strong>Payment Date:</strong> {formatDate(paymentDate)}<br />
+            <strong>Payment Date:</strong> {paymentDate}<br />
             <strong>Stall Details:</strong><br />
             {stallDetails}
           </Text>

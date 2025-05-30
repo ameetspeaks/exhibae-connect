@@ -18,6 +18,17 @@ CREATE TABLE IF NOT EXISTS public.notification_settings (
     exhibition_cancelled_enabled boolean DEFAULT true,
     exhibition_updated_enabled boolean DEFAULT true,
     message_received_enabled boolean DEFAULT true,
+    comment_received_enabled boolean DEFAULT true,
+    review_submitted_enabled boolean DEFAULT true,
+    review_response_enabled boolean DEFAULT true,
+    profile_updated_enabled boolean DEFAULT true,
+    document_uploaded_enabled boolean DEFAULT true,
+    document_approved_enabled boolean DEFAULT true,
+    document_rejected_enabled boolean DEFAULT true,
+    exhibition_status_updated_enabled boolean DEFAULT true,
+    payment_status_updated_enabled boolean DEFAULT true,
+    stall_application_received_enabled boolean DEFAULT true,
+    stall_approved_enabled boolean DEFAULT true,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
 );

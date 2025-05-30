@@ -38,6 +38,38 @@ const getNotificationIcon = (type: AppNotification['type']) => {
       return '🔄';
     case 'application_received':
       return '📝';
+    case 'exhibition_reminder':
+      return '⏰';
+    case 'payment_reminder':
+      return '💰';
+    case 'exhibition_cancelled':
+      return '❌';
+    case 'exhibition_updated':
+      return '📢';
+    case 'message_received':
+      return '💬';
+    case 'comment_received':
+      return '💭';
+    case 'review_submitted':
+      return '⭐';
+    case 'review_response':
+      return '✍️';
+    case 'profile_updated':
+      return '👥';
+    case 'document_uploaded':
+      return '📄';
+    case 'document_approved':
+      return '✅';
+    case 'document_rejected':
+      return '❌';
+    case 'exhibition_status_updated':
+      return '🔔';
+    case 'payment_status_updated':
+      return '💳';
+    case 'stall_application_received':
+      return '📨';
+    case 'stall_approved':
+      return '✨';
     default:
       return '📢';
   }

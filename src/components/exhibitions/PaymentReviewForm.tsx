@@ -28,12 +28,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { unifiedNotificationService } from '@/services/unifiedNotificationService';
 
 const rejectionSchema = z.object({
   rejection_reason: z.string().min(1, 'Please provide a reason for rejection'),
 });
 
 type RejectionFormData = z.infer<typeof rejectionSchema>;
+
+interface ApplicationData {
+  id: string;
+  brand: {
+    full_name: string;
+    email: string;
+  };
+  exhibition: {
+    title: string;
+  };
+}
 
 interface PaymentSubmission {
   id: string;
@@ -74,6 +86,19 @@ export const PaymentReviewForm: React.FC<PaymentReviewFormProps> = ({
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
+      // Get application and exhibition details first
+      const { data: applicationData, error: fetchError } = await supabase
+        .from('stall_applications')
+        .select(`
+          id,
+          brand:profiles!inner(full_name, email),
+          exhibition:exhibitions!inner(title)
+        `)
+        .eq('id', paymentSubmission.application_id)
+        .single<ApplicationData>();
+
+      if (fetchError) throw fetchError;
+
       const { error } = await supabase
         .from('payment_submissions')
         .update({
@@ -98,6 +123,17 @@ export const PaymentReviewForm: React.FC<PaymentReviewFormProps> = ({
 
       if (applicationError) throw applicationError;
 
+      // Send notifications
+      if (applicationData?.brand && applicationData?.exhibition) {
+        await unifiedNotificationService.notifyPaymentStatusUpdate(
+          paymentSubmission.id,
+          applicationData.exhibition.title,
+          applicationData.brand.full_name,
+          'approved',
+          applicationData.brand.email
+        );
+      }
+
       toast({
         title: 'Success',
         description: 'Payment has been approved.',
@@ -119,6 +155,19 @@ export const PaymentReviewForm: React.FC<PaymentReviewFormProps> = ({
   const handleReject = async (data: RejectionFormData) => {
     setIsSubmitting(true);
     try {
+      // Get application and exhibition details first
+      const { data: applicationData, error: fetchError } = await supabase
+        .from('stall_applications')
+        .select(`
+          id,
+          brand:profiles!inner(full_name, email),
+          exhibition:exhibitions!inner(title)
+        `)
+        .eq('id', paymentSubmission.application_id)
+        .single<ApplicationData>();
+
+      if (fetchError) throw fetchError;
+
       const { error } = await supabase
         .from('payment_submissions')
         .update({
@@ -141,6 +190,17 @@ export const PaymentReviewForm: React.FC<PaymentReviewFormProps> = ({
         .eq('id', paymentSubmission.application_id);
 
       if (applicationError) throw applicationError;
+
+      // Send notifications
+      if (applicationData?.brand && applicationData?.exhibition) {
+        await unifiedNotificationService.notifyPaymentStatusUpdate(
+          paymentSubmission.id,
+          applicationData.exhibition.title,
+          applicationData.brand.full_name,
+          'rejected',
+          applicationData.brand.email
+        );
+      }
 
       toast({
         title: 'Payment Rejected',

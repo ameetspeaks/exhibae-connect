@@ -5,6 +5,7 @@ import WhatsAppSupport from '@/components/WhatsAppSupport';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { useToast } from '@/components/ui/use-toast';
+import ScrollToTop from './ScrollToTop';
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ const Layout = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <ScrollToTop />
       {!isDashboardRoute && (
         <Header 
           isAuthenticated={!!user}

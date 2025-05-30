@@ -33,6 +33,7 @@ import { Plus, Search, Eye, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { unifiedNotificationService } from '@/services/unifiedNotificationService';
 
 interface Exhibition {
   id: string;
@@ -114,7 +115,15 @@ const ExhibitionsPage = () => {
       // Get the exhibition details before updating
       const { data: exhibitionData, error: fetchError } = await supabase
         .from('exhibitions')
-        .select('title, organiser_id, status')
+        .select(`
+          title,
+          organiser_id,
+          status,
+          organiser:profiles!inner(
+            full_name,
+            email
+          )
+        `)
         .eq('id', exhibitionId)
         .single();
       
@@ -128,8 +137,14 @@ const ExhibitionsPage = () => {
 
       if (error) throw error;
 
-      // Create a notification for the organizer
+      // Send notifications if status has changed
       if (exhibitionData && exhibitionData.status !== newStatus) {
+        await unifiedNotificationService.notifyExhibitionStatusUpdate(
+          exhibitionId,
+          exhibitionData.title,
+          newStatus
+        );
+
         // Create notification for the organizer
         const { error: notificationError } = await supabase
           .from('notifications')
@@ -138,7 +153,7 @@ const ExhibitionsPage = () => {
               user_id: exhibitionData.organiser_id,
               title: 'Exhibition Status Updated',
               message: `Your exhibition "${exhibitionData.title}" status has been changed to ${getStatusDisplay(newStatus)}.`,
-              type: 'exhibition_updated',
+              type: 'exhibition_status_updated',
               link: `/dashboard/organiser/exhibitions/${exhibitionId}`,
               is_read: false,
             },
@@ -160,6 +175,7 @@ const ExhibitionsPage = () => {
         description: 'Exhibition status updated successfully',
       });
     } catch (error: any) {
+      console.error('Error updating exhibition status:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to update exhibition status',

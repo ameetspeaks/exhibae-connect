@@ -40,6 +40,26 @@ const notificationTypes: Array<{
     description: 'When a new application is submitted',
   },
   {
+    id: 'exhibition_status_updated',
+    name: 'Exhibition Status Update',
+    description: 'When an exhibition status is updated',
+  },
+  {
+    id: 'payment_status_updated',
+    name: 'Payment Status Update',
+    description: 'When a payment status is updated',
+  },
+  {
+    id: 'stall_application_received',
+    name: 'Stall Application Received',
+    description: 'When a new stall application is submitted',
+  },
+  {
+    id: 'stall_approved',
+    name: 'Stall Approved',
+    description: 'When a stall is approved',
+  },
+  {
     id: 'general',
     name: 'General Notification',
     description: 'For general system notifications',

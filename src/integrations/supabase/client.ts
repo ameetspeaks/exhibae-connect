@@ -33,7 +33,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storageKey: 'exhibae-connect-auth'
   },
   realtime: {
     params: {
@@ -42,7 +43,14 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'X-Client-Info': 'exhibae-connect@1.0.0'
+      'X-Client-Info': 'exhibae-connect@1.0.0',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'apikey': supabaseAnonKey,
+      'Prefer': 'return=minimal'
     }
+  },
+  db: {
+    schema: 'public'
   }
 });

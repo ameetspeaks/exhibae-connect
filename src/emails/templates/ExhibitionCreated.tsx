@@ -12,7 +12,7 @@ interface ExhibitionCreatedProps {
   exhibitionTitle: string;
   organiserName: string;
   exhibitionId: string;
-  createdDate: Date;
+  createdDate: string;
 }
 
 export const ExhibitionCreatedTemplate: React.FC<ExhibitionCreatedProps> = ({
@@ -33,7 +33,7 @@ export const ExhibitionCreatedTemplate: React.FC<ExhibitionCreatedProps> = ({
         </Text>
         
         <Text style={text}>
-          Your exhibition "{exhibitionTitle}" has been successfully created on {formatDate(createdDate)}.
+          Your exhibition "{exhibitionTitle}" has been successfully created on {createdDate}.
           Our team will review your exhibition details and get back to you within 24-48 hours.
         </Text>
 

@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from './client';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  signUp: (email: string, password: string, metadata: any) => Promise<{ user: User | null; error: AuthError | null }>;
   logout: () => Promise<void>;
 }
 
@@ -13,6 +14,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   loading: true,
+  signUp: async () => ({ user: null, error: null }),
   logout: async () => {},
 });
 
@@ -41,6 +43,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const signUp = async (email: string, password: string, metadata: any) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            ...metadata,
+            email_confirm: true,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/login`,
+        },
+      });
+
+      if (error) {
+        console.error('Signup error:', error);
+        return { user: null, error };
+      }
+
+      return { user: data?.user ?? null, error: null };
+    } catch (error) {
+      console.error('Unexpected error during signup:', error);
+      return { user: null, error: error as AuthError };
+    }
+  };
+
   const logout = async () => {
     try {
       await supabase.auth.signOut();
@@ -53,7 +81,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, logout }}>
+    <AuthContext.Provider value={{ session, user, loading, signUp, logout }}>
       {children}
     </AuthContext.Provider>
   );

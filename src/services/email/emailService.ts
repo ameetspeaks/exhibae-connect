@@ -698,7 +698,7 @@ class EmailService {
           templateId: 'contact-response',
           data: {
             ...data,
-            supportName: data.supportName || 'ExhiBae Support Team',
+            supportName: data.supportName || 'Exhibae Support Team',
             supportEmail: data.supportEmail || 'support@exhibae.com',
             websiteUrl: data.websiteUrl || 'https://exhibae.com'
           },
@@ -723,7 +723,7 @@ class EmailService {
               <p>${data.response.replace(/\n/g, '<br>')}</p>
             </div>
             
-            <p>Best regards,<br>${data.supportName || 'ExhiBae Support Team'}</p>
+            <p>Best regards,<br>${data.supportName || 'Exhibae Support Team'}</p>
             
             <hr style="border: 1px solid #eee; margin: 30px 0;">
             <p style="font-size: 12px; color: #666;">
@@ -765,7 +765,7 @@ class EmailService {
           templateId: 'contact-response',
           data: {
             ...data,
-            supportName: data.supportName || 'ExhiBae Support Team',
+            supportName: data.supportName || 'Exhibae Support Team',
             supportEmail: data.supportEmail || 'support@exhibae.com',
             websiteUrl: data.websiteUrl || 'https://exhibae.com'
           },
@@ -790,7 +790,7 @@ class EmailService {
               <p>${data.response.replace(/\n/g, '<br>')}</p>
             </div>
             
-            <p>Best regards,<br>${data.supportName || 'ExhiBae Support Team'}</p>
+            <p>Best regards,<br>${data.supportName || 'Exhibae Support Team'}</p>
             
             <hr style="border: 1px solid #eee; margin: 30px 0;">
             <p style="font-size: 12px; color: #666;">

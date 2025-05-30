@@ -160,7 +160,7 @@ export default function ExhibitionList() {
               Discover Amazing Exhibitions
             </h1>
           <p className="text-lg text-[#4B1E25]/80 max-w-2xl mx-auto">
-              Find and participate in the most exciting exhibitions across various industries
+              Find and participate in the most exciting exhibitions
             </p>
           </div>
         </div>
@@ -291,11 +291,16 @@ export default function ExhibitionList() {
         )}
       </div>
 
-      {/* Newsletter Subscription Section */}
+      {/* Newsletter Section */}
       {!user && !subscription && (
         <section className="py-16 bg-[#4B1E25]/5">
-          <div className="container mx-auto px-6 max-w-lg">
-            <SubscriptionForm />
+          <div className="container mx-auto px-6">
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="text-3xl font-bold mb-6 text-[#1C1C1C] header-text">Never Miss an Exhibition</h2>
+              <div className="max-w-xl mx-auto">
+                <SubscriptionForm />
+              </div>
+            </div>
           </div>
         </section>
       )}

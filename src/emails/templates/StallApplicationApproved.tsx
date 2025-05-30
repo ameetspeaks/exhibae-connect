@@ -6,13 +6,12 @@ import {
   Text,
 } from '@react-email/components';
 import BaseTemplate from '../components/BaseTemplate';
-import { formatDate } from '@/services/emailService';
 
 interface StallApplicationApprovedProps {
   exhibitionTitle: string;
   brandName: string;
   paymentLink: string;
-  approvedDate: Date;
+  approvedDate: string;
 }
 
 export const StallApplicationApprovedTemplate: React.FC<StallApplicationApprovedProps> = ({
@@ -33,7 +32,7 @@ export const StallApplicationApprovedTemplate: React.FC<StallApplicationApproved
         </Text>
         
         <Text style={text}>
-          Great news! Your stall application for "{exhibitionTitle}" has been approved on {formatDate(approvedDate)}.
+          Great news! Your stall application for "{exhibitionTitle}" has been approved on {approvedDate}.
         </Text>
 
         <Text style={text}>

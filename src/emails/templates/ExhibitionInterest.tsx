@@ -6,14 +6,13 @@ import {
   Text,
 } from '@react-email/components';
 import BaseTemplate from '../components/BaseTemplate';
-import { formatDate } from '@/services/emailService';
 
 interface ExhibitionInterestProps {
   exhibitionTitle: string;
   brandName: string;
   brandEmail: string;
   brandPhone: string;
-  interestDate: Date;
+  interestDate: string;
 }
 
 export const ExhibitionInterestTemplate: React.FC<ExhibitionInterestProps> = ({
@@ -44,7 +43,7 @@ export const ExhibitionInterestTemplate: React.FC<ExhibitionInterestProps> = ({
             <strong>Name:</strong> {brandName}<br />
             <strong>Email:</strong> {brandEmail}<br />
             <strong>Phone:</strong> {brandPhone}<br />
-            <strong>Interest Date:</strong> {formatDate(interestDate)}
+            <strong>Interest Date:</strong> {interestDate}
           </Text>
         </Section>
 

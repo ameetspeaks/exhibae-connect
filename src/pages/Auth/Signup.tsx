@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UserRole } from '@/types/auth';
 
 const signupSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -24,10 +25,16 @@ type SignupFormData = z.infer<typeof signupSchema>;
 export default function Signup() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signUp } = useAuth();
+  
   const { control, handleSubmit, watch } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
+      email: '',
+      password: '',
+      full_name: '',
       role: 'shopper',
+      company_name: '',
     },
   });
 
@@ -35,45 +42,26 @@ export default function Signup() {
 
   const onSubmit = async (data: SignupFormData) => {
     try {
-      console.log("Signup attempt with data:", {
-        email: data.email,
-        role: data.role,
-        full_name: data.full_name,
-        has_company: !!data.company_name
-      });
-
-      // Prepare user metadata - only include fields that are needed
+      // Prepare metadata
       const metadata = {
-        full_name: data.full_name,
+        full_name: data.full_name.trim(),
         role: data.role,
+        ...(data.role === 'brand' && data.company_name 
+          ? { company_name: data.company_name.trim() } 
+          : {})
       };
 
-      // Only add company_name if it's a brand and the field has a value
-      if (data.role === 'brand' && data.company_name) {
-        Object.assign(metadata, { company_name: data.company_name });
+      // Attempt signup using AuthProvider
+      const { user, error } = await signUp(data.email, data.password, metadata);
+
+      if (error) {
+        console.error('Signup error:', error);
+        throw error;
       }
 
-      // Sign up with Supabase
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: metadata,
-          emailRedirectTo: `${window.location.origin}/auth/login`,
-        },
-      });
-
-      if (signUpError) {
-        console.error('Supabase auth signup error:', signUpError);
-        throw signUpError;
-      }
-
-      // Successful signup - check if user was created
-      if (!authData.user) {
+      if (!user) {
         throw new Error('No user data returned from signup');
       }
-
-      console.log("Signup successful, user created with ID:", authData.user.id);
 
       toast({
         title: "Success!",
@@ -82,23 +70,11 @@ export default function Signup() {
 
       navigate('/auth/login');
     } catch (error: any) {
-      console.error('Signup error:', error);
-      
-      // Detailed error handling
-      let errorMessage = "An error occurred during signup";
-      
-      if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      // Database-specific error handling
-      if (error.message?.includes('database') || error.code === '23505') {
-        errorMessage = "A user with this email already exists or there was a database error. Please try again with a different email.";
-      }
+      console.error('Error during signup:', error);
       
       toast({
         title: "Signup Failed",
-        description: errorMessage,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     }
@@ -121,9 +97,9 @@ export default function Signup() {
                 render={({ field, fieldState: { error } }) => (
                   <>
                     <Input 
-                      {...field} 
-                      type="email" 
-                      id="email" 
+                      {...field}
+                      type="email"
+                      id="email"
                       placeholder="Enter your email"
                       className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
                     />
@@ -141,9 +117,9 @@ export default function Signup() {
                 render={({ field, fieldState: { error } }) => (
                   <>
                     <Input 
-                      {...field} 
-                      type="password" 
-                      id="password" 
+                      {...field}
+                      type="password"
+                      id="password"
                       placeholder="Enter your password"
                       className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
                     />
@@ -161,8 +137,8 @@ export default function Signup() {
                 render={({ field, fieldState: { error } }) => (
                   <>
                     <Input 
-                      {...field} 
-                      id="full_name" 
+                      {...field}
+                      id="full_name"
                       placeholder="Enter your full name"
                       className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
                     />
@@ -204,8 +180,8 @@ export default function Signup() {
                   render={({ field, fieldState: { error } }) => (
                     <>
                       <Input 
-                        {...field} 
-                        id="company_name" 
+                        {...field}
+                        id="company_name"
                         placeholder="Enter your company name"
                         className="border-[#4B1E25]/20 focus:border-[#4B1E25] focus:ring-[#4B1E25]"
                       />
@@ -218,7 +194,9 @@ export default function Signup() {
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]">Sign Up</Button>
+            <Button type="submit" className="w-full bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]">
+              Sign Up
+            </Button>
             <p className="text-sm text-gray-500">
               Already have an account?{' '}
               <Link to="/auth/login" className="text-[#4B1E25] hover:text-[#4B1E25]/80">

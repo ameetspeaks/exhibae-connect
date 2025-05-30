@@ -18,7 +18,7 @@ const ForOrganizers = () => {
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-exhibae-navy mb-6">
-              Organize Successful Exhibitions with ExhiBae
+              Organize Successful Exhibitions with Exhibae
             </h1>
             <p className="text-xl text-gray-600 mb-8">
               Streamline your exhibition management process with our comprehensive platform designed for organizers.
@@ -104,7 +104,7 @@ const ForOrganizers = () => {
       <section className="py-16 bg-exhibae-light-gray">
         <div className="container mx-auto px-6">
           <h2 className="text-3xl font-bold text-exhibae-navy text-center mb-12">
-            Why Choose ExhiBae?
+            Why Choose Exhibae?
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             <div>
@@ -157,21 +157,6 @@ const ForOrganizers = () => {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section className="py-16">
-        <div className="container mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold text-exhibae-navy mb-6">
-            Simple, Transparent Pricing
-          </h2>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Choose the plan that best fits your exhibition needs. All plans include our core features with no hidden costs.
-          </p>
-          <Button className="bg-exhibae-navy hover:bg-opacity-90" asChild>
-            <Link to="/contact">View Pricing Plans</Link>
-          </Button>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-16 bg-exhibae-navy text-white">
         <div className="container mx-auto px-6 text-center">
@@ -179,7 +164,7 @@ const ForOrganizers = () => {
             Ready to Transform Your Exhibition Management?
           </h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Join thousands of successful exhibition organizers using ExhiBae.
+            Join thousands of successful exhibition organizers using Exhibae.
           </p>
           <Button className="bg-white text-exhibae-navy hover:bg-gray-100" asChild>
             <Link to="/auth/register">Start Free Trial</Link>

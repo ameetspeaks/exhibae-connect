@@ -171,7 +171,7 @@ export default function Contact() {
                     <Mail className="h-6 w-6 text-[#4B1E25]" />
                     <div>
                       <h3 className="font-semibold text-gray-900">Email</h3>
-                      <p className="text-gray-600">support@exhibae.com</p>
+                      <p className="text-gray-600">info@exhibae.com</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -192,9 +192,7 @@ export default function Contact() {
                     <div>
                       <h3 className="font-semibold text-gray-900">Address</h3>
                       <p className="text-gray-600">
-                        123 Exhibition Street<br />
-                        Mumbai, Maharashtra 400001<br />
-                        India
+                        Delhi, India
                       </p>
                     </div>
                   </CardContent>

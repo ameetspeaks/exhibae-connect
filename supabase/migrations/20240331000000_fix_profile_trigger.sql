@@ -61,4 +61,5 @@ CREATE TRIGGER on_auth_user_created
 
 -- Grant necessary permissions for the new function
 GRANT EXECUTE ON FUNCTION public.handle_new_user() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role; 
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO anon; 

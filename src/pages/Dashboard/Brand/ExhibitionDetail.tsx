@@ -18,6 +18,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin } from 'lucide-react';
+import { unifiedNotificationService } from '@/services/unifiedNotificationService';
 
 interface PaymentSubmission {
   id: string;
@@ -246,9 +247,8 @@ const ExhibitionDetail = () => {
   };
 
   const handleApplySubmit = async () => {
-    if (!selectedStall || !user) return;
+    if (!selectedStall || !user || !id) return;
 
-    setSubmitting(true);
     try {
       const { data, error } = await supabase
         .from('stall_applications')
@@ -259,10 +259,23 @@ const ExhibitionDetail = () => {
           message: applicationText,
           status: 'pending'
         })
-        .select()
+        .select(`
+          *,
+          exhibition:exhibitions(title),
+          brand:profiles(full_name)
+        `)
         .single();
 
       if (error) throw error;
+
+      // Send notifications
+      if (data.exhibition && data.brand) {
+        await unifiedNotificationService.notifyStallApplication(
+          data.id,
+          data.brand.full_name,
+          data.exhibition.title
+        );
+      }
 
       // Immediately update the stall status in the local state
       setStalls(prevStalls => 

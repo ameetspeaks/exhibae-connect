@@ -4,20 +4,40 @@ import App from './App.tsx'
 import './index.css'
 import { preloadNotificationSounds } from './services/notificationSoundService'
 import { initializeNotifications } from './services/notificationService'
+import { Toaster } from '@/components/ui/toaster'
 
-// Preload notification sounds with error handling
-// Loading the sounds asynchronously to not block rendering
-(async () => {
+// Initialize notification system with proper error handling
+const initializeApp = async () => {
   try {
-    await preloadNotificationSounds();
-    await initializeNotifications();
+    // Check if notifications are supported
+    if ('Notification' in window) {
+      // Initialize notifications
+      await initializeNotifications();
+      
+      // Preload sounds
+      await preloadNotificationSounds();
+      
+      // Set up periodic permission check (in case user changes browser settings)
+      setInterval(() => {
+        if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(registration => {
+            registration.active?.postMessage({ type: 'CHECK_NOTIFICATION_STATUS' });
+          });
+        }
+      }, 60000); // Check every minute
+    }
   } catch (error) {
     console.error('Error initializing notification system:', error);
   }
-})();
+};
 
+// Create root and render app
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
-)
+    <Toaster />
+  </React.StrictMode>
+);
+
+// Initialize app features
+initializeApp();

@@ -56,6 +56,11 @@ const ManagerSideNav: React.FC<ManagerSideNavProps> = ({ onLogout }) => {
       href: '/dashboard/manager/email'
     },
     {
+      title: 'Subscriptions',
+      icon: Mail,
+      href: '/dashboard/manager/subscriptions'
+    },
+    {
       title: 'Categories',
       icon: Tag,
       href: '/dashboard/manager/categories'

@@ -29,16 +29,41 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
       );
     })
   );
   
-  // Take control of all clients immediately
+  // Ensure the service worker takes control immediately
   self.clients.claim();
 });
+
+// Message event - handle messages from the client
+self.addEventListener('message', (event) => {
+  if (event.data.type === 'CHECK_NOTIFICATION_STATUS') {
+    checkNotificationPermission();
+  }
+});
+
+// Function to check notification permission
+async function checkNotificationPermission() {
+  try {
+    const allClients = await self.clients.matchAll();
+    
+    allClients.forEach(client => {
+      client.postMessage({
+        type: 'NOTIFICATION_STATUS',
+        permission: Notification.permission
+      });
+    });
+  } catch (error) {
+    console.error('Error checking notification permission:', error);
+  }
+}
 
 // Push event - handle incoming push notifications
 self.addEventListener('push', (event) => {
@@ -72,7 +97,11 @@ self.addEventListener('push', (event) => {
           action: 'close',
           title: 'Close'
         }
-      ]
+      ],
+      // Add vibration pattern for mobile devices
+      vibrate: [200, 100, 200],
+      // Add a timeout to auto-close notifications after 30 seconds
+      timestamp: new Date().getTime() + 30000
     };
     
     event.waitUntil(
@@ -85,32 +114,31 @@ self.addEventListener('push', (event) => {
 
 // Notification click event
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
+  const notification = event.notification;
+  const action = event.action;
+  const data = notification.data;
   
   // Close the notification
-  event.notification.close();
+  notification.close();
   
-  // Get the notification data
-  const notificationData = event.notification.data;
-  
-  // Handle notification actions
-  if (event.action === 'close') {
+  // Handle the action
+  if (action === 'close') {
     return;
   }
   
-  // Default action is 'open'
+  // Focus or open window
   event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then((clientList) => {
-      // Check if there's already a window/tab open with the target URL
-      for (const client of clientList) {
-        if (client.url === notificationData.url && 'focus' in client) {
-          return client.focus();
+    self.clients.matchAll({ type: 'window' }).then(clientList => {
+      // If we have a link and the action is 'open', navigate to it
+      if (data.url && (action === 'open' || !action)) {
+        // Try to focus an existing window first
+        for (const client of clientList) {
+          if (client.url === data.url && 'focus' in client) {
+            return client.focus();
+          }
         }
-      }
-      
-      // If no window/tab is open with the target URL, open a new one
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(notificationData.url);
+        // If no existing window, open a new one
+        return self.clients.openWindow(data.url);
       }
     })
   );

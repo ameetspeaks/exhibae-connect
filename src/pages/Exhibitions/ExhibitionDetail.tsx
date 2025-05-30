@@ -205,6 +205,8 @@ export default function ExhibitionDetail() {
     const fetchOrganiser = async () => {
       if (!exhibition?.organiser_id) return;
       setIsLoadingOrganiser(true);
+      console.log('Fetching organiser details for ID:', exhibition.organiser_id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -220,9 +222,13 @@ export default function ExhibitionDetail() {
         `)
         .eq('id', exhibition.organiser_id)
         .single();
+
+      console.log('Organiser query result:', { data, error });
+        
       if (error) {
         console.error('Error fetching organiser details:', error);
       } else {
+        console.log('Found organiser:', data);
         setOrganiser(data);
       }
       setIsLoadingOrganiser(false);
@@ -562,7 +568,11 @@ export default function ExhibitionDetail() {
                   <CardTitle>Organiser</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full flex items-center gap-4 hover:bg-[#4B1E25]/5"
+                    onClick={() => navigate(`/organisers/${organiser.id}`)}
+                  >
                     {organiser.avatar_url && (
                       <img
                         src={organiser.avatar_url}
@@ -570,11 +580,11 @@ export default function ExhibitionDetail() {
                         className="w-12 h-12 rounded-full object-cover"
                       />
                     )}
-                    <div>
+                    <div className="text-left">
                       <h3 className="font-semibold">{organiser.company_name}</h3>
                       <p className="text-sm text-muted-foreground">{organiser.full_name}</p>
                     </div>
-                  </div>
+                  </Button>
                   
                   {organiser.description && (
                     <p className="text-sm text-muted-foreground">{organiser.description}</p>

@@ -19,6 +19,17 @@ export interface NotificationSettings {
   exhibition_cancelled_enabled: boolean;
   exhibition_updated_enabled: boolean;
   message_received_enabled: boolean;
+  comment_received_enabled: boolean;
+  review_submitted_enabled: boolean;
+  review_response_enabled: boolean;
+  profile_updated_enabled: boolean;
+  document_uploaded_enabled: boolean;
+  document_approved_enabled: boolean;
+  document_rejected_enabled: boolean;
+  exhibition_status_updated_enabled: boolean;
+  payment_status_updated_enabled: boolean;
+  stall_application_received_enabled: boolean;
+  stall_approved_enabled: boolean;
 }
 
 const defaultSettings: Omit<NotificationSettings, 'id' | 'user_id'> = {
@@ -35,6 +46,17 @@ const defaultSettings: Omit<NotificationSettings, 'id' | 'user_id'> = {
   exhibition_cancelled_enabled: true,
   exhibition_updated_enabled: true,
   message_received_enabled: true,
+  comment_received_enabled: true,
+  review_submitted_enabled: true,
+  review_response_enabled: true,
+  profile_updated_enabled: true,
+  document_uploaded_enabled: true,
+  document_approved_enabled: true,
+  document_rejected_enabled: true,
+  exhibition_status_updated_enabled: true,
+  payment_status_updated_enabled: true,
+  stall_application_received_enabled: true,
+  stall_approved_enabled: true,
 };
 
 export function useNotificationSettings() {
@@ -79,12 +101,16 @@ export function useNotificationSettings() {
                 ...defaultSettings,
               },
             ])
-            .select()
+            .select('*')
             .single();
 
-          if (createError) throw createError;
+          if (createError) {
+            console.error('Error creating notification settings:', createError);
+            throw createError;
+          }
           setSettings(newSettings);
         } else {
+          console.error('Error fetching notification settings:', error);
           throw error;
         }
       } else {
@@ -94,7 +120,7 @@ export function useNotificationSettings() {
       console.error('Error fetching notification settings:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load notification settings.',
+        description: 'Failed to load notification settings. Please try again later.',
         variant: 'destructive',
       });
     } finally {

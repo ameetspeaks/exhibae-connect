@@ -1,29 +1,17 @@
-import nodemailer from 'nodemailer';
 import { render } from '@react-email/render';
 import { format } from 'date-fns';
 
 // Email templates
 import ExhibitionCreatedTemplate from '../emails/templates/ExhibitionCreated';
-import { ExhibitionApprovedTemplate } from '@/emails/templates/ExhibitionApproved';
-import { NewStallRequestTemplate } from '@/emails/templates/NewStallRequest';
 import ExhibitionInterestTemplate from '../emails/templates/ExhibitionInterest';
 import StallApplicationApprovedTemplate from '../emails/templates/StallApplicationApproved';
 import PaymentCompletedTemplate from '../emails/templates/PaymentCompleted';
 import PaymentReminderTemplate from '../emails/templates/PaymentReminder';
-import { ShopperEmailTemplate } from '@/emails/templates/ShopperEmail';
-import { ManagerEmailTemplate } from '@/emails/templates/ManagerEmail';
 import WelcomeEmailTemplate from '../emails/templates/WelcomeEmail';
 
-// Create reusable transporter
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: 'exhibaeconnect@gmail.com',
-    pass: 'your-app-specific-password',
-  },
-});
+// API URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const EMAIL_API_URL = `${API_URL}/api/email`;
 
 // Email types
 export type EmailType =
@@ -44,7 +32,7 @@ interface ExhibitionCreatedData extends BaseEmailData {
   organiserName: string;
   exhibitionTitle: string;
   exhibitionId: string;
-  createdDate: Date;
+  createdDate: string | Date;
 }
 
 interface ExhibitionInterestData extends BaseEmailData {
@@ -53,21 +41,21 @@ interface ExhibitionInterestData extends BaseEmailData {
   brandEmail: string;
   brandPhone: string;
   exhibitionTitle: string;
-  interestDate: Date;
+  interestDate: string | Date;
 }
 
 interface StallApplicationApprovedData extends BaseEmailData {
   brandName: string;
   exhibitionTitle: string;
   paymentLink: string;
-  approvedDate: Date;
+  approvedDate: string | Date;
 }
 
 interface PaymentCompletedData extends BaseEmailData {
   brandName: string;
   exhibitionTitle: string;
   paymentAmount: number;
-  paymentDate: Date;
+  paymentDate: string | Date;
   stallDetails: string;
 }
 
@@ -75,7 +63,7 @@ interface PaymentReminderData extends BaseEmailData {
   brandName: string;
   exhibitionTitle: string;
   paymentAmount: number;
-  dueDate: Date;
+  dueDate: string | Date;
   paymentLink: string;
 }
 
@@ -92,6 +80,15 @@ type EmailData =
   | PaymentReminderData
   | WelcomeEmailData;
 
+const ensureDate = (date: string | Date): Date => {
+  return date instanceof Date ? date : new Date(date);
+};
+
+// Helper function to format date
+export function formatDate(date: string | Date): string {
+  return format(ensureDate(date), 'MMMM d, yyyy');
+}
+
 export const sendEmail = async (type: EmailType, data: EmailData) => {
   let html: string;
   let subject: string;
@@ -104,7 +101,7 @@ export const sendEmail = async (type: EmailType, data: EmailData) => {
           organiserName: createdData.organiserName,
           exhibitionTitle: createdData.exhibitionTitle,
           exhibitionId: createdData.exhibitionId,
-          createdDate: createdData.createdDate,
+          createdDate: formatDate(createdData.createdDate),
         })
       );
       subject = createdData.subject || `New Exhibition Created: ${createdData.exhibitionTitle}`;
@@ -119,7 +116,7 @@ export const sendEmail = async (type: EmailType, data: EmailData) => {
           brandEmail: interestData.brandEmail,
           brandPhone: interestData.brandPhone,
           exhibitionTitle: interestData.exhibitionTitle,
-          interestDate: new Date(interestData.interestDate),
+          interestDate: formatDate(interestData.interestDate),
         })
       );
       subject = interestData.subject || `New Interest in ${interestData.exhibitionTitle}`;
@@ -133,7 +130,7 @@ export const sendEmail = async (type: EmailType, data: EmailData) => {
           brandName: approvedData.brandName,
           exhibitionTitle: approvedData.exhibitionTitle,
           paymentLink: approvedData.paymentLink,
-          approvedDate: new Date(approvedData.approvedDate),
+          approvedDate: formatDate(approvedData.approvedDate),
         })
       );
       subject = approvedData.subject || `Stall Application Approved: ${approvedData.exhibitionTitle}`;
@@ -147,7 +144,7 @@ export const sendEmail = async (type: EmailType, data: EmailData) => {
           brandName: completedData.brandName,
           exhibitionTitle: completedData.exhibitionTitle,
           paymentAmount: completedData.paymentAmount,
-          paymentDate: new Date(completedData.paymentDate),
+          paymentDate: formatDate(completedData.paymentDate),
           stallDetails: completedData.stallDetails,
         })
       );
@@ -162,7 +159,7 @@ export const sendEmail = async (type: EmailType, data: EmailData) => {
           brandName: reminderData.brandName,
           exhibitionTitle: reminderData.exhibitionTitle,
           paymentAmount: reminderData.paymentAmount,
-          dueDate: new Date(reminderData.dueDate),
+          dueDate: formatDate(reminderData.dueDate),
           paymentLink: reminderData.paymentLink,
         })
       );
@@ -187,12 +184,24 @@ export const sendEmail = async (type: EmailType, data: EmailData) => {
   }
 
   try {
-    await transporter.sendMail({
-      from: '"Exhibae Connect" <exhibaeconnect@gmail.com>',
-      to: data.to,
-      subject,
-      html,
+    const response = await fetch(`${EMAIL_API_URL}/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: data.to,
+        subject,
+        html,
+      }),
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to send email');
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('Error sending email:', error);
     throw error;
@@ -205,9 +214,4 @@ export function formatCurrency(amount: number): string {
     style: 'currency',
     currency: 'INR'
   }).format(amount);
-}
-
-// Helper function to format date
-export function formatDate(date: Date): string {
-  return format(date, 'MMMM d, yyyy');
 } 

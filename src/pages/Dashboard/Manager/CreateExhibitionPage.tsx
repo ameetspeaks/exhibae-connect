@@ -35,6 +35,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { logActivity } from '@/lib/activity-logger';
+import { unifiedNotificationService } from '@/services/unifiedNotificationService';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -133,6 +134,26 @@ const CreateExhibitionPage = () => {
         .single();
 
       if (error) throw error;
+
+      // Get user profile data
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+      }
+
+      // Send notifications
+      await unifiedNotificationService.notifyExhibitionCreated(
+        data.id,
+        values.title,
+        profileData?.full_name || 'Manager',
+        user.email || '',
+        user.email || ''
+      );
 
       await logActivity({
         action: 'Created exhibition',

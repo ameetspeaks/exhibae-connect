@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -32,19 +32,19 @@ const notificationTypes = [
     id: 'exhibition_created',
     name: 'Exhibition Created',
     description: 'When a new exhibition is created',
-    roles: ['manager', 'organiser']
+    roles: ['manager', 'organiser', 'brand']
   },
   {
     id: 'stall_booked',
     name: 'Stall Booking',
     description: 'When a brand books a stall',
-    roles: ['manager', 'organiser']
+    roles: ['manager', 'organiser', 'brand']
   },
   {
     id: 'stall_updated',
     name: 'Stall Updated',
     description: 'When a stall is updated',
-    roles: ['manager', 'organiser']
+    roles: ['manager', 'organiser', 'brand']
   },
   {
     id: 'application_received',
@@ -81,6 +81,72 @@ const notificationTypes = [
     name: 'New Message',
     description: 'When you receive a new message',
     roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'comment_received',
+    name: 'New Comment',
+    description: 'When someone comments on your content',
+    roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'review_submitted',
+    name: 'Review Submitted',
+    description: 'When a review is submitted',
+    roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'review_response',
+    name: 'Review Response',
+    description: 'When someone responds to your review',
+    roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'profile_updated',
+    name: 'Profile Updated',
+    description: 'When your profile is updated',
+    roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'document_uploaded',
+    name: 'Document Uploaded',
+    description: 'When a document is uploaded',
+    roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'document_approved',
+    name: 'Document Approved',
+    description: 'When a document is approved',
+    roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'document_rejected',
+    name: 'Document Rejected',
+    description: 'When a document is rejected',
+    roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'exhibition_status_updated',
+    name: 'Exhibition Status Update',
+    description: 'When an exhibition status is updated',
+    roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'payment_status_updated',
+    name: 'Payment Status Update',
+    description: 'When a payment status is updated',
+    roles: ['manager', 'organiser', 'brand']
+  },
+  {
+    id: 'stall_application_received',
+    name: 'Stall Application Received',
+    description: 'When a new stall application is submitted',
+    roles: ['manager', 'organiser']
+  },
+  {
+    id: 'stall_approved',
+    name: 'Stall Approved',
+    description: 'When a stall is approved',
+    roles: ['manager', 'organiser', 'brand']
   }
 ];
 
@@ -92,39 +158,114 @@ const UnifiedNotificationSettings = () => {
   const [volume, setVolume] = React.useState(0.5);
   const [notificationPermission, setNotificationPermission] = React.useState<NotificationPermission | null>(null);
 
-  React.useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setNotificationPermission(Notification.permission);
-    }
-  }, []);
-
   const handleRequestPermission = async () => {
+    console.log('Request Permission button clicked'); // Debug log
+    
     try {
+      // Check if notifications are supported
+      if (!('Notification' in window)) {
+        console.log('Notifications not supported'); // Debug log
+        toast({
+          title: "Not Supported",
+          description: "Your browser does not support desktop notifications",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Force request even if already denied
+      if (Notification.permission === 'denied') {
+        console.log('Notifications currently denied'); // Debug log
+        // Try to open browser settings if possible
+        try {
+          if ('permissions' in navigator) {
+            const result = await (navigator as any).permissions.query({ name: 'notifications' });
+            if (result.state === 'prompt') {
+              await Notification.requestPermission();
+            } else {
+              window.open('chrome://settings/content/notifications', '_blank');
+            }
+          }
+        } catch (error) {
+          console.warn('Could not open browser settings:', error);
+        }
+        
+        toast({
+          title: "Permission Denied",
+          description: "Please enable notifications in your browser settings and try again",
+          variant: "destructive",
+          duration: 5000,
+        });
+        return;
+      }
+
+      console.log('Requesting notification permission...'); // Debug log
       const granted = await requestNotificationPermission();
+      console.log('Permission request result:', granted); // Debug log
+      
       setNotificationPermission(granted ? 'granted' : 'denied');
       
       if (granted) {
+        // Show a test notification
+        const testNotification = new Notification("Notifications Enabled", {
+          body: "You will now receive desktop notifications from Exhibae",
+          icon: "/favicon.ico",
+          tag: 'test-notification'
+        });
+
+        // Close the test notification after 3 seconds
+        setTimeout(() => testNotification.close(), 3000);
+
         toast({
           title: "Permission Granted",
           description: "You will now receive desktop notifications",
+          variant: "default",
         });
-        updateSettings({ desktop_notifications: true });
+        
+        // Enable notifications in settings
+        await updateSettings({ 
+          desktop_notifications: true,
+          sound_enabled: true // Also enable sound by default
+        });
       } else {
         toast({
-          title: "Permission Denied",
-          description: "You will not receive desktop notifications",
+          title: "Permission Not Granted",
+          description: "Please click Allow in the browser's permission popup when it appears",
           variant: "destructive",
+          duration: 7000,
         });
+
+        // Add a retry button after a short delay
+        setTimeout(() => {
+          toast({
+            title: "Want to try again?",
+            description: "Click 'Request Permission' again, or check your browser settings",
+            action: (
+              <Button variant="outline" size="sm" onClick={handleRequestPermission}>
+                Retry
+              </Button>
+            ),
+            duration: 10000,
+          });
+        }, 2000);
       }
     } catch (error) {
       console.error("Error requesting notification permission:", error);
       toast({
         title: "Error",
-        description: "Failed to request notification permission",
+        description: "Failed to request notification permission. Please try again or check your browser settings.",
         variant: "destructive",
       });
     }
   };
+
+  // Add debug logging for initial permission state
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      console.log('Current notification permission:', Notification.permission);
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
 
   const handleToggle = (key: string, value: boolean) => {
     updateSettings({ [key]: value });

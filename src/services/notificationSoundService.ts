@@ -13,6 +13,10 @@ const NOTIFICATION_SOUNDS = {
   stall_booked: DEFAULT_SOUND_PATH,
   stall_updated: DEFAULT_SOUND_PATH,
   application_received: DEFAULT_SOUND_PATH,
+  exhibition_status_updated: DEFAULT_SOUND_PATH,
+  payment_status_updated: DEFAULT_SOUND_PATH,
+  stall_application_received: DEFAULT_SOUND_PATH,
+  stall_approved: DEFAULT_SOUND_PATH,
   general: DEFAULT_SOUND_PATH,
   default: DEFAULT_SOUND_PATH,
 };

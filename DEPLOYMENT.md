@@ -1,6 +1,6 @@
-# Deployment Guide for ExhiBae
+# Deployment Guide for Exhibae
 
-This guide outlines the steps to deploy updates to the ExhiBae production server.
+This guide outlines the steps to deploy updates to the Exhibae production server.
 
 ## Prerequisites
 

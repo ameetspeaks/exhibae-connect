@@ -126,6 +126,74 @@ class ManagerNotificationService {
       link: `/dashboard/applications/${applicationId}`
     });
   }
+
+  /**
+   * Notify managers about an exhibition status update
+   */
+  async notifyExhibitionStatusUpdate(exhibitionId: string, exhibitionName: string, newStatus: string) {
+    if (!exhibitionId || !exhibitionName || !newStatus) {
+      console.error('Missing required parameters for notifyExhibitionStatusUpdate');
+      return false;
+    }
+    
+    return this.sendToManagers({
+      title: 'Exhibition Status Updated',
+      message: `Exhibition "${exhibitionName}" status has been updated to ${newStatus}`,
+      type: 'exhibition_status_updated',
+      link: `/dashboard/exhibitions/${exhibitionId}`
+    });
+  }
+
+  /**
+   * Notify managers about a payment status update
+   */
+  async notifyPaymentStatusUpdate(paymentId: string, exhibitionName: string, brandName: string, newStatus: string) {
+    if (!paymentId || !exhibitionName || !brandName || !newStatus) {
+      console.error('Missing required parameters for notifyPaymentStatusUpdate');
+      return false;
+    }
+    
+    return this.sendToManagers({
+      title: 'Payment Status Updated',
+      message: `Payment status for ${brandName} (${exhibitionName}) has been updated to ${newStatus}`,
+      type: 'payment_status_updated',
+      link: `/dashboard/payments/${paymentId}`
+    });
+  }
+
+  /**
+   * Notify managers about a new stall application
+   */
+  async notifyStallApplicationReceived(applicationId: string, brandName: string, exhibitionName: string) {
+    if (!applicationId || !brandName || !exhibitionName) {
+      console.error('Missing required parameters for notifyStallApplicationReceived');
+      return false;
+    }
+    
+    return this.sendToManagers({
+      title: 'New Stall Application',
+      message: `${brandName} has submitted a stall application for ${exhibitionName}`,
+      type: 'stall_application_received',
+      link: `/dashboard/applications/${applicationId}`
+    });
+  }
+
+  /**
+   * Notify managers about a stall approval
+   */
+  async notifyStallApproved(stallId: string, brandName: string, exhibitionName: string) {
+    if (!stallId || !brandName || !exhibitionName) {
+      console.error('Missing required parameters for notifyStallApproved');
+      return false;
+    }
+    
+    return this.sendToManagers({
+      title: 'Stall Approved',
+      message: `Stall for ${brandName} in ${exhibitionName} has been approved`,
+      type: 'stall_approved',
+      link: `/dashboard/stalls/${stallId}`
+    });
+  }
 }
 
 // Export singleton instance

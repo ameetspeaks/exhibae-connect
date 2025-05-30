@@ -8,6 +8,7 @@ import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { useToast } from '@/components/ui/use-toast';
 import { UserRole } from '@/types/auth';
 import { cn } from '@/lib/utils';
+import ScrollToTop from '../layout/ScrollToTop';
 
 interface DashboardLayoutProps {
   role: UserRole;
@@ -16,7 +17,7 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ role, title }: DashboardLayoutProps) => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const { toast } = useToast();
 
   // Define role-specific color schemes and styling
@@ -84,12 +85,9 @@ const DashboardLayout = ({ role, title }: DashboardLayoutProps) => {
     }
   };
 
-  if (!user) {
-    return null;
-  }
-
   return (
     <div className={cn('min-h-screen flex flex-col', roleStyle.bgGradient)}>
+      <ScrollToTop />
       <DashboardHeader role={role} title={title} />
       <div className="flex-1 flex">
         <DashboardSidebar role={role} onLogout={handleLogout} />

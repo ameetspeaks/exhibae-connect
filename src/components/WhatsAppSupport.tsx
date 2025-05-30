@@ -35,8 +35,8 @@ const WhatsAppSupport = () => {
           onClick={() => setIsVisible(true)}
           className="bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full p-2 shadow-sm transition-colors duration-200 flex items-center gap-2 text-xs"
         >
-          <MessageSquare className="w-4 h-4" />
-          <span>Show Support</span>
+          <MessageSquare className="w-6 h-6" />
+          <span>Support</span>
         </button>
       </div>
     );

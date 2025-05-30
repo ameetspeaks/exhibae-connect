@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePublishedExhibitions } from '@/hooks/useExhibitionsData';
 import { format } from 'date-fns';
-import { MapPin, Calendar, ShoppingBag, Tag, Users, ChevronDown } from 'lucide-react';
+import { MapPin, Calendar, ShoppingBag, Tag, Users, ChevronDown, Gift, Store, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import ImageSlider, { SliderStatus } from '@/components/ImageSlider';
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Logo } from '@/components/ui/logo';
+import { SubscriptionForm } from '@/components/SubscriptionForm';
 
 const Home = () => {
   const { data: exhibitions, isLoading, error } = usePublishedExhibitions(6);
@@ -42,35 +43,35 @@ const Home = () => {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative min-h-[500px] flex items-center bg-[#F5E4DA] py-8">
+      <section className="relative min-h-[500px] flex items-center bg-[#F5E4DA] pb-4">
         <div className="relative w-full z-0">
           <ImageSlider onStatusChange={setSliderStatus} />
         </div>
       </section>
 
       {/* Benefits Section */}
-      <section className="py-20 bg-[#F5E4DA]">
+      <section className="py-12 bg-[#F5E4DA]">
         <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center mb-16 text-[#1C1C1C] header-text">Why Shop at Exhibitions?</h2>
+          <h2 className="text-3xl font-bold text-center mb-10 text-[#1C1C1C] header-text">Why Exhibae?</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center p-6">
               <div className="bg-[#E6C5B6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                <ShoppingBag className="w-8 h-8 text-[#1C1C1C]" />
+                <Gift className="w-8 h-8 text-[#1C1C1C]" />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-[#1C1C1C] header-text">Exclusive Products</h3>
+              <h3 className="text-xl font-semibold mb-4 text-[#1C1C1C] header-text">🎁 Unlock Exclusive Deals</h3>
               <p className="text-[#1C1C1C]/80 subheading-text">
-                Discover unique items and limited editions not available in regular stores
+                Special discounts for both brands and shoppers — only on Exhibae!
               </p>
             </div>
             
             <div className="text-center p-6">
               <div className="bg-[#E6C5B6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Tag className="w-8 h-8 text-[#1C1C1C]" />
+                <Store className="w-8 h-8 text-[#1C1C1C]" />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-[#1C1C1C] header-text">Special Deals</h3>
+              <h3 className="text-xl font-semibold mb-4 text-[#1C1C1C] header-text">📍Book Stalls in Seconds</h3>
               <p className="text-[#1C1C1C]/80 subheading-text">
-                Get access to exhibition-only discounts and promotional offers
+                Browse, compare, and reserve exhibition spots — hassle-free
               </p>
             </div>
             
@@ -78,9 +79,9 @@ const Home = () => {
               <div className="bg-[#E6C5B6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Users className="w-8 h-8 text-[#1C1C1C]" />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-[#1C1C1C] header-text">Meet the Brands</h3>
+              <h3 className="text-xl font-semibold mb-4 text-[#1C1C1C] header-text">🚀Be Seen by the Right Crowd</h3>
               <p className="text-[#1C1C1C]/80 subheading-text">
-                Interact directly with brand owners and get personalized recommendations
+                Get your brand in front of thousands of exhibition-ready shoppers.
               </p>
             </div>
           </div>
@@ -88,15 +89,15 @@ const Home = () => {
       </section>
 
       {/* Featured Exhibitions */}
-      <section className="py-20 bg-[#F5E4DA]">
+      <section className="py-12 bg-[#F5E4DA]">
         <div className="container mx-auto px-6">
-          <div className="flex flex-col space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <h2 className="text-3xl font-bold text-[#1C1C1C] header-text">Upcoming Exhibitions</h2>
-                <div className="w-48">
+          <div className="flex flex-col space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#1C1C1C] header-text">Upcoming Exhibitions</h2>
+                <div className="w-full sm:w-48">
                   <Select value={selectedCity} onValueChange={setSelectedCity}>
-                    <SelectTrigger className="bg-white border-[#E6C5B6] text-[#1C1C1C]">
+                    <SelectTrigger className="bg-white border-[#E6C5B6] text-[#1C1C1C] w-full">
                       <SelectValue placeholder="Select city" />
                     </SelectTrigger>
                     <SelectContent>
@@ -109,13 +110,16 @@ const Home = () => {
                   </Select>
                 </div>
               </div>
-              <Button variant="link" className="text-[#4B1E25] hover:text-[#4B1E25]/80 font-medium subheading-text" asChild>
-                <Link to="/exhibitions">View All</Link>
+              <Button variant="link" className="text-[#4B1E25] hover:text-[#4B1E25]/80 font-medium subheading-text -mt-2 sm:mt-0" asChild>
+                <Link to="/exhibitions" className="flex items-center gap-2">
+                  View All
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
               </Button>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mt-6 sm:mt-8">
             {isLoading ? (
               // Loading skeleton
               Array(4).fill(0).map((_, i) => (
@@ -160,18 +164,8 @@ const Home = () => {
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-6 text-[#1C1C1C] header-text">Never Miss an Exhibition</h2>
-            <p className="text-xl mb-8 text-[#1C1C1C]/80 subheading-text">
-              Subscribe to our newsletter and be the first to know about upcoming exhibitions and exclusive deals.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto">
-              <Input 
-                type="email" 
-                placeholder="Enter your email address"
-                className="flex-1 bg-[#F5E4DA] border-[#E6C5B6] text-[#1C1C1C] subheading-text"
-              />
-              <Button className="bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA] subheading-text">
-                Subscribe
-              </Button>
+            <div className="max-w-xl mx-auto">
+              <SubscriptionForm />
             </div>
           </div>
         </div>

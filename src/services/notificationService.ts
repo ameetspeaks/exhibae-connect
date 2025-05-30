@@ -27,29 +27,52 @@ let notificationPermissionStatus: NotificationPermission | null = null;
  * @returns Promise resolving to true if permission is granted
  */
 export const requestNotificationPermission = async (): Promise<boolean> => {
+  console.log('Requesting notification permission...'); // Debug log
+  
   if (typeof window === 'undefined' || !('Notification' in window)) {
     console.warn('This browser does not support desktop notifications');
     return false;
   }
   
-  // Return cached permission if already checked
-  if (notificationPermissionStatus === 'granted') {
-    return true;
-  }
-  
-  if (Notification.permission !== 'denied') {
-    try {
-      const permission = await Notification.requestPermission();
-      notificationPermissionStatus = permission;
-      return permission === 'granted';
-    } catch (error) {
-      console.error('Error requesting notification permission:', error);
-      return false;
+  try {
+    // Force a new permission request
+    const permission = await Notification.requestPermission();
+    console.log('Permission request result:', permission); // Debug log
+    
+    // Update the cached permission status
+    notificationPermissionStatus = permission;
+    
+    // If permission is granted, set up the service worker
+    if (permission === 'granted') {
+      if ('serviceWorker' in navigator) {
+        try {
+          // Unregister any existing service worker first
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const registration of registrations) {
+            if (registration.scope.includes('notification-sw')) {
+              await registration.unregister();
+            }
+          }
+          
+          // Register a new service worker
+          const registration = await navigator.serviceWorker.register('/notification-sw.js');
+          console.log('ServiceWorker registration successful:', registration);
+          
+          // Wait for the service worker to be ready
+          await navigator.serviceWorker.ready;
+        } catch (error) {
+          console.warn('ServiceWorker registration failed:', error);
+        }
+      }
+      return true;
     }
+    
+    return false;
+  } catch (error) {
+    console.error('Error requesting notification permission:', error);
+    notificationPermissionStatus = 'default';
+    return false;
   }
-  
-  notificationPermissionStatus = Notification.permission;
-  return false;
 };
 
 /**

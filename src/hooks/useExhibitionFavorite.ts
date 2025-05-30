@@ -1,7 +1,8 @@
-import { useAuth } from '@/integrations/supabase/AuthProvider';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from './use-toast';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/integrations/supabase/AuthProvider';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuthenticatedAction } from './useAuthenticatedAction';
 
 /**
  * Hook to manage exhibition favorites functionality
@@ -11,64 +12,47 @@ export function useExhibitionFavorite(exhibitionId: string) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { withAuth, showLoginPrompt, closeLoginPrompt } = useAuthenticatedAction();
 
-  // Check if the current user has favorited this exhibition
-  const { 
-    data: isFavorite, 
-    isLoading,
-    refetch: refetchFavorite
-  } = useQuery({
+  // Check if exhibition is favorited
+  const { data: isFavorite, isLoading } = useQuery({
     queryKey: ['exhibition-favorite', exhibitionId, user?.id],
     queryFn: async () => {
       if (!user) return false;
-      
-      try {
-        const { data, error } = await supabase
-          .from('exhibition_favorites')
-          .select('exhibition_id')
-          .eq('exhibition_id', exhibitionId)
-          .eq('user_id', user.id)
-          .maybeSingle();
 
-        if (error) {
-          console.error('Error checking favorite status:', error);
-          return false;
-        }
+      const { data, error } = await supabase
+        .from('exhibition_favorites')
+        .select('id')
+        .eq('exhibition_id', exhibitionId)
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-        return !!data;
-      } catch (error) {
+      if (error) {
         console.error('Error checking favorite status:', error);
         return false;
       }
+
+      return !!data;
     },
-    enabled: !!user && !!exhibitionId
+    enabled: !!user,
   });
 
-  // Get favorites count for an exhibition
-  const { 
-    data: favoritesCount,
-    isLoading: isLoadingCount 
-  } = useQuery({
+  // Get favorites count
+  const { data: favoritesCount, isLoading: isLoadingCount } = useQuery({
     queryKey: ['exhibition-favorites-count', exhibitionId],
     queryFn: async () => {
-      try {
-        const { count, error } = await supabase
-          .from('exhibition_favorites')
-          .select('exhibition_id', { count: 'exact', head: true })
-          .eq('exhibition_id', exhibitionId);
+      const { count, error } = await supabase
+        .from('exhibition_favorites')
+        .select('*', { count: 'exact', head: true })
+        .eq('exhibition_id', exhibitionId);
 
-        if (error) {
-          console.error('Error fetching favorites count:', error);
-          return 0;
-        }
-
-        return count || 0;
-      } catch (error) {
+      if (error) {
         console.error('Error fetching favorites count:', error);
         return 0;
       }
+
+      return count || 0;
     },
-    enabled: !!exhibitionId
   });
 
   // Ensure user has a profile record
@@ -117,33 +101,25 @@ export function useExhibitionFavorite(exhibitionId: string) {
   const addFavorite = useMutation({
     mutationFn: async () => {
       if (!user || !exhibitionId) throw new Error('User or exhibition ID missing');
-      
-      // Ensure user has a profile
-      const profileExists = await ensureUserProfile();
-      if (!profileExists) {
-        throw new Error('Could not create or verify user profile');
-      }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('exhibition_favorites')
         .insert([
           {
             exhibition_id: exhibitionId,
-            user_id: user.id
-          }
-        ])
-        .select('exhibition_id')
-        .single();
+            user_id: user.id,
+          },
+        ]);
 
       if (error) throw error;
-      return data;
+      return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exhibition-favorite', exhibitionId, user?.id] });
       queryClient.invalidateQueries({ queryKey: ['exhibition-favorites-count', exhibitionId] });
       toast({
-        title: "Added to Favorites",
-        description: "Exhibition added to your favorites!",
+        title: "Added",
+        description: "Exhibition added to your favorites.",
       });
     },
     onError: (error: any) => {
@@ -190,11 +166,13 @@ export function useExhibitionFavorite(exhibitionId: string) {
 
   // Toggle favorite
   const toggleFavorite = () => {
-    if (isFavorite) {
-      removeFavorite.mutate();
-    } else {
-      addFavorite.mutate();
-    }
+    withAuth(() => {
+      if (isFavorite) {
+        removeFavorite.mutate();
+      } else {
+        addFavorite.mutate();
+      }
+    });
   };
 
   return {
@@ -202,6 +180,8 @@ export function useExhibitionFavorite(exhibitionId: string) {
     isLoading: isLoading || isLoadingCount,
     isSubmitting: addFavorite.isPending || removeFavorite.isPending,
     favoritesCount,
-    toggleFavorite
+    toggleFavorite,
+    showLoginPrompt,
+    closeLoginPrompt
   };
 } 

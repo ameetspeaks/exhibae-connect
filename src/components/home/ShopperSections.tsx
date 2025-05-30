@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
+import { UserRole } from '@/types/auth';
 
 interface Exhibition {
   id: string;
@@ -38,6 +39,33 @@ interface ExhibitionAttendingResponse {
 
 export const ShopperSections = () => {
   const { user } = useAuth();
+  const [userRole, setUserRole] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const fetchUserRole = async () => {
+      if (user) {
+        // First check user_metadata for role
+        const metadataRole = user.user_metadata?.role;
+        if (metadataRole) {
+          setUserRole(metadataRole.toLowerCase());
+          return;
+        }
+
+        // Fallback to profiles table if no role in metadata
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && data) {
+          setUserRole(data.role.toLowerCase());
+        }
+      }
+    };
+
+    fetchUserRole();
+  }, [user]);
 
   // Fetch favorite brands
   const { data: favoriteBrands, isLoading: isLoadingBrands } = useQuery<Brand[]>({
@@ -241,7 +269,7 @@ export const ShopperSections = () => {
     );
   };
 
-  if (!user) return null;
+  if (!user || userRole !== UserRole.SHOPPER.toLowerCase()) return null;
 
   return (
     <div className="bg-[#F5E4DA]">

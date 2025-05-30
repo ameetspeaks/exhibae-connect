@@ -14,6 +14,7 @@ import { Edit2, Trash2 } from 'lucide-react';
 import PaymentDialog from './PaymentDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { StallInstance, StallApplication } from '@/types/exhibition-management';
+import { unifiedNotificationService } from '@/services/unifiedNotificationService';
 
 interface StallLayoutProps {
   stallInstances: StallInstance[];
@@ -26,6 +27,17 @@ interface StallLayoutProps {
   onDeleteStall?: (instanceId: string) => Promise<void>;
   onApplyForStall?: (instanceId: string) => Promise<void>;
   onCreatePayment?: (applicationId: string, data: { amount: number; payment_method: string; reference_number?: string }) => Promise<void>;
+}
+
+interface ApplicationData {
+  id: string;
+  brand: {
+    full_name: string;
+    email: string;
+  };
+  exhibition: {
+    title: string;
+  };
 }
 
 export const StallLayout: React.FC<StallLayoutProps> = ({
@@ -160,6 +172,22 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
       
       // If the stall is being marked as booked, update the application status
       if (newStatus === 'booked' && selectedStall?.application?.id) {
+        // Get application details first
+        const { data: applicationData, error: fetchError } = await supabase
+          .from('stall_applications')
+          .select(`
+            id,
+            brand:profiles(full_name, email),
+            exhibition:exhibitions(title)
+          `)
+          .eq('id', selectedStall.application.id)
+          .single<ApplicationData>();
+
+        if (fetchError) {
+          console.error('Error fetching application details:', fetchError);
+          throw fetchError;
+        }
+
         const { error: applicationError } = await supabase
           .from('stall_applications')
           .update({
@@ -173,6 +201,16 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
         if (applicationError) {
           console.error('Error updating application:', applicationError);
           throw applicationError;
+        }
+
+        // Send notifications
+        if (applicationData?.brand && applicationData?.exhibition) {
+          await unifiedNotificationService.notifyStallApproved(
+            instanceId,
+            applicationData.brand.full_name,
+            applicationData.exhibition.title,
+            applicationData.brand.email
+          );
         }
       }
       
@@ -204,11 +242,11 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
         title: 'Status updated',
         description: 'Stall status has been updated successfully.'
       });
-    } catch (error) {
-      console.error('StallLayout: Error updating status:', error);
+    } catch (error: any) {
+      console.error('Error updating stall status:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update status',
+        description: error.message || 'Failed to update stall status',
         variant: 'destructive'
       });
     }
