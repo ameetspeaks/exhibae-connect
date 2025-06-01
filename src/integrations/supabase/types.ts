@@ -1,3 +1,5 @@
+import { EmailType, EmailStatus } from '@/types/email-logs';
+
 export type Json =
   | string
   | number
@@ -9,6 +11,121 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      email_logs: {
+        Row: {
+          id: string
+          email_type: Database['public']['Enums']['email_type']
+          recipient_email: string
+          recipient_name: string | null
+          subject: string
+          content: Json
+          status: Database['public']['Enums']['email_status']
+          error_message: string | null
+          sent_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          email_type: Database['public']['Enums']['email_type']
+          recipient_email: string
+          recipient_name?: string | null
+          subject: string
+          content: Json
+          status?: Database['public']['Enums']['email_status']
+          error_message?: string | null
+          sent_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email_type?: Database['public']['Enums']['email_type']
+          recipient_email?: string
+          recipient_name?: string | null
+          subject?: string
+          content?: Json
+          status?: Database['public']['Enums']['email_status']
+          error_message?: string | null
+          sent_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      exhibitions: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          start_date: string
+          end_date: string
+          location: string
+          organiser_id: string
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          start_date: string
+          end_date: string
+          location: string
+          organiser_id: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          start_date?: string
+          end_date?: string
+          location?: string
+          organiser_id?: string
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exhibitions_organiser_id_fkey"
+            columns: ["organiser_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          full_name: string
+          role: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          full_name: string
+          role?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string
+          role?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       brand_profiles: {
         Row: {
           id: string
@@ -226,6 +343,10 @@ export interface Database {
       [_ in never]: never
     }
     Enums: {
+      email_type: 'exhibition_created' | 'exhibition_approved' | 'exhibition_rejected' | 'exhibition_status_update' | 'exhibition_interest' | 'stall_application' | 'application_approved' | 'application_rejected' | 'application_waitlisted' | 'payment_status' | 'payment_completed' | 'payment_reminder' | 'welcome_email' | 'contact_response'
+      email_status: 'pending' | 'sent' | 'failed'
+    }
+    CompositeTypes: {
       [_ in never]: never
     }
   }
@@ -323,6 +444,24 @@ export type Enums<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      email_type: [
+        'exhibition_created',
+        'exhibition_approved',
+        'exhibition_rejected',
+        'exhibition_status_update',
+        'exhibition_interest',
+        'stall_application',
+        'application_approved',
+        'application_rejected',
+        'application_waitlisted',
+        'payment_status',
+        'payment_completed',
+        'payment_reminder',
+        'welcome_email',
+        'contact_response'
+      ] as const,
+      email_status: ['pending', 'sent', 'failed'] as const
+    },
   },
 } as const

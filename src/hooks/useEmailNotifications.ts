@@ -1,6 +1,15 @@
 import { useCallback } from 'react';
 import { sendEmail } from '@/services/emailService';
 import { useToast } from '@/components/ui/use-toast';
+import type {
+  ExhibitionCreatedData,
+  ExhibitionStatusData,
+  ExhibitionInterestData,
+  StallApplicationApprovedData,
+  PaymentCompletedData,
+  PaymentReminderData,
+  WelcomeEmailData
+} from '@/types/email-logs';
 
 export const useEmailNotifications = () => {
   const { toast } = useToast();
@@ -14,22 +23,24 @@ export const useEmailNotifications = () => {
   ) => {
     try {
       // Send to organiser
-      await sendEmail('exhibition_created', {
+      const organiserData: ExhibitionCreatedData = {
         to: organiserEmail,
         exhibitionTitle,
         organiserName,
         exhibitionId,
         createdDate: new Date()
-      });
+      };
+      await sendEmail('exhibition_created', organiserData);
 
       // Send to manager
-      await sendEmail('exhibition_created', {
+      const managerData: ExhibitionCreatedData = {
         to: managerEmail,
         exhibitionTitle,
         organiserName,
         exhibitionId,
         createdDate: new Date()
-      });
+      };
+      await sendEmail('exhibition_created', managerData);
 
       toast({
         title: 'Notification sent',
@@ -42,6 +53,40 @@ export const useEmailNotifications = () => {
         description: 'Failed to send email notifications.',
         variant: 'destructive',
       });
+      throw error;
+    }
+  }, [toast]);
+
+  const sendExhibitionStatusEmail = useCallback(async (
+    exhibitionTitle: string,
+    organiserName: string,
+    organiserEmail: string,
+    status: string,
+    dashboardLink: string
+  ) => {
+    try {
+      const data: ExhibitionStatusData = {
+        to: organiserEmail,
+        exhibitionTitle,
+        organiserName,
+        status,
+        dashboardLink,
+        updatedDate: new Date()
+      };
+      await sendEmail('exhibition_status_update', data);
+
+      toast({
+        title: 'Notification sent',
+        description: 'Status update notification has been sent successfully.',
+      });
+    } catch (error) {
+      console.error('Error sending exhibition status email:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send status update notification.',
+        variant: 'destructive',
+      });
+      throw error;
     }
   }, [toast]);
 
@@ -53,14 +98,15 @@ export const useEmailNotifications = () => {
     organiserEmail: string
   ) => {
     try {
-      await sendEmail('exhibition_interest', {
+      const data: ExhibitionInterestData = {
         to: organiserEmail,
         exhibitionTitle,
         brandName,
         brandEmail,
         brandPhone,
         interestDate: new Date()
-      });
+      };
+      await sendEmail('exhibition_interest', data);
 
       toast({
         title: 'Notification sent',
@@ -73,6 +119,7 @@ export const useEmailNotifications = () => {
         description: 'Failed to send interest notification.',
         variant: 'destructive',
       });
+      throw error;
     }
   }, [toast]);
 
@@ -83,13 +130,14 @@ export const useEmailNotifications = () => {
     paymentLink: string
   ) => {
     try {
-      await sendEmail('stall_application_approved', {
+      const data: StallApplicationApprovedData = {
         to: brandEmail,
         exhibitionTitle,
         brandName,
         paymentLink,
         approvedDate: new Date()
-      });
+      };
+      await sendEmail('application_approved', data);
 
       toast({
         title: 'Notification sent',
@@ -102,6 +150,7 @@ export const useEmailNotifications = () => {
         description: 'Failed to send approval notification.',
         variant: 'destructive',
       });
+      throw error;
     }
   }, [toast]);
 
@@ -115,24 +164,26 @@ export const useEmailNotifications = () => {
   ) => {
     try {
       // Send to brand
-      await sendEmail('payment_completed', {
+      const brandData: PaymentCompletedData = {
         to: brandEmail,
         exhibitionTitle,
         brandName,
         paymentAmount,
         paymentDate: new Date(),
         stallDetails
-      });
+      };
+      await sendEmail('payment_completed', brandData);
 
       // Send to organiser
-      await sendEmail('payment_completed', {
+      const organiserData: PaymentCompletedData = {
         to: organiserEmail,
         exhibitionTitle,
         brandName,
         paymentAmount,
         paymentDate: new Date(),
         stallDetails
-      });
+      };
+      await sendEmail('payment_completed', organiserData);
 
       toast({
         title: 'Notification sent',
@@ -145,6 +196,7 @@ export const useEmailNotifications = () => {
         description: 'Failed to send payment completion notifications.',
         variant: 'destructive',
       });
+      throw error;
     }
   }, [toast]);
 
@@ -153,16 +205,19 @@ export const useEmailNotifications = () => {
     brandName: string,
     brandEmail: string,
     dueDate: Date,
-    paymentAmount: number
+    paymentAmount: number,
+    paymentLink: string
   ) => {
     try {
-      await sendEmail('payment_reminder', {
+      const data: PaymentReminderData = {
         to: brandEmail,
         exhibitionTitle,
         brandName,
         dueDate,
-        paymentAmount
-      });
+        paymentAmount,
+        paymentLink
+      };
+      await sendEmail('payment_reminder', data);
 
       toast({
         title: 'Notification sent',
@@ -175,6 +230,7 @@ export const useEmailNotifications = () => {
         description: 'Failed to send payment reminder.',
         variant: 'destructive',
       });
+      throw error;
     }
   }, [toast]);
 
@@ -184,11 +240,12 @@ export const useEmailNotifications = () => {
     userRole: string
   ) => {
     try {
-      await sendEmail('welcome_email', {
+      const data: WelcomeEmailData = {
         to: userEmail,
         userName,
         userRole
-      });
+      };
+      await sendEmail('welcome_email', data);
 
       toast({
         title: 'Welcome email sent',
@@ -201,11 +258,13 @@ export const useEmailNotifications = () => {
         description: 'Failed to send welcome email.',
         variant: 'destructive',
       });
+      throw error;
     }
   }, [toast]);
 
   return {
     sendExhibitionCreatedEmail,
+    sendExhibitionStatusEmail,
     sendExhibitionInterestEmail,
     sendStallApplicationApprovedEmail,
     sendPaymentCompletedEmail,

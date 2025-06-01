@@ -371,6 +371,7 @@ const ExhibitionDetail = () => {
 
   // Filter layout images
   const layoutImages = galleryImages?.filter(img => img.image_type === 'layout') || [];
+  const galleryOnlyImages = galleryImages?.filter(img => img.image_type === 'gallery') || [];
 
   return (
     <div className="container mx-auto p-6">
@@ -426,7 +427,7 @@ const ExhibitionDetail = () => {
                 </CardContent>
               </Card>
 
-              {/* Gallery Section */}
+              {/* Stall Layout Section */}
               {isLoadingGalleryImages ? (
                 <div className="mb-6">
                   <h3 className="font-medium header-text mb-4">Stall Layout</h3>
@@ -446,6 +447,30 @@ const ExhibitionDetail = () => {
                               src={image.image_url} 
                               alt="Stall Layout" 
                               className="w-full h-full object-contain rounded-md"
+                            />
+                          </AspectRatio>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious />
+                    <CarouselNext />
+                  </Carousel>
+                </div>
+              )}
+
+              {/* Gallery Section */}
+              {galleryOnlyImages.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-medium header-text mb-4">Gallery</h3>
+                  <Carousel>
+                    <CarouselContent>
+                      {galleryOnlyImages.map((image) => (
+                        <CarouselItem key={image.id}>
+                          <AspectRatio ratio={16/9}>
+                            <img 
+                              src={image.image_url} 
+                              alt="Exhibition Gallery" 
+                              className="w-full h-full object-cover rounded-md"
                             />
                           </AspectRatio>
                         </CarouselItem>

@@ -5,12 +5,12 @@ import fs from 'fs';
 import { compileTemplate } from '../../services/email/templateCompiler';
 
 // Load environment variables
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.example.com';
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
-const SMTP_USER = process.env.SMTP_USER || '';
-const SMTP_PASS = process.env.SMTP_PASS || '';
-const SMTP_FROM = process.env.SMTP_FROM || 'noreply@exhibae.com';
-const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.hostinger.com';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465');
+const SMTP_USER = process.env.SMTP_USER || 'info@exhibae.com';
+const SMTP_PASS = process.env.SMTP_PASSWORD || 'Test@121!';
+const SMTP_FROM = process.env.SMTP_FROM_EMAIL || 'info@exhibae.com';
+const SMTP_SECURE = true; // Always true for port 465
 
 // Create reusable transporter object using SMTP
 const transporter = nodemailer.createTransport({
@@ -21,6 +21,11 @@ const transporter = nodemailer.createTransport({
     user: SMTP_USER,
     pass: SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: false
+  },
+  debug: true,
+  logger: true
 });
 
 // Templates directory

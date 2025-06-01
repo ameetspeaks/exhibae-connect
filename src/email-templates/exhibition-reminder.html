@@ -5,66 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exhibition Reminder: {{exhibition_name}}</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .button { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background-color: #4CAF50; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 4px; 
         }
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .header {
-            background: #3b82f6;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        .content {
-            padding: 30px;
-            color: #333333;
-        }
-        .footer {
-            background: #f8f8f8;
-            padding: 20px;
-            text-align: center;
-            font-size: 12px;
-            color: #666666;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #3b82f6;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-        .button:hover {
-            background-color: #2563eb;
+        .details { 
+            background-color: #f9f9f9; 
+            padding: 20px; 
+            border-radius: 4px; 
+            margin: 20px 0; 
         }
         .countdown {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2563eb;
             text-align: center;
-            margin: 30px 0;
-            padding: 15px;
-            background-color: #dbeafe;
-            border-radius: 8px;
-        }
-        .details-box {
-            background-color: #eff6ff;
-            border: 1px solid #93c5fd;
-            border-radius: 8px;
-            padding: 20px;
+            font-size: 24px;
+            color: #ff5722;
             margin: 20px 0;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -73,38 +36,64 @@
         <div class="header">
             <h1>Exhibition Reminder</h1>
         </div>
-        <div class="content">
-            <p>Dear {{name}},</p>
-            
-            <div class="countdown">
-                <p>{{days_left}} days until the exhibition!</p>
-            </div>
-            
-            <p>This is a friendly reminder that <strong>{{exhibition_name}}</strong> is approaching soon.</p>
-            
-            <div class="details-box">
-                <h3>Exhibition Details:</h3>
-                <p><strong>Exhibition:</strong> {{exhibition_name}}</p>
-                <p><strong>Dates:</strong> {{exhibition_dates}}</p>
-                <p><strong>Venue:</strong> {{venue}}</p>
-            </div>
-            
-            <p>We're looking forward to seeing you there! Please make sure you have everything prepared for the event.</p>
-            
-            <p>If you need to review your ticket information or see more details about the exhibition, please click the button below:</p>
-            
-            <div style="text-align: center;">
-                <a href="{{event_details_link}}" class="button">View Exhibition Details</a>
-            </div>
-            
-            <p>If you have any questions or need assistance before the exhibition, please don't hesitate to contact our support team.</p>
-            
-            <p>Best regards,<br>The ExhiBae Team</p>
+        
+        <p>Dear {{recipient_name}},</p>
+        
+        <div class="countdown">
+            {{days_until}} days until the exhibition!
         </div>
-        <div class="footer">
-            <p>© 2024 ExhiBae. All rights reserved.</p>
-            <p>If you have any questions, please contact us at support@exhibae.com</p>
+
+        <p>This is a reminder about the upcoming exhibition you're {{user_role}}:</p>
+        
+        <div class="details">
+            <p><strong>Exhibition Name:</strong> {{exhibition_name}}</p>
+            <p><strong>Date:</strong> {{exhibition_date}}</p>
+            <p><strong>Time:</strong> {{exhibition_time}}</p>
+            <p><strong>Location:</strong> {{exhibition_location}}</p>
+            {{#if stall_number}}
+            <p><strong>Your Stall Number:</strong> {{stall_number}}</p>
+            {{/if}}
         </div>
+
+        {{#if role_is_brand}}
+        <p>Important reminders for brands:</p>
+        <ul>
+            <li>Ensure your stall setup is complete before the exhibition start time</li>
+            <li>Bring all necessary marketing materials and product displays</li>
+            <li>Have your staff badges and documentation ready</li>
+            <li>Review the exhibition guidelines and rules</li>
+        </ul>
+        {{/if}}
+
+        {{#if role_is_organiser}}
+        <p>Important reminders for organisers:</p>
+        <ul>
+            <li>Review all vendor and brand registrations</li>
+            <li>Ensure all facilities and services are confirmed</li>
+            <li>Check the venue setup and safety arrangements</li>
+            <li>Brief your staff about their responsibilities</li>
+        </ul>
+        {{/if}}
+
+        {{#if role_is_shopper}}
+        <p>Tips for attendees:</p>
+        <ul>
+            <li>Plan your visit in advance</li>
+            <li>Bring your registration confirmation</li>
+            <li>Check the exhibition map for brands you want to visit</li>
+            <li>Consider bringing business cards for networking</li>
+        </ul>
+        {{/if}}
+
+        <p>You can view the complete exhibition details and any updates using the link below:</p>
+        
+        <p style="text-align: center;">
+            <a href="{{exhibition_link}}" class="button">View Exhibition Details</a>
+        </p>
+
+        <p>We look forward to seeing you at the exhibition!</p>
+
+        <p>Best regards,<br>The ExhiBae Team</p>
     </div>
 </body>
 </html> 

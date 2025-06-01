@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exhibition Created: {{exhibition_name}}</title>
+    <title>Exhibition Updated: {{exhibition_name}}</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -22,17 +22,23 @@
             border-radius: 4px; 
             margin: 20px 0; 
         }
+        .changes {
+            background-color: #fff3e0;
+            padding: 15px;
+            border-left: 4px solid #ff9800;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Exhibition Created Successfully</h1>
+            <h1>Exhibition Details Updated</h1>
         </div>
         
-        <p>Dear {{organizer_name}},</p>
+        <p>Dear {{recipient_name}},</p>
         
-        <p>Your exhibition has been created successfully on ExhiBae. Here are the details:</p>
+        <p>The exhibition "{{exhibition_name}}" has been updated. Here are the current details:</p>
         
         <div class="details">
             <p><strong>Exhibition Name:</strong> {{exhibition_name}}</p>
@@ -42,13 +48,24 @@
             <p><strong>Status:</strong> {{exhibition_status}}</p>
         </div>
 
-        <p>You can manage your exhibition, view applications, and make updates using the link below:</p>
+        {{#if has_changes}}
+        <div class="changes">
+            <h3>Changes Made:</h3>
+            <ul>
+                {{#each changes}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+
+        <p>You can view the complete exhibition details using the link below:</p>
         
         <p style="text-align: center;">
-            <a href="{{dashboard_link}}" class="button">View Exhibition Dashboard</a>
+            <a href="{{exhibition_link}}" class="button">View Exhibition</a>
         </p>
 
-        <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+        <p>If you have any questions or concerns about these changes, please don't hesitate to contact our support team.</p>
 
         <p>Best regards,<br>The ExhiBae Team</p>
     </div>

@@ -5,7 +5,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
+import { readdir } from 'fs/promises';
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
@@ -47,6 +48,122 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Get email templates
+app.get('/api/email/templates', async (c) => {
+  try {
+    // Path to email templates directory
+    const templatesDir = join(__dirname, '../../../src/email-templates');
+    
+    // Read template files from directory
+    const files = await readdir(templatesDir);
+    const templates = files
+      .filter(file => file.endsWith('.html'))
+      .map(file => file.replace('.html', ''));
+    
+    return c.json({ 
+      success: true, 
+      templates 
+    });
+  } catch (error) {
+    console.error('Error getting templates:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Failed to get templates',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+// Get email stats
+app.get('/api/email/stats', async (c) => {
+  try {
+    // Get email logs from Supabase
+    const { data: logs, error } = await supabase
+      .from('email_logs')
+      .select('status, operation, template_id, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Initialize statistics with default empty values
+    const stats = {
+      total: logs?.length || 0,
+      byStatus: {} as Record<string, number>,
+      byOperation: {} as Record<string, number>,
+      byTemplate: {} as Record<string, number>,
+      recent: logs?.slice(0, 5) || []
+    };
+
+    // Count emails by status, operation, and template
+    logs?.forEach(log => {
+      // Count by status
+      const status = log.status || 'unknown';
+      stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
+
+      // Count by operation
+      const operation = log.operation || 'unknown';
+      stats.byOperation[operation] = (stats.byOperation[operation] || 0) + 1;
+
+      // Count by template
+      const template = log.template_id || 'direct';
+      stats.byTemplate[template] = (stats.byTemplate[template] || 0) + 1;
+    });
+
+    // Ensure at least one entry in each category to avoid Object.entries() issues
+    if (Object.keys(stats.byStatus).length === 0) stats.byStatus['no-data'] = 0;
+    if (Object.keys(stats.byOperation).length === 0) stats.byOperation['no-data'] = 0;
+    if (Object.keys(stats.byTemplate).length === 0) stats.byTemplate['no-data'] = 0;
+
+    return c.json({ 
+      success: true, 
+      stats 
+    });
+  } catch (error) {
+    console.error('Error getting email stats:', error);
+    // Return default stats structure even on error
+    return c.json({ 
+      success: false, 
+      stats: {
+        total: 0,
+        byStatus: { 'no-data': 0 },
+        byOperation: { 'no-data': 0 },
+        byTemplate: { 'no-data': 0 },
+        recent: []
+      },
+      error: 'Failed to get email statistics',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+// Get email logs
+app.get('/api/email/logs', async (c) => {
+  try {
+    const { limit = '20', offset = '0' } = c.req.query();
+
+    // Get email logs from Supabase with proper types
+    const { data: logs, error } = await supabase
+      .from('email_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
+    if (error) throw error;
+
+    return c.json({ 
+      success: true, 
+      logs: logs || [] 
+    });
+  } catch (error) {
+    console.error('Error getting email logs:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Failed to get email logs',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
 // Email sending endpoint
 app.post('/api/email/send', async (c) => {
   try {
@@ -65,6 +182,16 @@ app.post('/api/email/send', async (c) => {
       subject,
       text,
       html: html || text,
+    });
+
+    // Log email to Supabase
+    await supabase.from('email_logs').insert({
+      recipient_email: to,
+      subject,
+      content: { text, html },
+      status: 'sent',
+      message_id: info.messageId,
+      created_at: new Date().toISOString()
     });
 
     return c.json({ 

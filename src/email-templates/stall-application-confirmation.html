@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .button { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background-color: #4CAF50; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 4px; 
+        }
+        .details { 
+            background-color: #f9f9f9; 
+            padding: 20px; 
+            border-radius: 4px; 
+            margin: 20px 0; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Stall Application Confirmation</h1>
+        </div>
+        
+        <p>Dear {{brand_name}},</p>
+        
+        <p>Thank you for submitting your stall application. We have received your request for the following exhibition:</p>
+        
+        <div class="details">
+            <p><strong>Exhibition:</strong> {{exhibition_name}}</p>
+            <p><strong>Requested Stall Size:</strong> {{stall_size}}</p>
+            <p><strong>Application Date:</strong> {{application_date}}</p>
+        </div>
+
+        <p>The exhibition organizer will review your application and get back to you soon. You can track the status of your application using the link below:</p>
+        
+        <p style="text-align: center;">
+            <a href="{{dashboard_link}}" class="button">View Application Status</a>
+        </p>
+
+        <p>If you have any questions or need to update your application, please visit your dashboard or contact our support team.</p>
+
+        <p>Best regards,<br>The ExhiBae Team</p>
+    </div>
+</body>
+</html> 

@@ -8,6 +8,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EmailLogs } from '@/components/dashboard/manager/EmailLogs';
 
 interface DashboardStats {
   totalUsers: number;
@@ -297,161 +299,174 @@ const ManagerDashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Manager Dashboard</h1>
-      <p className="text-gray-600">
-        Welcome to the management dashboard. Here you can manage all aspects of the platform.
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all roles
+    <div className="container mx-auto py-6">
+      <h1 className="mb-6 text-3xl font-bold">Manager Dashboard</h1>
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="emails">Email Logs</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
+          <div className="space-y-6">
+            <p className="text-gray-600">
+              Welcome to the management dashboard. Here you can manage all aspects of the platform.
             </p>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Venue Types</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalVenueTypes}</div>
-            <p className="text-xs text-muted-foreground">
-              Available venues
-            </p>
-          </CardContent>
-        </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Across all roles
+                  </p>
+                </CardContent>
+              </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Categories</CardTitle>
-            <Tags className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCategories}</div>
-            <p className="text-xs text-muted-foreground">
-              Exhibition categories
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Venue Types</CardTitle>
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalVenueTypes}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Available venues
+                  </p>
+                </CardContent>
+              </Card>
 
-      {/* Quick Actions */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Quick Actions Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start text-sm"
-                onClick={() => handleQuickAction('sliders')}
-              >
-                <SlidersHorizontal className="mr-2 h-4 w-4" />
-                Manage Hero Sliders
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-sm"
-                onClick={() => handleQuickAction('category')}
-              >
-                <Tags className="mr-2 h-4 w-4" />
-                Manage Categories
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-sm"
-                onClick={() => handleQuickAction('venue')}
-              >
-                <Building2 className="mr-2 h-4 w-4" />
-                Manage Venue Types
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-sm"
-                onClick={() => handleQuickAction('users')}
-              >
-                <Users className="mr-2 h-4 w-4" />
-                Manage Users
-              </Button>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Categories</CardTitle>
+                  <Tags className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalCategories}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Exhibition categories
+                  </p>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Recent Applications */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Recent Applications</CardTitle>
-            <CardDescription>Latest stall applications from brands</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {applications.slice(0, 5).map((application) => (
-                <div key={application.id} className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{application.brand.company_name}</p>
-                    <p className="text-xs text-gray-500">{application.exhibition.title}</p>
+            {/* Quick Actions */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {/* Quick Actions Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-sm"
+                      onClick={() => handleQuickAction('sliders')}
+                    >
+                      <SlidersHorizontal className="mr-2 h-4 w-4" />
+                      Manage Hero Sliders
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-sm"
+                      onClick={() => handleQuickAction('category')}
+                    >
+                      <Tags className="mr-2 h-4 w-4" />
+                      Manage Categories
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-sm"
+                      onClick={() => handleQuickAction('venue')}
+                    >
+                      <Building2 className="mr-2 h-4 w-4" />
+                      Manage Venue Types
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-sm"
+                      onClick={() => handleQuickAction('users')}
+                    >
+                      <Users className="mr-2 h-4 w-4" />
+                      Manage Users
+                    </Button>
                   </div>
-                  <Badge className={getStatusBadgeColor(application.status)}>
-                    {application.status}
-                  </Badge>
-                </div>
-              ))}
-              {applications.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">No recent applications</p>
-              )}
-            </div>
-            <Button
-              variant="link"
-              className="mt-4 w-full"
-              onClick={() => handleQuickAction('applications')}
-            >
-              View all applications
-            </Button>
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
 
-        {/* Brand Interests */}
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Brand Interests</CardTitle>
-            <CardDescription>Recent exhibition interests</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {brandInterests.slice(0, 6).map((interest) => (
-                <div key={interest.id} className="flex flex-col space-y-1 p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium">{interest.brand.company_name}</p>
-                  <p className="text-xs text-gray-500">{interest.exhibition.title}</p>
-                </div>
-              ))}
-              {brandInterests.length === 0 && (
-                <div className="col-span-full">
-                  <p className="text-sm text-gray-500 text-center py-4">No recent interests</p>
-                </div>
-              )}
+              {/* Recent Applications */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Recent Applications</CardTitle>
+                  <CardDescription>Latest stall applications from brands</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {applications.slice(0, 5).map((application) => (
+                      <div key={application.id} className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{application.brand.company_name}</p>
+                          <p className="text-xs text-gray-500">{application.exhibition.title}</p>
+                        </div>
+                        <Badge className={getStatusBadgeColor(application.status)}>
+                          {application.status}
+                        </Badge>
+                      </div>
+                    ))}
+                    {applications.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4">No recent applications</p>
+                    )}
+                  </div>
+                  <Button
+                    variant="link"
+                    className="mt-4 w-full"
+                    onClick={() => handleQuickAction('applications')}
+                  >
+                    View all applications
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Brand Interests */}
+              <Card className="lg:col-span-3">
+                <CardHeader>
+                  <CardTitle>Brand Interests</CardTitle>
+                  <CardDescription>Recent exhibition interests</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {brandInterests.slice(0, 6).map((interest) => (
+                      <div key={interest.id} className="flex flex-col space-y-1 p-4 bg-gray-50 rounded-lg">
+                        <p className="text-sm font-medium">{interest.brand.company_name}</p>
+                        <p className="text-xs text-gray-500">{interest.exhibition.title}</p>
+                      </div>
+                    ))}
+                    {brandInterests.length === 0 && (
+                      <div className="col-span-full">
+                        <p className="text-sm text-gray-500 text-center py-4">No recent interests</p>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="link"
+                    className="mt-6 w-full"
+                    onClick={() => handleQuickAction('interests')}
+                  >
+                    View all interests
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-            <Button
-              variant="link"
-              className="mt-6 w-full"
-              onClick={() => handleQuickAction('interests')}
-            >
-              View all interests
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </TabsContent>
+        <TabsContent value="emails">
+          <EmailLogs />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

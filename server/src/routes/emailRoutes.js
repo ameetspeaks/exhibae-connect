@@ -2,6 +2,13 @@ const express = require('express');
 const emailService = require('../services/emailService');
 const fs = require('fs').promises;
 const path = require('path');
+const { 
+  sendStallApplicationEmail, 
+  sendStallApplicationStatusEmail,
+  sendApplicationWaitlistedEmail,
+  sendApplicationRejectedEmail,
+  sendContactResponseEmail
+} = require('../services/emailService');
 
 const router = express.Router();
 
@@ -420,6 +427,262 @@ router.post('/test-welcome-email', async (req, res) => {
   } catch (error) {
     console.error('Error in /test-welcome-email endpoint:', error);
     return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/email/test
+ * @desc Test email configuration
+ * @access Private
+ */
+router.get('/test', async (req, res) => {
+  try {
+    // First verify the connection
+    const isConnected = await emailService.verifyConnection();
+    
+    if (!isConnected) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to connect to SMTP server' 
+      });
+    }
+
+    // Send a test email
+    const result = await emailService.sendEmail({
+      to: process.env.SMTP_USER,
+      subject: 'ExhiBae Email Test',
+      html: `
+        <h1>ExhiBae Email Configuration Test</h1>
+        <p>This is a test email to verify your SMTP configuration.</p>
+        <p>If you received this email, it means your email service is working correctly!</p>
+        <br>
+        <p>Configuration details:</p>
+        <ul>
+          <li>SMTP Host: ${process.env.SMTP_HOST}</li>
+          <li>SMTP Port: ${process.env.SMTP_PORT}</li>
+          <li>From: ${process.env.SMTP_FROM_EMAIL}</li>
+          <li>Secure: Yes</li>
+        </ul>
+      `
+    });
+    
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Error in /test endpoint:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Send stall application email
+router.post('/stall-application', async (req, res) => {
+  try {
+    const {
+      organizer_id,
+      brand_id,
+      exhibition_name,
+      stall_size,
+      product_categories,
+      special_requirements,
+      application_date,
+      review_link
+    } = req.body;
+
+    await sendStallApplicationEmail({
+      organizer_id,
+      brand_id,
+      exhibition_name,
+      stall_size,
+      product_categories,
+      special_requirements,
+      application_date,
+      review_link
+    });
+
+    res.status(200).json({ message: 'Stall application email sent successfully' });
+  } catch (error) {
+    console.error('Error sending stall application email:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send stall application status email
+router.post('/stall-application-status', async (req, res) => {
+  try {
+    const {
+      brand_id,
+      exhibition_name,
+      exhibition_location,
+      exhibition_date,
+      stall_size,
+      stall_number,
+      status,
+      organizer_comments,
+      payment_amount,
+      payment_deadline,
+      payment_link,
+      dashboard_link
+    } = req.body;
+
+    await sendStallApplicationStatusEmail({
+      brand_id,
+      exhibition_name,
+      exhibition_location,
+      exhibition_date,
+      stall_size,
+      stall_number,
+      status,
+      organizer_comments,
+      payment_amount,
+      payment_deadline,
+      payment_link,
+      dashboard_link
+    });
+
+    res.status(200).json({ message: 'Stall application status email sent successfully' });
+  } catch (error) {
+    console.error('Error sending stall application status email:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @route POST /api/email/application-waitlisted
+ * @desc Send application waitlisted notification
+ * @access Private
+ */
+router.post('/application-waitlisted', async (req, res) => {
+  try {
+    const {
+      brand_id,
+      exhibition_name,
+      exhibition_location,
+      exhibition_date,
+      stall_size,
+      organizer_comments,
+      queue_position,
+      dashboard_link
+    } = req.body;
+
+    if (!brand_id || !exhibition_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Brand ID and exhibition name are required'
+      });
+    }
+
+    const result = await sendApplicationWaitlistedEmail({
+      brand_id,
+      exhibition_name,
+      exhibition_location,
+      exhibition_date,
+      stall_size,
+      organizer_comments,
+      queue_position,
+      dashboard_link
+    });
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Error sending waitlist notification:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route POST /api/email/application-rejected
+ * @desc Send application rejected notification
+ * @access Private
+ */
+router.post('/application-rejected', async (req, res) => {
+  try {
+    const {
+      brand_id,
+      exhibition_name,
+      exhibition_location,
+      exhibition_date,
+      stall_size,
+      rejection_reason,
+      organizer_comments,
+      alternative_exhibitions,
+      dashboard_link
+    } = req.body;
+
+    if (!brand_id || !exhibition_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Brand ID and exhibition name are required'
+      });
+    }
+
+    const result = await sendApplicationRejectedEmail({
+      brand_id,
+      exhibition_name,
+      exhibition_location,
+      exhibition_date,
+      stall_size,
+      rejection_reason,
+      organizer_comments,
+      alternative_exhibitions,
+      dashboard_link
+    });
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Error sending rejection notification:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @route POST /api/email/contact-response
+ * @desc Send contact form response
+ * @access Private
+ */
+router.post('/contact-response', async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      subject,
+      message,
+      response_message,
+      support_ticket_id,
+      support_link
+    } = req.body;
+
+    if (!email || !response_message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and response message are required'
+      });
+    }
+
+    const result = await sendContactResponseEmail({
+      name,
+      email,
+      subject,
+      message,
+      response_message,
+      support_ticket_id,
+      support_link
+    });
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Error sending contact response:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 

@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { StallInstance, Exhibition } from '@/types/exhibition-management';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { sendStallApplicationEmail, sendStallApplicationStatusEmail } from '@/lib/emailNotifications';
 
 export default function ExhibitionDetail() {
   const { id } = useParams<{ id: string }>();
@@ -109,29 +110,61 @@ export default function ExhibitionDetail() {
     setIsSubmitting(true);
     try {
       console.log('Submitting application for stall:', selectedStall);
-      await applyForStall.mutateAsync({
+      const application = await applyForStall.mutateAsync({
         stallInstanceId: selectedStall.instance_id,
         message: applicationMessage.trim() || '' // Allow empty message
       });
 
-      toast({
-        title: "Application Submitted",
-        description: "Your application has been submitted successfully.",
-      });
+      // Send email notifications using server-side service
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/email/stall-application`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            organizer_id: exhibition?.organiser_id,
+            brand_id: user.id,
+            exhibition_name: exhibition?.title || '',
+            stall_size: `${selectedStall.length}x${selectedStall.width} ${selectedStall.unit?.symbol || ''}`,
+            product_categories: [], // Add if you have this information
+            special_requirements: applicationMessage,
+            application_date: new Date().toISOString(),
+            review_link: `${window.location.origin}/dashboard/organiser/applications/${application.id}`
+          })
+        });
 
-      // Reset form and refresh data
-      setIsDialogOpen(false);
-      setSelectedStall(null);
+        if (!response.ok) {
+          throw new Error('Failed to send email notifications');
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to send email notifications');
+        }
+      } catch (emailError) {
+        console.error('Error sending email notifications:', emailError);
+        toast({
+          title: 'Application submitted',
+          description: 'Your application was submitted, but there was an issue sending email notifications. The organizer will still be notified through the system.',
+          variant: 'warning',
+        });
+      }
+
+      // Clear form and show success message
       setApplicationMessage('');
-      refetchStalls();
-      refetchInstances();
-
-    } catch (error: any) {
+      setSelectedStall(null);
+      
+      toast({
+        title: 'Application submitted',
+        description: 'Your stall application has been submitted successfully.',
+      });
+    } catch (error) {
       console.error('Error submitting application:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to submit application",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to submit stall application. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);

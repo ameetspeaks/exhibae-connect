@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exhibition Created: {{exhibition_name}}</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -27,28 +24,30 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Exhibition Created Successfully</h1>
+            <h1>New Stall Application</h1>
         </div>
         
         <p>Dear {{organizer_name}},</p>
         
-        <p>Your exhibition has been created successfully on ExhiBae. Here are the details:</p>
+        <p>A new stall application has been submitted for your exhibition. Here are the details:</p>
         
         <div class="details">
-            <p><strong>Exhibition Name:</strong> {{exhibition_name}}</p>
-            <p><strong>Date:</strong> {{exhibition_date}}</p>
-            <p><strong>Time:</strong> {{exhibition_time}}</p>
-            <p><strong>Location:</strong> {{exhibition_location}}</p>
-            <p><strong>Status:</strong> {{exhibition_status}}</p>
+            <p><strong>Exhibition:</strong> {{exhibition_name}}</p>
+            <p><strong>Brand Name:</strong> {{brand_name}}</p>
+            <p><strong>Brand Email:</strong> {{brand_email}}</p>
+            <p><strong>Requested Stall Size:</strong> {{stall_size}}</p>
+            <p><strong>Product Categories:</strong> {{product_categories}}</p>
+            {{#if special_requirements}}
+            <p><strong>Special Requirements:</strong> {{special_requirements}}</p>
+            {{/if}}
+            <p><strong>Application Date:</strong> {{application_date}}</p>
         </div>
 
-        <p>You can manage your exhibition, view applications, and make updates using the link below:</p>
+        <p>Please review this application and take appropriate action using the link below:</p>
         
         <p style="text-align: center;">
-            <a href="{{dashboard_link}}" class="button">View Exhibition Dashboard</a>
+            <a href="{{review_link}}" class="button">Review Application</a>
         </p>
-
-        <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
 
         <p>Best regards,<br>The ExhiBae Team</p>
     </div>
