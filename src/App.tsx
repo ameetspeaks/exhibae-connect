@@ -59,10 +59,13 @@ import ManagerEventsPage from "./pages/Dashboard/Manager/EventsPage";
 import EventsPage from "@/pages/Dashboard/Manager/EventsPage";
 import EventTypeViewPage from "@/pages/Dashboard/Manager/EventTypeViewPage";
 import EventTypeEditPage from "@/pages/Dashboard/Manager/EventTypeEditPage";
+import CreateEventType from "@/pages/Dashboard/Manager/CreateEventType";
 import SliderPage from './pages/Dashboard/Manager/SliderPage';
 import CreateSlider from './pages/Dashboard/Manager/CreateSlider';
 import EditSlider from './pages/Dashboard/Manager/EditSlider';
 import ViewSlider from './pages/Dashboard/Manager/ViewSlider';
+import SubscriptionsPage from './pages/Dashboard/Manager/SubscriptionsPage';
+import CreateVenueTypePage from './pages/Dashboard/Manager/CreateVenueTypePage';
 
 // Email Admin
 import { EmailAdmin } from "./components/email";
@@ -203,27 +206,28 @@ const router = createBrowserRouter(
         <Route path="sliders/create" element={<CreateSlider />} />
         <Route path="sliders/:id" element={<ViewSlider />} />
         <Route path="sliders/:id/edit" element={<EditSlider />} />
+        <Route path="events" element={<EventsPage />} />
+        <Route path="events/create" element={<CreateEventType />} />
+        <Route path="events/:id" element={<EventTypeViewPage />} />
+        <Route path="events/:id/edit" element={<EventTypeEditPage />} />
         <Route path="exhibitions" element={<ManagerExhibitionsPage />} />
         <Route path="exhibitions/create" element={<CreateExhibitionPage />} />
         <Route path="exhibitions/:id" element={<ManagerExhibitionDetail />} />
         <Route path="exhibitions/:id/edit" element={<ManagerExhibitionEdit />} />
         <Route path="applications" element={<ApplicationsPage />} />
         <Route path="brand-interests" element={<BrandInterestsPage />} />
-        <Route path="categories" element={<CategoriesPage />} />
-        <Route path="venue-types" element={<VenueTypesPage />} />
-        <Route path="measurement-units" element={<MeasurementUnitsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="contact-messages" element={<ContactMessagesPage />} />
-        <Route path="events" element={<EventsPage />} />
-        <Route path="events/:id" element={<EventTypeViewPage />} />
-        <Route path="events/:id/edit" element={<EventTypeEditPage />} />
+        <Route path="categories" element={<CategoriesPage />} />
+        <Route path="venue-types" element={<VenueTypesPage />} />
+        <Route path="venue-types/create" element={<CreateVenueTypePage />} />
+        <Route path="measurement-units" element={<MeasurementUnitsPage />} />
         <Route path="coupons" element={<ManagerCouponsPage />} />
         <Route path="coupons/create" element={<ManagerCreateCoupon />} />
         <Route path="coupons/:id/edit" element={<ManagerEditCoupon />} />
         <Route path="settings" element={<ManagerSettings />} />
-        <Route path="settings/notifications" element={<NotificationSettings />} />
-        <Route path="settings/test-notifications" element={<TestNotifications />} />
         <Route path="chat" element={<ChatPage />} />
+        <Route path="subscriptions" element={<SubscriptionsPage />} />
         <Route path="email" element={<EmailAdmin />} />
       </Route>
       
@@ -268,13 +272,15 @@ const router = createBrowserRouter(
         <Route index element={<BrandDashboard />} />
         <Route path="applications" element={<BrandApplications />} />
         <Route path="interests" element={<MyInterests />} />
+        <Route path="exhibitions/:id" element={<BrandExhibitionDetail />} />
+        <Route path="exhibitions/:exhibitionId/stalls" element={<StallSelectionPage />} />
+        <Route path="settings">
+          <Route index element={<BrandSettings />} />
+          <Route path="notifications" element={<BrandNotificationSettings />} />
+        </Route>
         <Route path="favorites" element={<BrandMyFavorites />} />
         <Route path="find" element={<FindExhibitions />} />
         <Route path="stalls" element={<MyStalls />} />
-        <Route path="exhibitions/:id" element={<BrandExhibitionDetail />} />
-        <Route path="exhibitions/:exhibitionId/stalls" element={<StallSelectionPage />} />
-        <Route path="settings" element={<BrandSettings />} />
-        <Route path="settings/notifications" element={<BrandNotificationSettings />} />
       </Route>
       
       {/* Shopper Dashboard */}

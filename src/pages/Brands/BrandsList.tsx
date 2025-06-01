@@ -17,8 +17,6 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { getInitials } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/use-toast';
-import { SubscriptionForm } from '@/components/SubscriptionForm';
-import { useSubscription } from '@/hooks/useSubscription';
 
 interface BrandProfile {
   id: string;
@@ -36,7 +34,6 @@ const BrandsList = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: subscription } = useSubscription();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') || '';
   const sortField = searchParams.get('sort') || 'company_name';
@@ -270,20 +267,6 @@ const BrandsList = () => {
           </div>
         )}
       </div>
-
-      {/* Newsletter Section */}
-      {!user && !subscription && (
-        <section className="py-16 bg-[#4B1E25]/5">
-          <div className="container mx-auto px-6">
-            <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-3xl font-bold mb-6 text-[#1C1C1C] header-text">Never Miss an Exhibition</h2>
-              <div className="max-w-xl mx-auto">
-                <SubscriptionForm />
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   );
 };

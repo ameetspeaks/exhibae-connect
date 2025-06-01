@@ -1,24 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface VenueType {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 const VenueTypesPage = () => {
   const [venueTypes, setVenueTypes] = useState<VenueType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newVenueType, setNewVenueType] = useState({ name: '', description: '' });
+  const [venueTypeToDelete, setVenueTypeToDelete] = useState<VenueType | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchVenueTypes();
@@ -26,15 +39,17 @@ const VenueTypesPage = () => {
 
   const fetchVenueTypes = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('venue_types')
-        .select('*')
+        .select('id, name, description, created_at, updated_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       setVenueTypes(data || []);
     } catch (error: any) {
+      console.error('Error fetching venue types:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to fetch venue types",
@@ -45,104 +60,56 @@ const VenueTypesPage = () => {
     }
   };
 
-  const handleAddVenueType = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('venue_types')
-        .insert([
-          {
-            name: newVenueType.name,
-            description: newVenueType.description,
-          },
-        ])
-        .select();
+  const handleDeleteVenueType = async () => {
+    if (!venueTypeToDelete) return;
 
-      if (error) throw error;
-
-      setVenueTypes([...(data as VenueType[]), ...venueTypes]);
-      setNewVenueType({ name: '', description: '' });
-      
-      toast({
-        title: "Venue Type Added",
-        description: "The venue type has been successfully added.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add venue type",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteVenueType = async (id: string) => {
     try {
       const { error } = await supabase
         .from('venue_types')
         .delete()
-        .eq('id', id);
+        .eq('id', venueTypeToDelete.id);
 
       if (error) throw error;
 
-      setVenueTypes(venueTypes.filter(type => type.id !== id));
-      
       toast({
-        title: "Venue Type Deleted",
-        description: "The venue type has been successfully deleted.",
+        title: "Success",
+        description: "Venue type deleted successfully",
       });
+      
+      // Reset the venue type to delete
+      setVenueTypeToDelete(null);
+      
+      // Refresh the list
+      fetchVenueTypes();
     } catch (error: any) {
+      console.error('Error deleting venue type:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete venue type",
         variant: "destructive",
       });
+      // Reset the venue type to delete on error
+      setVenueTypeToDelete(null);
     }
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Venue Types</h1>
-        <Button>
+        <Button onClick={() => navigate('/dashboard/manager/venue-types/create')}>
           <Plus className="w-4 h-4 mr-2" />
-          Add Venue Type
+          Add New Venue Type
         </Button>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Add New Venue Type</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
-                <Input
-                  value={newVenueType.name}
-                  onChange={(e) => setNewVenueType({ ...newVenueType, name: e.target.value })}
-                  placeholder="Enter venue type name"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Input
-                  value={newVenueType.description}
-                  onChange={(e) => setNewVenueType({ ...newVenueType, description: e.target.value })}
-                  placeholder="Enter venue type description"
-                />
-              </div>
-            </div>
-            <Button onClick={handleAddVenueType} className="w-full">
-              Add Venue Type
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -161,20 +128,41 @@ const VenueTypesPage = () => {
             <TableBody>
               {venueTypes.map((venueType) => (
                 <TableRow key={venueType.id}>
-                  <TableCell>{venueType.name}</TableCell>
-                  <TableCell>{venueType.description}</TableCell>
+                  <TableCell className="font-medium">{venueType.name}</TableCell>
+                  <TableCell>{venueType.description || '-'}</TableCell>
                   <TableCell>{new Date(venueType.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon">
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteVenueType(venueType.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <TableCell className="text-right">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setVenueTypeToDelete(venueType)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete the venue type "{venueType.name}". 
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setVenueTypeToDelete(null)}>
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={handleDeleteVenueType}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}

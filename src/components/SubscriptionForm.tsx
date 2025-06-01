@@ -7,12 +7,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { useQueryClient } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 
 interface SubscriptionFormProps {
   onSuccess?: () => void;
+  variant?: 'default' | 'minimal';
+  className?: string;
 }
 
-export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ onSuccess }) => {
+export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ 
+  onSuccess, 
+  variant = 'default',
+  className 
+}) => {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,8 +104,32 @@ export const SubscriptionForm: React.FC<SubscriptionFormProps> = ({ onSuccess })
     }
   };
 
+  if (variant === 'minimal') {
+    return (
+      <form onSubmit={handleSubmit} className={cn("w-full", className)}>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Input
+            type="email"
+            placeholder="Your email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="flex-1 bg-[#F5E4DA] border-[#E6C5B6] text-[#1C1C1C] subheading-text"
+          />
+          <Button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA] subheading-text"
+          >
+            {isSubmitting ? 'Subscribing...' : 'Subscribe'}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
   return (
-    <Card className="p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg">
+    <Card className={cn("p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg", className)}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
           <Mail className="h-5 w-5" />

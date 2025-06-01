@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import SettingsLayout from '@/pages/Dashboard/Settings/SettingsLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Pencil, FileText, X, Trash2, MoreHorizontal, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Pencil, FileText, X, Trash2, MoreHorizontal, Loader2, Image as ImageIcon, Building2, Image, BookOpen } from 'lucide-react';
 import { FileUpload } from '@/components/brand/FileUpload';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useBrandProfile } from '@/hooks/useBrandProfile';
+import debounce from 'lodash/debounce';
+import { BrandProfile, BrandLookBook, BrandGalleryItem } from '@/types/brand';
 
 interface LookBookItem {
   id: string;
@@ -62,6 +64,7 @@ const Settings = () => {
     facebook_url: '',
     twitter_url: '',
     linkedin_url: '',
+    threads_url: '',
     logo_url: '',
     cover_image_url: ''
   });
@@ -78,15 +81,53 @@ const Settings = () => {
   const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
   const [isAddingLookBook, setIsAddingLookBook] = useState(false);
   const [isAddingGallery, setIsAddingGallery] = useState(false);
+  const [imageErrors, setImageErrors] = useState<{[key: string]: boolean}>({});
+  const [stats, setStats] = useState({
+    exhibitions_count: 0,
+    gallery_count: 0,
+    lookbooks_count: 0
+  });
+
+  const userRole = user?.user_metadata?.role?.toLowerCase() || '';
+  const basePath = `/dashboard/${userRole}/settings`;
+
+  const getPublicUrl = useCallback((url: string) => {
+    if (!url) return '';
+    
+    try {
+      // If it's already a full URL, return as is
+      if (url.startsWith('http')) return url;
+      
+      // Get the public URL from Supabase storage
+      const { data } = supabase.storage
+        .from('brand_assets')
+        .getPublicUrl(url);
+      
+      return data?.publicUrl || '';
+    } catch (error) {
+      console.error('Error generating public URL:', error);
+      return '';
+    }
+  }, []);
+
+  const handleImageError = debounce((imageKey: string) => {
+    setImageErrors(prev => ({
+      ...prev,
+      [imageKey]: true
+    }));
+  }, 500);
 
   useEffect(() => {
     if (user) {
       fetchBrandAssets();
+      testStorageBucket();
     }
   }, [user]);
 
   useEffect(() => {
     if (profile) {
+      console.log('Profile data:', profile);
+      
       setFormData({
         company_name: profile.company_name || '',
         full_name: user?.user_metadata?.full_name || '',
@@ -97,15 +138,39 @@ const Settings = () => {
         facebook_url: profile.facebook_url || '',
         twitter_url: profile.twitter_url || '',
         linkedin_url: profile.linkedin_url || '',
+        threads_url: profile.threads_url || '',
         logo_url: profile.logo_url || '',
         cover_image_url: profile.cover_image_url || ''
       });
     }
   }, [profile, user]);
 
+  const testStorageBucket = async () => {
+    try {
+      console.log('Testing storage bucket access...');
+      
+      // Try to list files in the user's directory
+      const { data: files, error: filesError } = await supabase
+        .storage
+        .from('brand_assets')
+        .list(`${user?.id}`);
+
+      if (filesError) {
+        console.error('Error accessing storage:', filesError);
+        return;
+      }
+
+      console.log('Files in user directory:', files);
+
+    } catch (error) {
+      console.error('Error testing storage bucket:', error);
+    }
+  };
+
   const fetchBrandAssets = async () => {
     try {
       setLoading(true);
+      console.log('Fetching brand assets for user:', user?.id);
 
       // Fetch look books
       const { data: lookBooksData, error: lookBooksError } = await supabase
@@ -115,6 +180,7 @@ const Settings = () => {
         .order('created_at', { ascending: false });
 
       if (lookBooksError) throw lookBooksError;
+      console.log('Look books data:', lookBooksData);
       setLookBooks(lookBooksData || []);
 
       // Fetch gallery
@@ -125,6 +191,7 @@ const Settings = () => {
         .order('created_at', { ascending: false });
 
       if (galleryError) throw galleryError;
+      console.log('Gallery data:', galleryData);
       setGallery(galleryData || []);
 
     } catch (error) {
@@ -152,6 +219,7 @@ const Settings = () => {
 
     try {
       setIsUploading(true);
+      console.log('Starting file upload for type:', type);
       
       if (file === null) {
         // Handle image removal
@@ -178,42 +246,76 @@ const Settings = () => {
         refetch();
         return;
       }
+
+      // Validate file size
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        throw new Error('File size must be less than 5MB');
+      }
+
+      // Validate file type
+      if (!file.type.match(/^image\/(jpeg|png|gif|webp)$/)) {
+        throw new Error('File must be an image (JPEG, PNG, GIF, or WebP)');
+      }
       
       // Create a unique file path
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${type}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `${user.id}/${type}/${Date.now()}.${fileExt}`;
+      console.log('Generated file name:', fileName);
 
-      // Upload file to storage
-      const { error: uploadError } = await supabase.storage
+      // Create a blob with the correct content type
+      const blob = new Blob([file], { type: file.type });
+
+      // Try to upload directly without checking buckets
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from('brand_assets')
-        .upload(filePath, file, {
+        .upload(fileName, blob, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true,
+          contentType: file.type
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        if (uploadError.message.includes('bucket')) {
+          throw new Error('Storage not properly configured. Please contact support.');
+        }
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
 
       // Get public URL
-      const { data } = supabase.storage
+      const { data: urlData } = supabase.storage
         .from('brand_assets')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
+
+      if (!urlData?.publicUrl) {
+        throw new Error('Failed to generate public URL');
+      }
+
+      const publicUrl = urlData.publicUrl;
+      console.log('Generated public URL:', publicUrl);
 
       // Update form data with new URL
       setFormData(prev => ({
         ...prev,
-        [type === 'logo' ? 'logo_url' : 'cover_image_url']: data.publicUrl
+        [type === 'logo' ? 'logo_url' : 'cover_image_url']: publicUrl
       }));
 
       // Update profile in database
       const { error: updateError } = await supabase
         .from('brand_profiles')
         .update({
-          [type === 'logo' ? 'logo_url' : 'cover_image_url']: data.publicUrl
+          [type === 'logo' ? 'logo_url' : 'cover_image_url']: publicUrl
         })
         .eq('id', profile.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
+      }
+
+      console.log('Profile updated with new URL:', publicUrl);
 
       toast({
         title: "Success",
@@ -226,7 +328,7 @@ const Settings = () => {
       console.error('Error uploading file:', error);
       toast({
         title: "Error",
-        description: `Failed to ${file ? 'upload' : 'remove'} ${type === 'logo' ? 'logo' : 'cover image'}. Please try again.`,
+        description: error instanceof Error ? error.message : `Failed to ${file ? 'upload' : 'remove'} ${type === 'logo' ? 'logo' : 'cover image'}. Please try again.`,
         variant: "destructive"
       });
     } finally {
@@ -263,7 +365,8 @@ const Settings = () => {
         facebook_url: formData.facebook_url,
         instagram_url: formData.instagram_url,
         twitter_url: formData.twitter_url,
-        linkedin_url: formData.linkedin_url
+        linkedin_url: formData.linkedin_url,
+        threads_url: formData.threads_url
       };
 
       // Update existing profile
@@ -297,15 +400,15 @@ const Settings = () => {
       setUploadingLookBook(true);
       const file = selectedLookBookFiles[0];
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user?.id}/lookbooks/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const fileName = `${user?.id}/lookbooks/${Date.now()}.${fileExt}`;
 
-      // Upload file to storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Upload file to storage with proper content type and cache control
+      const { error: uploadError } = await supabase.storage
         .from('brand_assets')
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: false,
-          contentType: file.type // Explicitly set the content type
+          upsert: true,
+          contentType: file.type
         });
 
       if (uploadError) {
@@ -313,10 +416,12 @@ const Settings = () => {
         throw uploadError;
       }
 
-      // Get public URL
+      // Get public URL with proper options
       const { data: { publicUrl } } = supabase.storage
         .from('brand_assets')
-        .getPublicUrl(fileName);
+        .getPublicUrl(fileName, {
+          download: false
+        });
 
       // Save look book details to database
       const { error: dbError } = await supabase
@@ -358,33 +463,64 @@ const Settings = () => {
   };
 
   const handleGalleryUpload = async () => {
-    if (!selectedGalleryFiles.length) return;
+    if (!selectedGalleryFiles.length || !user?.id) return;
 
     try {
       setUploadingGallery(true);
       const uploadPromises = selectedGalleryFiles.map(async (file) => {
+        // Validate file size
+        if (file.size > 5 * 1024 * 1024) { // 5MB
+          throw new Error(`File ${file.name} is too large. Maximum size is 5MB.`);
+        }
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          throw new Error(`File ${file.name} is not an image.`);
+        }
+
         const fileExt = file.name.split('.').pop();
-        const fileName = `${user?.id}/gallery/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const fileName = `${user.id}/gallery/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-        // Upload file to storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        // Create a blob with the correct content type
+        const blob = new Blob([file], { type: file.type });
+
+        // Upload file to storage with proper content type
+        const { error: uploadError } = await supabase.storage
           .from('brand_assets')
-          .upload(fileName, file);
+          .upload(fileName, blob, {
+            cacheControl: '3600',
+            upsert: true,
+            contentType: file.type
+          });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+        }
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
+        // Get the public URL
+        const { data: urlData } = supabase.storage
           .from('brand_assets')
           .getPublicUrl(fileName);
 
+        if (!urlData?.publicUrl) {
+          throw new Error(`Failed to generate public URL for ${file.name}`);
+        }
+
         // Save gallery item to database
-        return supabase
+        const { error: dbError } = await supabase
           .from('brand_gallery')
           .insert({
-            brand_id: user?.id,
-            image_url: publicUrl,
+            brand_id: user.id,
+            image_url: fileName,  // Store the file path, not the full URL
+            title: file.name.split('.')[0], // Use filename as initial title
+            created_at: new Date().toISOString()
           });
+
+        if (dbError) {
+          console.error('Database error:', dbError);
+          throw new Error(`Failed to save ${file.name} to database: ${dbError.message}`);
+        }
       });
 
       await Promise.all(uploadPromises);
@@ -394,7 +530,6 @@ const Settings = () => {
         description: 'Images uploaded to gallery successfully',
       });
 
-      // Reset form and refresh data
       setSelectedGalleryFiles([]);
       fetchBrandAssets();
 
@@ -402,7 +537,7 @@ const Settings = () => {
       console.error('Error uploading to gallery:', error);
       toast({
         title: 'Error',
-        description: 'Failed to upload images to gallery',
+        description: error instanceof Error ? error.message : 'Failed to upload images to gallery',
         variant: 'destructive',
       });
     } finally {
@@ -448,11 +583,10 @@ const Settings = () => {
 
   const handleDeleteGalleryItem = async (id: string, imageUrl: string) => {
     try {
-      // Delete from storage
-      const filePath = imageUrl.split('/').slice(-2).join('/'); // Get path: userId/filename
+      // Delete from storage - imageUrl is already the path
       await supabase.storage
         .from('brand_assets')
-        .remove([filePath]);
+        .remove([imageUrl]);
 
       // Delete from database
       const { error } = await supabase
@@ -541,7 +675,7 @@ const Settings = () => {
   };
 
   return (
-    <SettingsLayout basePath="/dashboard/brand/settings">
+    <SettingsLayout basePath={basePath}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -607,9 +741,10 @@ const Settings = () => {
                               {formData.cover_image_url ? (
                                 <>
                                   <img
-                                    src={formData.cover_image_url}
+                                    src={imageErrors['cover'] ? '/placeholder-cover.jpg' : getPublicUrl(formData.cover_image_url)}
                                     alt="Cover"
                                     className="w-full h-full object-cover"
+                                    onError={() => handleImageError('cover')}
                                   />
                                   <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                     <Button
@@ -652,9 +787,10 @@ const Settings = () => {
                               {formData.logo_url ? (
                                 <>
                                   <img
-                                    src={formData.logo_url}
+                                    src={imageErrors['logo'] ? '/placeholder-logo.jpg' : getPublicUrl(formData.logo_url)}
                                     alt="Logo"
                                     className="w-full h-full object-cover"
+                                    onError={() => handleImageError('logo')}
                                   />
                                   <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <Button
@@ -746,6 +882,16 @@ const Settings = () => {
                             />
                           </div>
                           <div className="space-y-2">
+                            <Label htmlFor="threads_url">Threads URL</Label>
+                            <Input
+                              id="threads_url"
+                              name="threads_url"
+                              value={formData.threads_url}
+                              onChange={handleInputChange}
+                              placeholder="https://threads.net/@yourbrand"
+                            />
+                          </div>
+                          <div className="space-y-2">
                             <Label htmlFor="facebook_url">Facebook URL</Label>
                             <Input
                               id="facebook_url"
@@ -788,9 +934,10 @@ const Settings = () => {
                           <div className="relative w-full h-48 rounded-lg overflow-hidden bg-gray-100">
                             {profile?.cover_image_url ? (
                               <img
-                                src={profile.cover_image_url}
+                                src={imageErrors['cover'] ? '/placeholder-cover.jpg' : getPublicUrl(profile.cover_image_url || '')}
                                 alt="Cover"
                                 className="w-full h-full object-cover"
+                                onError={() => handleImageError('cover')}
                               />
                             ) : (
                               <div className="w-full h-full flex flex-col items-center justify-center">
@@ -807,9 +954,10 @@ const Settings = () => {
                           <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-100">
                             {profile?.logo_url ? (
                               <img
-                                src={profile.logo_url}
+                                src={imageErrors['logo'] ? '/placeholder-logo.jpg' : getPublicUrl(profile.logo_url || '')}
                                 alt="Logo"
                                 className="w-full h-full object-cover"
+                                onError={() => handleImageError('logo')}
                               />
                             ) : (
                               <div className="w-full h-full flex flex-col items-center justify-center">
@@ -873,6 +1021,21 @@ const Settings = () => {
                                     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
                                   </svg>
                                   Instagram
+                                </a>
+                              )}
+                              {profile?.threads_url && (
+                                <a 
+                                  href={profile.threads_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 2c-2.8 0-5 2.2-5 5v10c0 2.8 2.2 5 5 5s5-2.2 5-5V7c0-2.8-2.2-5-5-5z"></path>
+                                    <path d="M12 6v12"></path>
+                                    <path d="M12 12h5"></path>
+                                  </svg>
+                                  Threads
                                 </a>
                               )}
                               {profile?.facebook_url && (
@@ -1161,7 +1324,7 @@ const Settings = () => {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem asChild>
                                   <a
-                                    href={item.image_url}
+                                    href={getPublicUrl(item.image_url)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                   >
@@ -1181,9 +1344,11 @@ const Settings = () => {
                             </DropdownMenu>
                           </div>
                           <img
-                            src={item.image_url}
-                            alt={item.title || `Gallery image ${item.id}`}
+                            src={getPublicUrl(item.image_url)}
+                            alt={item.title || 'Gallery image'}
                             className="w-full h-full object-cover"
+                            onError={() => handleImageError(item.id)}
+                            loading="lazy"
                           />
                           {(item.title || item.description) && (
                             <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2">
@@ -1306,6 +1471,29 @@ const Settings = () => {
             </TabsContent>
           </Tabs>
         )}
+
+        {/* Quick Stats */}
+        <Card className="bg-[#4B1E25]">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-3 gap-6">
+              <div className="text-center">
+                <Building2 className="w-6 h-6 mx-auto mb-2 text-[#F5E4DA]" />
+                <p className="text-2xl font-bold text-[#F5E4DA]">{stats?.exhibitions_count || 0}</p>
+                <p className="text-sm text-[#F5E4DA]/70">Exhibitions</p>
+              </div>
+              <div className="text-center">
+                <Image className="w-6 h-6 mx-auto mb-2 text-[#F5E4DA]" />
+                <p className="text-2xl font-bold text-[#F5E4DA]">{stats?.gallery_count || 0}</p>
+                <p className="text-sm text-[#F5E4DA]/70">Gallery</p>
+              </div>
+              <div className="text-center">
+                <BookOpen className="w-6 h-6 mx-auto mb-2 text-[#F5E4DA]" />
+                <p className="text-2xl font-bold text-[#F5E4DA]">{stats?.lookbooks_count || 0}</p>
+                <p className="text-sm text-[#F5E4DA]/70">Look Books</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </SettingsLayout>
   );

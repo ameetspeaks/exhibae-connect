@@ -23,7 +23,9 @@ import {
   MessageSquare,
   LogOut,
   Star,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Newspaper,
+  Mail
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -123,6 +125,16 @@ export default function DashboardSidebar({ role, onLogout }: DashboardSidebarPro
             name: 'Contact Messages',
             path: `/dashboard/manager/contact-messages`,
             icon: <MessageSquare className="w-5 h-5" />,
+          },
+          {
+            name: 'Newsletter',
+            path: `/dashboard/manager/subscriptions`,
+            icon: <Newspaper className="w-5 h-5" />,
+          },
+          {
+            name: 'Email Analytics',
+            path: `/dashboard/manager/email`,
+            icon: <Mail className="w-5 h-5" />,
           },
           {
             name: 'Categories',
@@ -336,7 +348,11 @@ export default function DashboardSidebar({ role, onLogout }: DashboardSidebarPro
       <nav className="flex-1 px-3 pb-4 overflow-y-auto">
         <div className="space-y-1">
           {navItems.map((item) => {
-            const isActive = path === item.path;
+            const isActive = item.path === '/dashboard/organiser/exhibitions/create' 
+              ? path === item.path  // Exact match for create exhibition
+              : item.path === '/dashboard/organiser/exhibitions'
+                ? path === item.path || (path.startsWith(`${item.path}/`) && !path.includes('/create'))
+                : path === item.path;
             return (
               <Link 
                 key={item.name}

@@ -9,7 +9,7 @@ import UnifiedNotificationSettings from '@/components/notifications/UnifiedNotif
 const NotificationSettings = () => {
   const { settings, loading } = useNotificationSettings();
   const { user } = useAuth();
-  const userRole = user?.app_metadata?.role?.toLowerCase() || '';
+  const userRole = user?.user_metadata?.role?.toLowerCase() || '';
   const basePath = `/dashboard/${userRole}/settings`;
 
   if (loading) {

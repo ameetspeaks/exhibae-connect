@@ -43,14 +43,15 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
   global: {
     headers: {
-      'X-Client-Info': 'exhibae-connect@1.0.0',
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'apikey': supabaseAnonKey,
-      'Prefer': 'return=minimal'
+      'X-Client-Info': 'exhibae-connect@1.0.0'
     }
   },
   db: {
     schema: 'public'
+  },
+  storage: {
+    retryAttempts: 3,
+    multipartThreshold: 5242880, // 5MB
+    maxRetryDelay: 5000
   }
 });

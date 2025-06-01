@@ -6,387 +6,214 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
-      amenities: {
+      brand_profiles: {
         Row: {
-          created_at: string
-          description: string | null
-          icon: string | null
           id: string
-          name: string
+          user_id: string
+          company_name: string
+          description: string | null
+          website: string | null
+          contact_email: string
+          contact_phone: string | null
+          logo_url: string | null
+          cover_image_url: string | null
+          facebook_url: string | null
+          instagram_url: string | null
+          twitter_url: string | null
+          linkedin_url: string | null
+          threads_url: string | null
+          created_at: string
           updated_at: string
         }
         Insert: {
-          created_at?: string
-          description?: string | null
-          icon?: string | null
           id?: string
-          name: string
+          user_id: string
+          company_name: string
+          description?: string | null
+          website?: string | null
+          contact_email: string
+          contact_phone?: string | null
+          logo_url?: string | null
+          cover_image_url?: string | null
+          facebook_url?: string | null
+          instagram_url?: string | null
+          twitter_url?: string | null
+          linkedin_url?: string | null
+          threads_url?: string | null
+          created_at?: string
           updated_at?: string
         }
         Update: {
-          created_at?: string
-          description?: string | null
-          icon?: string | null
           id?: string
-          name?: string
+          user_id?: string
+          company_name?: string
+          description?: string | null
+          website?: string | null
+          contact_email?: string
+          contact_phone?: string | null
+          logo_url?: string | null
+          cover_image_url?: string | null
+          facebook_url?: string | null
+          instagram_url?: string | null
+          twitter_url?: string | null
+          linkedin_url?: string | null
+          threads_url?: string | null
+          created_at?: string
           updated_at?: string
         }
-        Relationships: []
       }
-      exhibition_categories: {
+      brand_lookbooks: {
         Row: {
-          created_at: string
-          description: string | null
           id: string
-          name: string
+          brand_id: string
+          title: string
+          description: string | null
+          file_url: string
+          file_type: string
+          created_at: string
           updated_at: string
         }
         Insert: {
-          created_at?: string
-          description?: string | null
           id?: string
-          name: string
+          brand_id: string
+          title: string
+          description?: string | null
+          file_url: string
+          file_type: string
+          created_at?: string
           updated_at?: string
         }
         Update: {
-          created_at?: string
-          description?: string | null
           id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      exhibitions: {
-        Row: {
-          address: string
-          category_id: string | null
-          city: string
-          country: string
-          created_at: string
-          description: string | null
-          end_date: string
-          id: string
-          latitude: number | null
-          longitude: number | null
-          organiser_id: string
-          postal_code: string | null
-          start_date: string
-          state: string
-          status: string
-          title: string
-          updated_at: string
-          venue_type_id: string | null
-          event_type_id: string | null
-        }
-        Insert: {
-          address: string
-          category_id?: string | null
-          city: string
-          country: string
-          created_at?: string
-          description?: string | null
-          end_date: string
-          id?: string
-          latitude?: number | null
-          longitude?: number | null
-          organiser_id: string
-          postal_code?: string | null
-          start_date: string
-          state: string
-          status?: string
-          title: string
-          updated_at?: string
-          venue_type_id?: string | null
-          event_type_id?: string | null
-        }
-        Update: {
-          address?: string
-          category_id?: string | null
-          city?: string
-          country?: string
-          created_at?: string
-          description?: string | null
-          end_date?: string
-          id?: string
-          latitude?: number | null
-          longitude?: number | null
-          organiser_id?: string
-          postal_code?: string | null
-          start_date?: string
-          state?: string
-          status?: string
+          brand_id?: string
           title?: string
+          description?: string | null
+          file_url?: string
+          file_type?: string
+          created_at?: string
           updated_at?: string
-          venue_type_id?: string | null
-          event_type_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "exhibitions_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "exhibition_categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exhibitions_venue_type_id_fkey"
-            columns: ["venue_type_id"]
-            isOneToOne: false
-            referencedRelation: "venue_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exhibitions_event_type_id_fkey"
-            columns: ["event_type_id"]
-            isOneToOne: false
-            referencedRelation: "event_types"
-            referencedColumns: ["id"]
-          }
-        ]
       }
-      gallery_images: {
+      brand_gallery: {
         Row: {
-          created_at: string
-          exhibition_id: string
           id: string
-          image_type: string
+          brand_id: string
+          title: string | null
+          description: string | null
           image_url: string
+          created_at: string
           updated_at: string
         }
         Insert: {
-          created_at?: string
-          exhibition_id: string
           id?: string
-          image_type: string
+          brand_id: string
+          title?: string | null
+          description?: string | null
           image_url: string
+          created_at?: string
           updated_at?: string
         }
         Update: {
-          created_at?: string
-          exhibition_id?: string
           id?: string
-          image_type?: string
+          brand_id?: string
+          title?: string | null
+          description?: string | null
           image_url?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "gallery_images_exhibition_id_fkey"
-            columns: ["exhibition_id"]
-            isOneToOne: false
-            referencedRelation: "exhibitions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      measuring_units: {
-        Row: {
-          abbreviation: string
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          abbreviation: string
-          created_at?: string
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          abbreviation?: string
-          created_at?: string
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      stall_amenities: {
-        Row: {
-          amenity_id: string
-          created_at: string
-          id: string
-          stall_id: string
-          updated_at: string
-        }
-        Insert: {
-          amenity_id: string
-          created_at?: string
-          id?: string
-          stall_id: string
-          updated_at?: string
-        }
-        Update: {
-          amenity_id?: string
-          created_at?: string
-          id?: string
-          stall_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stall_amenities_amenity_id_fkey"
-            columns: ["amenity_id"]
-            isOneToOne: false
-            referencedRelation: "amenities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stall_amenities_stall_id_fkey"
-            columns: ["stall_id"]
-            isOneToOne: false
-            referencedRelation: "stalls"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      stalls: {
-        Row: {
-          created_at: string
-          exhibition_id: string
-          id: string
-          length: number
-          name: string
-          position_x: number | null
-          position_y: number | null
-          price: number
-          quantity: number
-          status: string | null
-          unit_id: string
-          updated_at: string
-          width: number
-        }
-        Insert: {
-          created_at?: string
-          exhibition_id: string
-          id?: string
-          length: number
-          name: string
-          position_x?: number | null
-          position_y?: number | null
-          price: number
-          quantity: number
-          status?: string | null
-          unit_id: string
-          updated_at?: string
-          width: number
-        }
-        Update: {
-          created_at?: string
-          exhibition_id?: string
-          id?: string
-          length?: number
-          name?: string
-          position_x?: number | null
-          position_y?: number | null
-          price?: number
-          quantity?: number
-          status?: string | null
-          unit_id?: string
-          updated_at?: string
-          width?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stalls_exhibition_id_fkey"
-            columns: ["exhibition_id"]
-            isOneToOne: false
-            referencedRelation: "exhibitions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stalls_unit_id_fkey"
-            columns: ["unit_id"]
-            isOneToOne: false
-            referencedRelation: "measuring_units"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      venue_types: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          id: string
-          email: string
-          full_name: string | null
-          role: 'admin' | 'organiser' | 'brand' | 'shopper'
-          company_name: string | null
-          phone: string | null
-          avatar_url: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id: string
-          email: string
-          full_name?: string | null
-          role?: 'admin' | 'organiser' | 'brand' | 'shopper'
-          company_name?: string | null
-          phone?: string | null
-          avatar_url?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          full_name?: string | null
-          role?: 'admin' | 'organiser' | 'brand' | 'shopper'
-          company_name?: string | null
-          phone?: string | null
-          avatar_url?: string | null
           created_at?: string
           updated_at?: string
         }
       }
-      event_types: {
+      notification_settings: {
         Row: {
           id: string
-          name: string
-          description: string | null
+          user_id: string
+          email_notifications: boolean
+          desktop_notifications: boolean
+          sound_enabled: boolean
+          user_registered_enabled: boolean
+          exhibition_created_enabled: boolean
+          stall_booked_enabled: boolean
+          stall_updated_enabled: boolean
+          application_received_enabled: boolean
+          exhibition_reminder_enabled: boolean
+          payment_reminder_enabled: boolean
+          exhibition_cancelled_enabled: boolean
+          exhibition_updated_enabled: boolean
+          message_received_enabled: boolean
+          comment_received_enabled: boolean
+          review_submitted_enabled: boolean
+          review_response_enabled: boolean
+          profile_updated_enabled: boolean
+          document_uploaded_enabled: boolean
+          document_approved_enabled: boolean
+          document_rejected_enabled: boolean
+          exhibition_status_updated_enabled: boolean
+          payment_status_updated_enabled: boolean
+          stall_application_received_enabled: boolean
+          stall_approved_enabled: boolean
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          name: string
-          description?: string | null
+          user_id: string
+          email_notifications?: boolean
+          desktop_notifications?: boolean
+          sound_enabled?: boolean
+          user_registered_enabled?: boolean
+          exhibition_created_enabled?: boolean
+          stall_booked_enabled?: boolean
+          stall_updated_enabled?: boolean
+          application_received_enabled?: boolean
+          exhibition_reminder_enabled?: boolean
+          payment_reminder_enabled?: boolean
+          exhibition_cancelled_enabled?: boolean
+          exhibition_updated_enabled?: boolean
+          message_received_enabled?: boolean
+          comment_received_enabled?: boolean
+          review_submitted_enabled?: boolean
+          review_response_enabled?: boolean
+          profile_updated_enabled?: boolean
+          document_uploaded_enabled?: boolean
+          document_approved_enabled?: boolean
+          document_rejected_enabled?: boolean
+          exhibition_status_updated_enabled?: boolean
+          payment_status_updated_enabled?: boolean
+          stall_application_received_enabled?: boolean
+          stall_approved_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          name?: string
-          description?: string | null
+          user_id?: string
+          email_notifications?: boolean
+          desktop_notifications?: boolean
+          sound_enabled?: boolean
+          user_registered_enabled?: boolean
+          exhibition_created_enabled?: boolean
+          stall_booked_enabled?: boolean
+          stall_updated_enabled?: boolean
+          application_received_enabled?: boolean
+          exhibition_reminder_enabled?: boolean
+          payment_reminder_enabled?: boolean
+          exhibition_cancelled_enabled?: boolean
+          exhibition_updated_enabled?: boolean
+          message_received_enabled?: boolean
+          comment_received_enabled?: boolean
+          review_submitted_enabled?: boolean
+          review_response_enabled?: boolean
+          profile_updated_enabled?: boolean
+          document_uploaded_enabled?: boolean
+          document_approved_enabled?: boolean
+          document_rejected_enabled?: boolean
+          exhibition_status_updated_enabled?: boolean
+          payment_status_updated_enabled?: boolean
+          stall_application_received_enabled?: boolean
+          stall_approved_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -399,9 +226,6 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      user_role: 'admin' | 'organiser' | 'brand' | 'shopper'
-    }
-    CompositeTypes: {
       [_ in never]: never
     }
   }
@@ -495,21 +319,6 @@ export type Enums<
   ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {

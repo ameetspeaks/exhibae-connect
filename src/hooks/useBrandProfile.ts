@@ -2,22 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
-
-export interface BrandProfile {
-  id: string;
-  user_id: string;
-  company_name: string;
-  description?: string;
-  website?: string;
-  contact_email: string;
-  contact_phone?: string;
-  logo_url?: string;
-  cover_image_url?: string;
-  facebook_url?: string;
-  instagram_url?: string;
-  twitter_url?: string;
-  linkedin_url?: string;
-}
+import { BrandProfile } from '@/types/brand';
 
 export interface NotificationSettings {
   id: string;
@@ -33,10 +18,10 @@ export const useBrandProfile = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  return useQuery<BrandProfile, Error>({
+  return useQuery<BrandProfile>({
     queryKey: ['brandProfile', user?.id],
     queryFn: async () => {
-      if (!user) throw new Error('User not authenticated');
+      if (!user?.id) throw new Error('No user ID');
 
       const { data, error } = await supabase
         .from('brand_profiles')
@@ -44,47 +29,12 @@ export const useBrandProfile = () => {
         .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-        toast({
-          title: "Error",
-          description: "Failed to fetch brand profile",
-          variant: "destructive",
-        });
-        throw error;
-      }
+      if (error) throw error;
+      if (!data) throw new Error('No profile found');
 
-      // If no profile exists, create one
-      if (!data) {
-        const newProfile = {
-          user_id: user.id,
-          company_name: user.user_metadata?.company_name || '',
-          description: user.user_metadata?.description || '',
-          website: user.user_metadata?.website_url || '',
-          contact_phone: user.user_metadata?.phone || '',
-          contact_email: user.email || '',
-          logo_url: '',
-          cover_image_url: '',
-          facebook_url: '',
-          instagram_url: '',
-          twitter_url: '',
-          linkedin_url: ''
-        };
-
-        const { data: createdProfile, error: createError } = await supabase
-          .from('brand_profiles')
-          .insert([newProfile])
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        return createdProfile;
-      }
-
-      return data;
+      return data as BrandProfile;
     },
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30, // 30 minutes
+    enabled: !!user?.id,
   });
 };
 

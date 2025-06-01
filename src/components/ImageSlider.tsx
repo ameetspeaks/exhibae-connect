@@ -60,7 +60,7 @@ const ImageSlider: React.FC<ImageSliderProps> = ({ onStatusChange }) => {
   }
 
   return (
-    <div className="relative w-full h-[500px] max-w-6xl mx-auto px-4">
+    <div className="relative w-full h-[600px] max-w-7xl mx-auto">
       <Swiper
         modules={[Autoplay, EffectFade]}
         spaceBetween={0}
@@ -82,19 +82,19 @@ const ImageSlider: React.FC<ImageSliderProps> = ({ onStatusChange }) => {
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-black/40" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-background mb-4 header-text max-w-3xl">
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8 py-12">
+                <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-background mb-6 header-text max-w-4xl">
                   {slide.title}
                 </h2>
                 {slide.description && (
-                  <p className="text-lg md:text-xl text-background/90 mb-6 subheading-text max-w-2xl">
+                  <p className="text-xl md:text-2xl text-background/90 mb-8 subheading-text max-w-3xl">
                     {slide.description}
                   </p>
                 )}
                 {slide.link_url && (
                   <Button 
                     asChild
-                    className="bg-[#E6C5B6] hover:bg-opacity-90 text-font-color px-6 py-2 text-base subheading-text"
+                    className="bg-[#E6C5B6] hover:bg-opacity-90 text-font-color px-8 py-3 text-lg subheading-text"
                   >
                     <Link to={slide.link_url}>Learn More</Link>
                   </Button>

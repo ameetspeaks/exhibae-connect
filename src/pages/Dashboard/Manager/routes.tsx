@@ -1,34 +1,35 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
-import { LayoutDashboard, Users, Ruler, Building2, CalendarDays, Tag, LucideIcon, FileText, MessageSquare, Heart, SlidersHorizontal, LogOut, Calendar, Ticket, Mail } from 'lucide-react';
+import { LayoutDashboard, Users, Ruler, Building2, CalendarDays, Tag, LucideIcon, FileText, MessageSquare, Heart, SlidersHorizontal, LogOut, Calendar, Ticket, Mail, Newspaper } from 'lucide-react';
 import { EmailAdmin } from '@/components/email';
-import ManagerDashboard from './ManagerDashboard';
-import SliderPage from './SliderPage';
-import CreateSlider from './CreateSlider';
-import ViewSlider from './ViewSlider';
-import EditSlider from './EditSlider';
-import ExhibitionsPage from './ExhibitionsPage';
-import ExhibitionDetail from './ExhibitionDetail';
-import ExhibitionEdit from './ExhibitionEdit';
-import ExhibitionApplications from './ExhibitionApplications';
-import ApplicationsPage from './ApplicationsPage';
-import BrandInterestsPage from './BrandInterestsPage';
-import UsersPage from './UsersPage';
-import ContactMessagesPage from './ContactMessagesPage';
-import CategoriesPage from './CategoriesPage';
-import VenueTypesPage from './VenueTypesPage';
-import MeasurementUnitsPage from './MeasurementUnitsPage';
-import CouponsPage from './CouponsPage';
-import CreateCoupon from './CreateCoupon';
-import EditCoupon from './EditCoupon';
-import Settings from './Settings';
-import ChatPage from '../Chat';
-import SubscriptionsPage from './SubscriptionsPage';
 
 type CustomRouteObject = RouteObject & {
   icon?: LucideIcon;
   name?: string;
 };
+
+const ManagerDashboard = lazy(() => import('./ManagerDashboard'));
+const ExhibitionsPage = lazy(() => import('./ExhibitionsPage'));
+const ExhibitionDetail = lazy(() => import('./ExhibitionDetail'));
+const ExhibitionEdit = lazy(() => import('./ExhibitionEdit'));
+const ExhibitionApplications = lazy(() => import('./ExhibitionApplications'));
+const ApplicationsPage = lazy(() => import('./ApplicationsPage'));
+const UsersPage = lazy(() => import('./UsersPage'));
+const CategoriesPage = lazy(() => import('./CategoriesPage'));
+const VenueTypesPage = lazy(() => import('./VenueTypesPage'));
+const MeasurementUnitsPage = lazy(() => import('./MeasurementUnitsPage'));
+const Settings = lazy(() => import('./Settings'));
+const ChatPage = lazy(() => import('../Chat'));
+const CouponsPage = lazy(() => import('./CouponsPage'));
+const CreateCoupon = lazy(() => import('./CreateCoupon'));
+const EditCoupon = lazy(() => import('./EditCoupon'));
+const ContactMessagesPage = lazy(() => import('./ContactMessagesPage'));
+const BrandInterestsPage = lazy(() => import('./BrandInterestsPage'));
+const SliderPage = lazy(() => import('./SliderPage'));
+const CreateSlider = lazy(() => import('./CreateSlider'));
+const EditSlider = lazy(() => import('./EditSlider'));
+const ViewSlider = lazy(() => import('./ViewSlider'));
+const SubscriptionsPage = lazy(() => import('./SubscriptionsPage'));
 
 export const managerRoutes: CustomRouteObject[] = [
   {
@@ -136,16 +137,16 @@ export const managerRoutes: CustomRouteObject[] = [
     element: <ChatPage />,
   },
   {
+    path: 'subscriptions',
+    element: <SubscriptionsPage />,
+    icon: Newspaper,
+    name: 'Newsletter',
+  },
+  {
     path: 'email',
     element: <EmailAdmin />,
     icon: Mail,
     name: 'Email Analytics',
-  },
-  {
-    path: 'subscriptions',
-    element: <SubscriptionsPage />,
-    icon: Mail,
-    name: 'Subscriptions',
   },
 ];
 

@@ -103,8 +103,8 @@ export const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNaviga
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {exhibition.event_type && (
-                    <div className="bg-white/20 text-white border-white/30 rounded-md px-2 py-0.5 text-xs">
-                      <Badge variant="default">
+                    <div className="bg-[#4B1E25] text-[#F5E4DA] rounded-md px-2 py-0.5 text-xs">
+                      <Badge variant="default" className="bg-transparent border-none text-[#F5E4DA] hover:bg-transparent">
                         <Tag className="h-3 w-3 mr-1" />
                         {exhibition.event_type.name}
                       </Badge>

@@ -52,7 +52,7 @@ const SettingsLayout = ({ children, basePath }: SettingsLayoutProps) => {
             const Icon = item.icon;
             const isActive = item.exact 
               ? currentPath === item.href
-              : currentPath.startsWith(item.href);
+              : currentPath === item.href || currentPath.startsWith(`${item.href}/`);
 
             return (
               <Link

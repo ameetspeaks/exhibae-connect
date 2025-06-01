@@ -9,26 +9,21 @@ import { Share, Heart, Image, BookOpen, Building2, MapPin, Instagram, Facebook, 
 import { getInitials } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { Database } from '@/integrations/supabase/types';
 
-interface BrandProfile {
+type Tables = Database['public']['Tables'];
+type BrandProfileRow = Tables['brand_profiles']['Row'];
+type BrandGalleryRow = Tables['brand_gallery']['Row'];
+type BrandLookbookRow = Tables['brand_lookbooks']['Row'];
+
+interface BrandProfile extends Omit<BrandProfileRow, 'id' | 'user_id' | 'created_at'> {
   id: string;
   user_id: string;
-  company_name: string;
-  description: string | null;
-  location?: string;
-  website: string | null;
-  contact_email: string;
-  contact_phone: string | null;
-  logo_url: string | null;
   created_at: string;
-  instagram_url?: string;
-  facebook_url?: string;
-  twitter_url?: string;
-  linkedin_url?: string;
-  cover_image_url?: string;
+  location?: string;
 }
 
-interface GalleryImage {
+interface GalleryImage extends Omit<BrandGalleryRow, 'brand_id'> {
   id: string;
   title: string | null;
   description: string | null;
@@ -36,7 +31,7 @@ interface GalleryImage {
   created_at: string;
 }
 
-interface Lookbook {
+interface Lookbook extends Omit<BrandLookbookRow, 'brand_id'> {
   id: string;
   title: string;
   description: string | null;
@@ -97,7 +92,7 @@ const BrandPortfolio = () => {
         gallery_count: galleryResult.count || 0,
         lookbooks_count: lookbooksResult.count || 0,
         favorites_count: favoritesResult.count || 0
-      };
+      } as Stats;
     },
     enabled: !!brandId && !!brand?.user_id
   });
@@ -113,7 +108,7 @@ const BrandPortfolio = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as GalleryImage[];
+      return (data || []) as GalleryImage[];
     },
     enabled: !!brandId && !!brand?.user_id,
   });
@@ -129,7 +124,7 @@ const BrandPortfolio = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as Lookbook[];
+      return (data || []) as Lookbook[];
     },
     enabled: !!brandId && !!brand?.user_id,
   });
@@ -305,6 +300,26 @@ const BrandPortfolio = () => {
                       </a>
                     </Button>
                   )}
+                  {brand.threads_url && (
+                    <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                      <a href={brand.threads_url} target="_blank" rel="noopener noreferrer">
+                        <svg
+                          className="w-4 h-4 mr-2"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 2c-2.8 0-5 2.2-5 5v10c0 2.8 2.2 5 5 5s5-2.2 5-5V7c0-2.8-2.2-5-5-5z" />
+                          <path d="M12 6v12" />
+                          <path d="M12 12h5" />
+                        </svg>
+                        Threads
+                      </a>
+                    </Button>
+                  )}
                   {brand.facebook_url && (
                     <Button variant="outline" size="sm" className="w-full justify-start" asChild>
                       <a href={brand.facebook_url} target="_blank" rel="noopener noreferrer">
@@ -344,23 +359,23 @@ const BrandPortfolio = () => {
           {/* Right Column - 70% */}
           <div className="md:col-span-7 space-y-6">
             {/* Quick Stats */}
-            <Card className="bg-white">
+            <Card className="bg-[#4B1E25]">
               <CardContent className="p-6">
                 <div className="grid grid-cols-3 gap-6">
                   <div className="text-center">
-                    <Building2 className="w-6 h-6 mx-auto mb-2 text-[#4B1E25]" />
-                    <p className="text-2xl font-bold text-[#4B1E25]">{stats?.exhibitions_count || 0}</p>
-                    <p className="text-sm text-[#4B1E25]/70">Exhibitions</p>
+                    <Building2 className="w-6 h-6 mx-auto mb-2 text-[#F5E4DA]" />
+                    <p className="text-2xl font-bold text-[#F5E4DA]">{stats?.exhibitions_count || 0}</p>
+                    <p className="text-sm text-[#F5E4DA]/70">Exhibitions</p>
                   </div>
                   <div className="text-center">
-                    <Image className="w-6 h-6 mx-auto mb-2 text-[#4B1E25]" />
-                    <p className="text-2xl font-bold text-[#4B1E25]">{stats?.gallery_count || 0}</p>
-                    <p className="text-sm text-[#4B1E25]/70">Gallery</p>
+                    <Image className="w-6 h-6 mx-auto mb-2 text-[#F5E4DA]" />
+                    <p className="text-2xl font-bold text-[#F5E4DA]">{stats?.gallery_count || 0}</p>
+                    <p className="text-sm text-[#F5E4DA]/70">Gallery</p>
                   </div>
                   <div className="text-center">
-                    <BookOpen className="w-6 h-6 mx-auto mb-2 text-[#4B1E25]" />
-                    <p className="text-2xl font-bold text-[#4B1E25]">{stats?.lookbooks_count || 0}</p>
-                    <p className="text-sm text-[#4B1E25]/70">Look Books</p>
+                    <BookOpen className="w-6 h-6 mx-auto mb-2 text-[#F5E4DA]" />
+                    <p className="text-2xl font-bold text-[#F5E4DA]">{stats?.lookbooks_count || 0}</p>
+                    <p className="text-sm text-[#F5E4DA]/70">Look Books</p>
                   </div>
                 </div>
               </CardContent>

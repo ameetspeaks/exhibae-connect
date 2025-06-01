@@ -291,16 +291,11 @@ export default function ExhibitionList() {
         )}
       </div>
 
-      {/* Newsletter Section */}
+      {/* Newsletter Subscription Section */}
       {!user && !subscription && (
         <section className="py-16 bg-[#4B1E25]/5">
-          <div className="container mx-auto px-6">
-            <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-3xl font-bold mb-6 text-[#1C1C1C] header-text">Never Miss an Exhibition</h2>
-              <div className="max-w-xl mx-auto">
-                <SubscriptionForm />
-              </div>
-            </div>
+          <div className="container mx-auto px-6 max-w-lg">
+            <SubscriptionForm />
           </div>
         </section>
       )}
