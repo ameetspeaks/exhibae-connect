@@ -1,3 +1,7 @@
+import { Database } from './database.types';
+
+type NotificationType = Database['public']['Tables']['notifications']['Row']['type'];
+
 export interface NotificationAction {
   action: string;
   title: string;
@@ -23,14 +27,20 @@ export interface AppNotification {
   id: string;
   title: string;
   message: string;
-  type: 'user_registered' | 'exhibition_created' | 'stall_booked' | 'stall_updated' | 
-        'application_received' | 'exhibition_status_updated' | 'payment_status_updated' |
-        'stall_application_received' | 'stall_approved' | 'exhibition_reminder' |
-        'payment_reminder' | 'exhibition_cancelled' | 'exhibition_updated' |
-        'message_received' | 'comment_received' | 'review_submitted' |
-        'review_response' | 'profile_updated' | 'document_uploaded' |
-        'document_approved' | 'document_rejected' | 'general';
+  type: NotificationType;
+  link: string;
   isRead: boolean;
   createdAt: string;
-  link?: string;
+  userId?: string;
+}
+
+export type NotificationHandler = (notification: AppNotification) => void;
+
+export interface NotificationContextType {
+  notifications: AppNotification[];
+  unreadCount: number;
+  markAsRead: (notificationId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  deleteNotification: (notificationId: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
 } 

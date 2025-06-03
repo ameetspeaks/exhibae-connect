@@ -34,24 +34,32 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { unifiedNotificationService } from '@/services/unifiedNotificationService';
+import { exhibitionNotificationService } from '@/services/exhibitionNotificationService';
+import { Database } from '@/types/database.types';
 
-interface Exhibition {
-  id: string;
-  title: string;
+type Exhibition = Database['public']['Tables']['exhibitions']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
+
+type ExhibitionWithDetails = Exhibition & {
   organiser: {
     full_name: string;
   };
   venue_type: {
     name: string;
   };
-  city: string;
-  state: string;
-  start_date: string;
-  end_date: string;
-  status: 'draft' | 'published' | 'cancelled' | 'completed';
-}
+};
 
-const getStatusDisplay = (status: Exhibition['status']) => {
+type ExhibitionData = {
+  title: string;
+  organiser_id: string;
+  status: Exhibition['status'];
+  organiser: {
+    full_name: string;
+    email: string;
+  };
+};
+
+const getStatusDisplay = (status: ExhibitionWithDetails['status']) => {
   if (status === 'draft') {
     return 'Pending for Approval';
   }
@@ -59,13 +67,13 @@ const getStatusDisplay = (status: Exhibition['status']) => {
 };
 
 const ExhibitionsPage = () => {
-  const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
+  const [exhibitions, setExhibitions] = useState<ExhibitionWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [exhibitionToDelete, setExhibitionToDelete] = useState<Exhibition | null>(null);
+  const [exhibitionToDelete, setExhibitionToDelete] = useState<ExhibitionWithDetails | null>(null);
   const [statusUpdateDialog, setStatusUpdateDialog] = useState(false);
   const [statusUpdateData, setStatusUpdateData] = useState<{exhibitionId: string, newStatus: Exhibition['status'], currentTitle: string} | null>(null);
   const navigate = useNavigate();
@@ -92,7 +100,7 @@ const ExhibitionsPage = () => {
           status
         `)
         .order('created_at', { ascending: false })
-        .returns<Exhibition[]>();
+        .returns<ExhibitionWithDetails[]>();
 
       if (error) throw error;
 
@@ -125,42 +133,36 @@ const ExhibitionsPage = () => {
           )
         `)
         .eq('id', exhibitionId)
-        .single();
+        .single()
+        .returns<ExhibitionData>();
       
-      if (fetchError) throw fetchError;
+      if (fetchError || !exhibitionData) throw fetchError;
       
       // Update the exhibition status
       const { error } = await supabase
         .from('exhibitions')
-        .update({ status: newStatus })
+        .update({ status: newStatus } as Partial<Exhibition>)
         .eq('id', exhibitionId);
 
       if (error) throw error;
 
       // Send notifications if status has changed
-      if (exhibitionData && exhibitionData.status !== newStatus) {
-        await unifiedNotificationService.notifyExhibitionStatusUpdate(
+      if (exhibitionData.status !== newStatus) {
+        // Send notification to the organizer
+        await exhibitionNotificationService.notifyOrganiserOfStatusChange(
           exhibitionId,
           exhibitionData.title,
+          exhibitionData.organiser_id,
           newStatus
         );
 
-        // Create notification for the organizer
-        const { error: notificationError } = await supabase
-          .from('notifications')
-          .insert([
-            {
-              user_id: exhibitionData.organiser_id,
-              title: 'Exhibition Status Updated',
-              message: `Your exhibition "${exhibitionData.title}" status has been changed to ${getStatusDisplay(newStatus)}.`,
-              type: 'exhibition_status_updated',
-              link: `/dashboard/organiser/exhibitions/${exhibitionId}`,
-              is_read: false,
-            },
-          ]);
-
-        if (notificationError) {
-          console.error('Failed to create notification:', notificationError);
+        // If the status is being changed to published, send a special notification
+        if (newStatus === 'published') {
+          await exhibitionNotificationService.notifyOrganiserOfPublishedExhibition(
+            exhibitionId,
+            exhibitionData.title,
+            exhibitionData.organiser_id
+          );
         }
       }
 
@@ -186,7 +188,7 @@ const ExhibitionsPage = () => {
     }
   };
 
-  const getStatusBadgeVariant = (status: Exhibition['status']) => {
+  const getStatusBadgeVariant = (status: ExhibitionWithDetails['status']) => {
     switch (status) {
       case 'published':
         return 'default';
@@ -212,7 +214,7 @@ const ExhibitionsPage = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleDelete = async (exhibition: Exhibition) => {
+  const handleDelete = async (exhibition: ExhibitionWithDetails) => {
     setExhibitionToDelete(exhibition);
     setDeleteDialogOpen(true);
   };
@@ -285,7 +287,7 @@ const ExhibitionsPage = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Exhibitions</h1>
         <Button
-          onClick={() => navigate('/dashboard/manager/exhibitions/new')}
+          onClick={() => navigate('/dashboard/manager/exhibitions/create')}
         >
           <Plus className="h-5 w-5 mr-2" />
           Add New Exhibition

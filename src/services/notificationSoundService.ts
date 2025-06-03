@@ -8,15 +8,18 @@ const DEFAULT_SOUND_PATH = '/sounds/notification.mp3';
 
 // Map notification types to sound files
 const NOTIFICATION_SOUNDS = {
-  user_registered: DEFAULT_SOUND_PATH,
+  // Exhibition notifications
   exhibition_created: DEFAULT_SOUND_PATH,
-  stall_booked: DEFAULT_SOUND_PATH,
-  stall_updated: DEFAULT_SOUND_PATH,
-  application_received: DEFAULT_SOUND_PATH,
   exhibition_status_updated: DEFAULT_SOUND_PATH,
-  payment_status_updated: DEFAULT_SOUND_PATH,
-  stall_application_received: DEFAULT_SOUND_PATH,
-  stall_approved: DEFAULT_SOUND_PATH,
+  exhibition_updated: DEFAULT_SOUND_PATH,
+  
+  // Stall notifications
+  stall_application: DEFAULT_SOUND_PATH,
+  stall_application_approved: DEFAULT_SOUND_PATH,
+  stall_payment_complete: DEFAULT_SOUND_PATH,
+  stall_booking_confirmed: DEFAULT_SOUND_PATH,
+  
+  // General notification
   general: DEFAULT_SOUND_PATH,
   default: DEFAULT_SOUND_PATH,
 };

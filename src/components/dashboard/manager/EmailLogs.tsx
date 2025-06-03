@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { EmailLog } from '@/types/email-logs';
 import {
   Table,
   TableBody,
@@ -18,11 +17,35 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { PostgrestError } from '@supabase/supabase-js';
+
+type EmailStatus = 'sent' | 'failed' | 'pending';
+
+interface EmailContent {
+  html: string;
+  text?: string;
+  templateData?: Record<string, unknown>;
+}
+
+interface EmailLog {
+  id: string;
+  email_type: string;
+  recipient_email: string;
+  recipient_name: string | null;
+  subject: string;
+  content: EmailContent;
+  status: EmailStatus;
+  error_message: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export function EmailLogs() {
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const { data: logs, isLoading } = useQuery({
+  const { data: logs, isLoading } = useQuery<EmailLog[], PostgrestError>({
     queryKey: ['emailLogs'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -31,24 +54,32 @@ export function EmailLogs() {
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
-      return data as EmailLog[];
+      if (error) {
+        throw error;
+      }
+
+      return (data as unknown) as EmailLog[];
     },
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: EmailStatus): string => {
     switch (status) {
       case 'sent':
-        return 'bg-green-500';
+        return 'bg-green-500 text-white';
       case 'failed':
-        return 'bg-red-500';
-      default:
-        return 'bg-yellow-500';
+        return 'bg-red-500 text-white';
+      case 'pending':
+        return 'bg-yellow-500 text-white';
     }
   };
 
+  const handleLogClick = (log: EmailLog) => {
+    setSelectedLog(log);
+    setIsDialogOpen(true);
+  };
+
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div className="flex justify-center py-8">Loading...</div>;
   }
 
   return (
@@ -71,7 +102,7 @@ export function EmailLogs() {
               <TableRow
                 key={log.id}
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => setSelectedLog(log)}
+                onClick={() => handleLogClick(log)}
               >
                 <TableCell className="font-medium">{log.email_type}</TableCell>
                 <TableCell>{log.recipient_email}</TableCell>
@@ -95,7 +126,7 @@ export function EmailLogs() {
         </Table>
       </div>
 
-      <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Email Details</DialogTitle>
@@ -121,7 +152,7 @@ export function EmailLogs() {
               </div>
               <div>
                 <h3 className="font-semibold">Content</h3>
-                <pre className="mt-2 rounded bg-muted p-4">
+                <pre className="mt-2 rounded bg-muted p-4 overflow-auto max-h-48">
                   {JSON.stringify(selectedLog.content, null, 2)}
                 </pre>
               </div>

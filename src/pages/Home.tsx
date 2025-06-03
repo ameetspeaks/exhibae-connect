@@ -43,44 +43,44 @@ const Home = () => {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative min-h-[600px] flex items-center bg-[#F5E4DA] py-12">
+      <section className="relative min-h-[400px] sm:min-h-[600px] flex items-center bg-[#F5E4DA] py-8 sm:py-12">
         <div className="relative w-full z-0">
           <ImageSlider onStatusChange={setSliderStatus} />
         </div>
       </section>
 
       {/* Benefits Section */}
-      <section className="py-16 bg-[#F5E4DA]">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center mb-12 text-[#1C1C1C] header-text">Why Exhibae?</h2>
+      <section className="py-12 sm:py-16 bg-[#F5E4DA]">
+        <div className="container mx-auto px-4 sm:px-6">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 text-[#1C1C1C] header-text">Why Exhibae?</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div className="text-center p-6">
-              <div className="bg-[#E6C5B6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Gift className="w-8 h-8 text-[#1C1C1C]" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12">
+            <div className="text-center p-4 sm:p-6">
+              <div className="bg-[#E6C5B6] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <Gift className="w-7 h-7 sm:w-8 sm:h-8 text-[#1C1C1C]" />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-[#1C1C1C] header-text">Unlock Exclusive Deals</h3>
-              <p className="text-[#1C1C1C]/80 subheading-text">
+              <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#1C1C1C] header-text">Unlock Exclusive Deals</h3>
+              <p className="text-sm sm:text-base text-[#1C1C1C]/80 subheading-text">
                 Special discounts for both brands and shoppers — only on Exhibae!
               </p>
             </div>
             
-            <div className="text-center p-6">
-              <div className="bg-[#E6C5B6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Store className="w-8 h-8 text-[#1C1C1C]" />
+            <div className="text-center p-4 sm:p-6">
+              <div className="bg-[#E6C5B6] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <Store className="w-7 h-7 sm:w-8 sm:h-8 text-[#1C1C1C]" />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-[#1C1C1C] header-text">Book Stalls in Seconds</h3>
-              <p className="text-[#1C1C1C]/80 subheading-text">
+              <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#1C1C1C] header-text">Book Stalls in Seconds</h3>
+              <p className="text-sm sm:text-base text-[#1C1C1C]/80 subheading-text">
                 Browse, compare, and reserve exhibition spots — hassle-free
               </p>
             </div>
             
-            <div className="text-center p-6">
-              <div className="bg-[#E6C5B6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Users className="w-8 h-8 text-[#1C1C1C]" />
+            <div className="text-center p-4 sm:p-6">
+              <div className="bg-[#E6C5B6] w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <Users className="w-7 h-7 sm:w-8 sm:h-8 text-[#1C1C1C]" />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-[#1C1C1C] header-text">Be Seen by the Right Crowd</h3>
-              <p className="text-[#1C1C1C]/80 subheading-text">
+              <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-[#1C1C1C] header-text">Be Seen by the Right Crowd</h3>
+              <p className="text-sm sm:text-base text-[#1C1C1C]/80 subheading-text">
                 Get your brand in front of thousands of exhibition-ready shoppers.
               </p>
             </div>
@@ -89,13 +89,13 @@ const Home = () => {
       </section>
 
       {/* Featured Exhibitions */}
-      <section className="py-12 bg-[#F5E4DA]">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <h2 className="text-3xl font-bold text-[#1C1C1C] header-text">Upcoming Exhibitions</h2>
-                <div className="w-48">
+      <section className="py-8 sm:py-12 bg-[#F5E4DA]">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="flex flex-col space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#1C1C1C] header-text">Upcoming Exhibitions</h2>
+                <div className="w-full sm:w-48">
                   <Select value={selectedCity} onValueChange={setSelectedCity}>
                     <SelectTrigger className="bg-white border-[#E6C5B6] text-[#1C1C1C]">
                       <SelectValue placeholder="Select city" />
@@ -110,13 +110,13 @@ const Home = () => {
                   </Select>
                 </div>
               </div>
-              <Button variant="link" className="text-[#4B1E25] hover:text-[#4B1E25]/80 font-medium subheading-text" asChild>
+              <Button variant="link" className="text-[#4B1E25] hover:text-[#4B1E25]/80 font-medium subheading-text self-start sm:self-center" asChild>
                 <Link to="/exhibitions">View All</Link>
               </Button>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mt-6 sm:mt-8">
             {isLoading ? (
               // Loading skeleton
               Array(4).fill(0).map((_, i) => (
@@ -157,14 +157,14 @@ const Home = () => {
       <ShopperSections />
 
       {/* Newsletter Section */}
-      <section className="py-20 bg-[#F5E4DA]">
-        <div className="container mx-auto px-6">
+      <section className="py-12 sm:py-20 bg-[#F5E4DA]">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl font-bold mb-6 text-[#1C1C1C] header-text">Never Miss an Exhibition</h2>
-            <p className="text-xl mb-8 text-[#1C1C1C]/80 subheading-text">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 text-[#1C1C1C] header-text">Never Miss an Exhibition</h2>
+            <p className="text-base sm:text-xl mb-6 sm:mb-8 text-[#1C1C1C]/80 subheading-text">
               Subscribe to our newsletter and be the first to know about upcoming exhibitions and exclusive deals.
             </p>
-            <div className="max-w-lg mx-auto">
+            <div className="max-w-lg mx-auto px-4 sm:px-0">
               <SubscriptionForm variant="minimal" />
             </div>
           </div>

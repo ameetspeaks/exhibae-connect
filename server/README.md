@@ -6,14 +6,11 @@ A robust email service for ExhiBae Connect, built with Node.js, Express, Nodemai
 
 - **SMTP Email Sending**: Send emails via Hostinger SMTP server
 - **HTML Email Templates**: Support for HTML templates with variable substitution
-- **Conditional Content**: Template support for conditional content blocks
 - **Email Queueing**: Queue emails for later sending
 - **Scheduled Emails**: Schedule emails to be sent at a specific time
 - **Retry Mechanism**: Automatic retry for failed emails
 - **Email Templates**: Store and manage email templates in the database
-- **Default Templates**: Built-in default templates for common scenarios
 - **API Endpoints**: RESTful API endpoints for email operations
-- **Queue Processing**: Background processing of email queue
 - **Error Handling**: Robust error handling and logging
 
 ## Configuration
@@ -22,20 +19,21 @@ A robust email service for ExhiBae Connect, built with Node.js, Express, Nodemai
 
 Create a `.env` file in the server directory with the following variables:
 
-```
+```env
 # Server Configuration
 PORT=3001
 NODE_ENV=development
 
 # Email Configuration
-EMAIL_HOST=smtp.hostinger.com
-EMAIL_PORT=587
-EMAIL_SECURE=true
-EMAIL_USER=hi@sportsvani.in
-EMAIL_PASSWORD=your-email-password
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USER=info@exhibae.com
+SMTP_PASSWORD=your-email-password
+SMTP_FROM_EMAIL=info@exhibae.com
+SMTP_FROM_NAME=ExhiBae
 
 # Supabase Configuration
-SUPABASE_URL=https://your-supabase-url.supabase.co
+SUPABASE_URL=your-supabase-url
 SUPABASE_SERVICE_KEY=your-supabase-service-key
 
 # Application URLs
@@ -43,200 +41,113 @@ CLIENT_URL=https://exhibae.com
 API_URL=https://api.exhibae.com
 ```
 
-### SMTP Configuration
+## Email Types
 
-The email service is configured to use Hostinger SMTP with the following settings:
+The system supports the following email types:
 
-- **Host**: smtp.hostinger.com
-- **Port**: 587 (TLS)
-- **Secure**: true
-- **Username**: hi@sportsvani.in
-- **Password**: [Set in environment variables]
+1. **Welcome Email**: Sent to new users when they register
+2. **Exhibition Published**: Sent to organisers when their exhibition is published
+3. **New Stall Interest**: Sent to organisers when a brand applies for a stall
+4. **Stall Approved**: Sent to brands when their stall application is approved
+5. **Upcoming Exhibition Reminder**: Sent to shoppers as a weekly reminder
+6. **New Exhibition Listing**: Sent to managers when a new exhibition is listed
+7. **Payment Confirmation**: Sent to brands when their payment is confirmed
+8. **Exhibition Reminder**: Sent to brands and organisers before an exhibition
+9. **Stall Application Rejected**: Sent to brands when their application is rejected
+
+## Testing
+
+### Quick Test
+
+To quickly test the email configuration:
+
+```bash
+npm run test-email
+```
+
+This will:
+1. Verify SMTP connection
+2. Send a test email to the configured SMTP user
+3. Log the results
+
+### Comprehensive Testing
+
+For thorough testing of all email features:
+
+```bash
+npm run test-all
+```
+
+This includes:
+- Template rendering tests
+- Queue processing tests
+- Scheduled email tests
+- Error handling tests
+
+## Database Schema
+
+The service uses the following tables:
+
+1. **email_templates**: Stores email templates
+2. **email_queue**: Manages email sending queue
+3. **email_logs**: Tracks all sent emails
+
+To set up the database schema:
+
+```bash
+npm run setup-email-tables
+```
 
 ## API Endpoints
 
 ### Send Email
-
 ```
 POST /api/email/send
-```
+Content-Type: application/json
 
-Request body:
-```json
 {
   "to": "recipient@example.com",
-  "subject": "Hello from ExhiBae",
-  "html": "<p>This is a test email</p>",
-  "from": "hi@sportsvani.in" // Optional
+  "subject": "Hello",
+  "html": "<p>Email content</p>"
 }
 ```
 
-### Send Template Email
-
-```
-POST /api/email/template
-```
-
-Request body:
-```json
-{
-  "to": "recipient@example.com",
-  "templateId": "welcome",
-  "data": {
-    "name": "John Doe",
-    "dashboardLink": "https://exhibae.com/dashboard",
-    "unsubscribeLink": "https://exhibae.com/unsubscribe"
-  },
-  "from": "hi@sportsvani.in" // Optional
-}
-```
-
-### Queue Email
-
-```
-POST /api/email/queue
-```
-
-Request body:
-```json
-{
-  "to": "recipient@example.com",
-  "subject": "Hello from ExhiBae",
-  "html": "<p>This is a queued email</p>",
-  "from": "hi@sportsvani.in", // Optional
-  "scheduled_for": "2023-06-01T10:00:00Z" // Optional
-}
-```
-
-Or for template emails:
-
-```json
-{
-  "to": "recipient@example.com",
-  "templateId": "welcome",
-  "data": {
-    "name": "John Doe",
-    "dashboardLink": "https://exhibae.com/dashboard"
-  },
-  "from": "hi@sportsvani.in", // Optional
-  "scheduled_for": "2023-06-01T10:00:00Z" // Optional
-}
-```
-
-### Process Email Queue
-
-```
-POST /api/email/process-queue
-```
-
-Request body:
-```json
-{
-  "batchSize": 10 // Optional
-}
-```
-
-### Get Email Templates
-
+### Get Templates
 ```
 GET /api/email/templates
 ```
 
-### Verify SMTP Connection
-
+### Test Configuration
 ```
-POST /api/email/verify
-```
-
-## Database Schema
-
-### Email Templates Table
-
-```sql
-CREATE TABLE email_templates (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  template_id TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  subject TEXT NOT NULL,
-  html_content TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+GET /api/email/test
 ```
 
-### Email Queue Table
+## Error Handling
 
-```sql
-CREATE TABLE email_queue (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  to_email TEXT NOT NULL,
-  from_email TEXT,
-  subject TEXT,
-  html_content TEXT,
-  template_id TEXT,
-  template_data JSONB,
-  status TEXT NOT NULL DEFAULT 'pending',
-  error TEXT,
-  scheduled_for TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  sent_at TIMESTAMPTZ,
-  retry_count INTEGER NOT NULL DEFAULT 0,
-  max_retries INTEGER NOT NULL DEFAULT 3
-);
-```
+The service includes comprehensive error handling:
 
-## Default Email Templates
+- SMTP connection errors
+- Template rendering errors
+- Queue processing errors
+- Database errors
 
-The system includes the following default templates:
+All errors are logged to:
+1. Console (development)
+2. Log files (production)
+3. Supabase email_logs table
 
-1. **Welcome**: Sent when a new user joins
-2. **Application Status Update**: Sent when an application status changes
-3. **Password Reset**: Sent when a user requests a password reset
+## Maintenance
 
-## Running the Server
+Regular maintenance tasks:
 
-### Development
+1. Monitor email_logs table for failed emails
+2. Check SMTP configuration if multiple failures occur
+3. Review and update email templates as needed
+4. Monitor queue performance
 
-```bash
-npm run dev
-```
+## Support
 
-### Production
-
-```bash
-npm start
-```
-
-## Testing Email Templates
-
-You can test email templates using the provided test scripts:
-
-### Node.js Script
-
-```bash
-node test-email-templates.js list                   # List available templates
-node test-email-templates.js all [recipient]        # Test all templates
-node test-email-templates.js [template] [recipient] # Test specific template
-```
-
-### PowerShell Script
-
-```powershell
-.\test-email-templates.ps1
-```
-
-## Scheduled Tasks
-
-The server automatically runs the following scheduled tasks:
-
-- **Process Email Queue**: Every 5 minutes
-- **Process Scheduled Emails**: Every 1 minute
-
-## Security Considerations
-
-- Store email passwords securely in environment variables
-- Implement proper authentication for API endpoints
-- Use HTTPS for all API requests
-- Validate all input data
-- Handle errors gracefully without exposing sensitive information 
+For issues or questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the error logs 

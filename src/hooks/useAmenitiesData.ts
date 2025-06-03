@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Amenity, StallAmenity, MeasuringUnit } from '@/types/exhibition-management';
+import { MeasurementUnit } from '@/types/exhibition-management';
 
 export const useAmenities = () => {
   return useQuery({
@@ -10,52 +10,43 @@ export const useAmenities = () => {
         .from('amenities')
         .select('*')
         .order('name');
-      
       if (error) {
         throw new Error(error.message);
       }
-      
-      return data as Amenity[];
+      return data;
     }
   });
 };
 
-export const useStallAmenities = (stallId?: string) => {
+export const useStallAmenities = (stallId: string) => {
   return useQuery({
     queryKey: ['stallAmenities', stallId],
     queryFn: async () => {
-      if (!stallId) return [];
-      
       const { data, error } = await supabase
         .from('stall_amenities')
-        .select(`
-          *,
-          amenity:amenities(*)
-        `)
-        .eq('stall_id', stallId);
-      
+        .select('*')
+        .match({ stall_id: stallId });
       if (error) {
         throw new Error(error.message);
       }
-      
-      return data as StallAmenity[];
-    },
-    enabled: !!stallId
+      return data;
+    }
   });
 };
 
-export const useMeasuringUnits = () => {
+export const useMeasurementUnits = () => {
   return useQuery({
-    queryKey: ['measuringUnits'],
+    queryKey: ['measurementUnits'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('measuring_units')
+        .from('measurement_units')
         .select('*')
         .order('name');
       if (error) {
         throw new Error(error.message);
       }
-      return data as MeasuringUnit[];
+      // Use a double cast to avoid type errors
+      return (data as unknown) as MeasurementUnit[];
     }
   });
 };

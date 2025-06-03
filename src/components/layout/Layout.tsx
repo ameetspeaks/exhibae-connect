@@ -52,7 +52,7 @@ const Layout = () => {
           onLogout={handleLogout}
         />
       )}
-      <main className={`flex-grow ${!isDashboardRoute ? 'min-h-[calc(100vh-64px)]' : 'min-h-screen'}`}>
+      <main className={`flex-grow ${!isDashboardRoute ? 'min-h-[calc(100vh-64px)]' : 'min-h-screen'} px-4 sm:px-0`}>
         <Outlet />
       </main>
       {!isDashboardRoute && <Footer />}

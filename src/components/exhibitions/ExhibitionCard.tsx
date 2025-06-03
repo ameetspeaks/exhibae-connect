@@ -47,7 +47,7 @@ export const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNaviga
             <AspectRatio ratio={4/3}>
               {imageError ? (
                 <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                  <ImageIcon className="h-12 w-12 text-font-color-muted" />
+                  <ImageIcon className="h-10 w-10 sm:h-12 sm:w-12 text-font-color-muted" />
                 </div>
               ) : (
                 <img
@@ -63,10 +63,10 @@ export const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNaviga
               
               {/* Price Badge */}
               {exhibition.price_range && (
-                <div className="absolute top-3 left-3">
-                  <div className="bg-white/90 text-black font-medium px-2.5 py-1 rounded-md text-sm">
+                <div className="absolute top-2 sm:top-3 left-2 sm:left-3">
+                  <div className="bg-white/90 text-black font-medium px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-xs sm:text-sm">
                     <Badge variant="default">
-                      <IndianRupee className="h-3 w-3 mr-1 inline-block" />
+                      <IndianRupee className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 inline-block" />
                       {exhibition.price_range} onwards
                     </Badge>
                   </div>
@@ -77,7 +77,7 @@ export const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNaviga
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-3 right-3 bg-white/80 hover:bg-white text-gray-700 h-7 w-7 rounded-full"
+                className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-white/80 hover:bg-white text-gray-700 h-6 w-6 sm:h-7 sm:w-7 rounded-full"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFavorite();
@@ -85,11 +85,11 @@ export const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNaviga
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
                 ) : (
                   <Heart 
                     className={cn(
-                      "h-3.5 w-3.5 transition-colors",
+                      "h-3 w-3 sm:h-3.5 sm:w-3.5 transition-colors",
                       isFavorite ? "fill-red-500 text-red-500" : "text-gray-600"
                     )} 
                   />
@@ -97,15 +97,15 @@ export const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNaviga
               </Button>
 
               {/* Title and Event Type */}
-              <div className="absolute bottom-3 left-3 right-3">
-                <h3 className="text-white font-semibold text-base line-clamp-2 mb-2">
+              <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 right-2 sm:right-3">
+                <h3 className="text-white font-semibold text-sm sm:text-base line-clamp-2 mb-1.5 sm:mb-2">
                   {exhibition.title}
                 </h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   {exhibition.event_type && (
-                    <div className="bg-[#4B1E25] text-[#F5E4DA] rounded-md px-2 py-0.5 text-xs">
+                    <div className="bg-[#4B1E25] text-[#F5E4DA] rounded-md px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs">
                       <Badge variant="default" className="bg-transparent border-none text-[#F5E4DA] hover:bg-transparent">
-                        <Tag className="h-3 w-3 mr-1" />
+                        <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                         {exhibition.event_type.name}
                       </Badge>
                     </div>
@@ -116,24 +116,24 @@ export const ExhibitionCard = ({ exhibition, isLast, lastExhibitionRef, onNaviga
           </div>
 
           {/* Details Section */}
-          <div className="p-3 space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-font-color-muted">
-              <Calendar className="h-3 w-3 flex-shrink-0" />
+          <div className="p-2 sm:p-3 space-y-1 sm:space-y-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-font-color-muted">
+              <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0" />
               <span className="truncate">
                 {format(new Date(exhibition.start_date), 'MMM d')} - {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs text-font-color-muted">
-              <MapPin className="h-3 w-3 flex-shrink-0" />
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-font-color-muted">
+              <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0" />
               <span className="truncate">
                 {exhibition.venue_type?.name}, {exhibition.city}
               </span>
             </div>
 
             {exhibition.timing && (
-              <div className="flex items-center gap-1.5 text-xs text-font-color-muted">
-                <Clock className="h-3 w-3 flex-shrink-0" />
+              <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-font-color-muted">
+                <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0" />
                 <span className="truncate">{exhibition.timing}</span>
               </div>
             )}

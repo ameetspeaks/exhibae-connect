@@ -10,14 +10,14 @@ export interface VenueType {
   description?: string;
 }
 
-export interface MeasuringUnit {
+export interface MeasurementUnit {
   id: string;
   name: string;
   symbol: string;
   type: 'length' | 'area' | 'volume' | 'weight' | 'temperature' | 'other';
-  description?: string;
-  created_at?: string;
-  updated_at?: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
   created_by?: string;
 }
 
@@ -54,7 +54,7 @@ export interface Exhibition {
   category?: ExhibitionCategory;
   venue_type?: VenueType;
   event_type?: EventType;
-  measuring_unit?: MeasuringUnit;
+  measuring_unit?: MeasurementUnit;
   gallery_images?: GalleryImage[];
 }
 
@@ -68,7 +68,7 @@ export interface Stall {
   quantity: number;
   status: string;
   unit_id: string;
-  unit?: MeasuringUnit;
+  unit?: MeasurementUnit;
   amenities?: Amenity[];
   description?: string;
   created_at?: string;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import DashboardHeader from './DashboardHeader';
 import DashboardSidebar from './DashboardSidebar';
@@ -9,6 +9,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { UserRole } from '@/types/auth';
 import { cn } from '@/lib/utils';
 import ScrollToTop from '../layout/ScrollToTop';
+import { isMobileDevice } from '@/lib/utils';
+import { MobileAccessWarning } from './MobileAccessWarning';
 
 interface DashboardLayoutProps {
   role: UserRole;
@@ -19,6 +21,20 @@ const DashboardLayout = ({ role, title }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { toast } = useToast();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(isMobileDevice());
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // Define role-specific color schemes and styling
   const getRoleStyle = () => {
@@ -84,6 +100,11 @@ const DashboardLayout = ({ role, title }: DashboardLayoutProps) => {
       });
     }
   };
+
+  // Show mobile warning for brand and organizer users
+  if (isMobile && (role === UserRole.BRAND || role === UserRole.ORGANISER)) {
+    return <MobileAccessWarning userRole={role} />;
+  }
 
   return (
     <div className={cn('min-h-screen flex flex-col', roleStyle.bgGradient)}>

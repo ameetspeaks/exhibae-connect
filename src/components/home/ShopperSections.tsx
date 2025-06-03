@@ -175,27 +175,27 @@ export const ShopperSections = () => {
     return (
       <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-[#E6C5B6] scrollbar-track-[#F5E4DA]">
         {attendingExhibitions.map(exhibition => (
-          <Card key={exhibition.id} className="bg-[#E6C5B6] min-w-[280px] max-w-[280px] flex-shrink-0 hover:shadow-md transition-shadow">
-            <CardContent className="p-3">
-              <h3 className="font-semibold text-[#4B1E25] text-sm mb-2 line-clamp-1 hover:text-[#4B1E25]/80 transition-colors">
+          <Card key={exhibition.id} className="bg-[#E6C5B6] min-w-[260px] sm:min-w-[280px] max-w-[280px] flex-shrink-0 hover:shadow-md transition-shadow">
+            <CardContent className="p-2 sm:p-3">
+              <h3 className="font-semibold text-[#4B1E25] text-sm mb-1.5 sm:mb-2 line-clamp-1 hover:text-[#4B1E25]/80 transition-colors">
                 {exhibition.title}
               </h3>
-              <div className="space-y-1 text-xs text-[#4B1E25]/80 mb-3">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="h-3 w-3" />
+              <div className="space-y-1 text-[10px] sm:text-xs text-[#4B1E25]/80 mb-2 sm:mb-3">
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   <span className="line-clamp-1">
                     {format(new Date(exhibition.start_date), 'MMM d')} - {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="h-3 w-3" />
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   <span className="line-clamp-1">{exhibition.city}</span>
                 </div>
               </div>
-              <Button asChild className="w-full h-8 text-xs bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]">
+              <Button asChild className="w-full h-7 sm:h-8 text-[10px] sm:text-xs bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]">
                 <Link to={`/exhibitions/${exhibition.id}`}>
                   View Details
-                  <ChevronRight className="h-3 w-3 ml-1" />
+                  <ChevronRight className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-1" />
                 </Link>
               </Button>
             </CardContent>
@@ -240,28 +240,32 @@ export const ShopperSections = () => {
     }
 
     return (
-      <div className="space-y-4">
+      <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-[#E6C5B6] scrollbar-track-[#F5E4DA]">
         {favoriteBrands.map(brand => (
-          <Card key={brand.id} className="bg-[#E6C5B6] hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
-              <Link to={`/brands/${brand.id}`} className="flex items-center space-x-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={brand.avatar_url || undefined} alt={brand.company_name} />
-                  <AvatarFallback className="bg-[#4B1E25] text-[#F5E4DA]">
-                    {getInitials(brand.company_name)}
-                  </AvatarFallback>
+          <Card key={brand.id} className="bg-[#E6C5B6] min-w-[260px] sm:min-w-[280px] max-w-[280px] flex-shrink-0 hover:shadow-md transition-shadow">
+            <CardContent className="p-2 sm:p-3">
+              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+                  <AvatarImage src={brand.avatar_url || undefined} />
+                  <AvatarFallback>{getInitials(brand.company_name)}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <h3 className="font-semibold text-[#4B1E25] line-clamp-1 hover:text-[#4B1E25]/80 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-[#4B1E25] text-sm line-clamp-1 hover:text-[#4B1E25]/80 transition-colors">
                     {brand.company_name}
                   </h3>
                   {brand.description && (
-                    <p className="text-sm text-[#4B1E25]/60 line-clamp-1">
+                    <p className="text-[10px] sm:text-xs text-[#4B1E25]/80 line-clamp-1">
                       {brand.description}
                     </p>
                   )}
                 </div>
-              </Link>
+              </div>
+              <Button asChild className="w-full h-7 sm:h-8 text-[10px] sm:text-xs bg-[#4B1E25] hover:bg-[#4B1E25]/90 text-[#F5E4DA]">
+                <Link to={`/brands/${brand.id}`}>
+                  View Portfolio
+                  <ChevronRight className="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-1" />
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         ))}

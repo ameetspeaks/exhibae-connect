@@ -236,43 +236,27 @@ export default function ExhibitionList() {
         </section>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center mt-8">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="border-[#4B1E25] text-[#4B1E25] hover:bg-[#4B1E25] hover:text-[#F5E4DA]"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            
-            <div className="flex items-center gap-2 mx-2">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <Button
-                  key={page}
-                  variant={currentPage === page ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrentPage(page)}
-                  className={`min-w-[32px] ${currentPage === page ? 'bg-[#4B1E25] text-[#F5E4DA]' : 'border-[#4B1E25] text-[#4B1E25] hover:bg-[#4B1E25] hover:text-[#F5E4DA]'}`}
-                >
-                  {page}
-                </Button>
-              ))}
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="border-[#4B1E25] text-[#4B1E25] hover:bg-[#4B1E25] hover:text-[#F5E4DA]"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        <div className="mt-8 flex justify-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="bg-[#F5E4DA] border-[#4B1E25]/20 text-[#4B1E25] hover:bg-[#E6C5B6]"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="flex items-center px-4 text-[#4B1E25]">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="bg-[#F5E4DA] border-[#4B1E25]/20 text-[#4B1E25] hover:bg-[#E6C5B6]"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
 
         {/* Empty State */}
         {(!filteredExhibitions || filteredExhibitions.length === 0) && (
@@ -293,9 +277,17 @@ export default function ExhibitionList() {
 
       {/* Newsletter Subscription Section */}
       {!user && !subscription && (
-        <section className="py-16 bg-[#4B1E25]/5">
-          <div className="container mx-auto px-6 max-w-lg">
-            <SubscriptionForm />
+        <section className="py-16 bg-[#F5E4DA]">
+          <div className="container mx-auto px-4">
+            <div className="max-w-2xl mx-auto text-center">
+              <h2 className="text-2xl sm:text-3xl font-bold text-[#4B1E25] mb-4">
+                Never Miss an Exhibition
+              </h2>
+              <p className="text-[#4B1E25]/80 mb-8">
+                Subscribe to our newsletter and be the first to know about upcoming exhibitions and exclusive deals.
+              </p>
+              <SubscriptionForm variant="minimal" className="max-w-xl mx-auto" />
+            </div>
           </div>
         </section>
       )}

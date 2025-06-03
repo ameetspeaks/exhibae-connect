@@ -27,17 +27,19 @@ let notificationPermissionStatus: NotificationPermission | null = null;
  * @returns Promise resolving to true if permission is granted
  */
 export const requestNotificationPermission = async (): Promise<boolean> => {
-  console.log('Requesting notification permission...'); // Debug log
-  
+  // Don't log permission requests for non-logged-in users
   if (typeof window === 'undefined' || !('Notification' in window)) {
-    console.warn('This browser does not support desktop notifications');
     return false;
   }
   
   try {
+    // Only proceed if permission is not denied
+    if (Notification.permission === 'denied') {
+      return false;
+    }
+    
     // Force a new permission request
     const permission = await Notification.requestPermission();
-    console.log('Permission request result:', permission); // Debug log
     
     // Update the cached permission status
     notificationPermissionStatus = permission;
@@ -56,7 +58,6 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
           
           // Register a new service worker
           const registration = await navigator.serviceWorker.register('/notification-sw.js');
-          console.log('ServiceWorker registration successful:', registration);
           
           // Wait for the service worker to be ready
           await navigator.serviceWorker.ready;
@@ -168,7 +169,12 @@ export const processNotification = (
  * Initialize notification system
  * Should be called on app startup
  */
-export const initializeNotifications = async (): Promise<void> => {
+export const initializeNotifications = async (isLoggedIn: boolean = false): Promise<void> => {
+  // Only proceed with notification setup if user is logged in
+  if (!isLoggedIn) {
+    return;
+  }
+
   // Request notification permission
   await requestNotificationPermission();
   

@@ -25,6 +25,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ExhibitionFormData, Stall, StallFormData, StallInstance, GalleryImage } from '@/types/exhibition-management';
 import { ArrowLeft, Save, Loader2, Grid } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { exhibitionNotificationService } from '@/services/exhibitionNotificationService';
+import { useAuth } from '@/hooks/useAuth';
 
 const CreateExhibition = () => {
   const navigate = useNavigate();
@@ -49,12 +51,24 @@ const CreateExhibition = () => {
   const updateExhibitionMutation = useUpdateExhibition();
   const createStallMutation = useCreateStall(createdExhibitionId || '');
   const deleteStallMutation = useDeleteStall(createdExhibitionId || '');
+  const { user } = useAuth();
 
   const handleCreateExhibition = async (data: ExhibitionFormData) => {
     try {
       const { measuring_unit_id, ...exhibitionData } = data;
       const created = await createExhibitionMutation.mutateAsync(exhibitionData);
       setCreatedExhibitionId(created.id);
+
+      // Send notification to managers
+      if (user) {
+        await exhibitionNotificationService.notifyManagerOfNewExhibition(
+          created.id,
+          data.title,
+          user.user_metadata?.full_name || user.email || 'Organiser',
+          user.id
+        );
+      }
+
       toast({
         title: 'Exhibition created',
         description: 'Basic details have been saved. Continue with stall setup.',

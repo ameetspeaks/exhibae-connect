@@ -45,6 +45,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signUp = async (email: string, password: string, metadata: any) => {
     try {
+      // Get the site URL based on environment
+      const siteUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:8080'
+        : 'https://exhibae.com';
+
+      console.log('Initiating signup with:', {
+        email,
+        redirectTo: `${siteUrl}/auth/login`,
+        metadata
+      });
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -53,13 +64,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             ...metadata,
             email_confirm: true,
           },
-          emailRedirectTo: `${window.location.origin}/auth/login`,
+          emailRedirectTo: `${siteUrl}/auth/login`,
         },
       });
 
       if (error) {
-        console.error('Signup error:', error);
+        console.error('Signup error:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
         return { user: null, error };
+      }
+
+      if (data?.user) {
+        console.log('Signup successful, confirmation email should be sent');
       }
 
       return { user: data?.user ?? null, error: null };

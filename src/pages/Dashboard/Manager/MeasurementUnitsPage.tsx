@@ -9,27 +9,24 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Database } from '@/types/database.types';
 
-interface MeasurementUnit {
-  id: string;
-  name: string;
-  abbreviation: string;
-  type: 'length' | 'area' | 'volume' | 'weight' | 'temperature' | 'other';
-  description: string | null;
-  created_at: string;
-}
+type Tables = Database['public']['Tables']
+type MeasurementUnit = Tables['measurement_units']['Row'];
+type MeasurementUnitInsert = Tables['measurement_units']['Insert'];
+type UnitType = MeasurementUnit['type'];
 
-const UNIT_TYPES = ['length', 'area', 'volume', 'weight', 'temperature', 'other'] as const;
+const UNIT_TYPES: UnitType[] = ['length', 'area', 'volume', 'weight', 'temperature', 'other'];
 
 const MeasurementUnitsPage = () => {
   const [measurementUnits, setMeasurementUnits] = useState<MeasurementUnit[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newUnit, setNewUnit] = useState({
+  const [newUnit, setNewUnit] = useState<MeasurementUnitInsert>({
     name: '',
-    abbreviation: '',
-    type: 'length' as const,
-    description: ''
+    symbol: '',
+    type: 'length',
+    description: null
   });
   const { toast } = useToast();
 
@@ -41,29 +38,29 @@ const MeasurementUnitsPage = () => {
     const defaultUnits = [
       {
         name: 'Meter',
-        abbreviation: 'm',
-        type: 'length',
+        symbol: 'm',
+        type: 'length' as const,
         description: 'Standard unit of length'
       },
       {
         name: 'Centimeter',
-        abbreviation: 'cm',
-        type: 'length',
+        symbol: 'cm',
+        type: 'length' as const,
         description: '1/100 of a meter'
       },
       {
         name: 'Square Meter',
-        abbreviation: 'm²',
-        type: 'area',
+        symbol: 'm²',
+        type: 'area' as const,
         description: 'Standard unit of area'
       },
       {
         name: 'Square Feet',
-        abbreviation: 'ft²',
-        type: 'area',
+        symbol: 'ft²',
+        type: 'area' as const,
         description: 'Imperial unit of area'
       }
-    ];
+    ] as const;
 
     try {
       const { data, error } = await supabase
@@ -73,11 +70,13 @@ const MeasurementUnitsPage = () => {
 
       if (error) throw error;
 
-      setMeasurementUnits(data);
-      toast({
-        title: "Default Units Added",
-        description: "Default measurement units have been added successfully.",
-      });
+      if (data) {
+        setMeasurementUnits(data as MeasurementUnit[]);
+        toast({
+          title: "Default Units Added",
+          description: "Default measurement units have been added successfully.",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -91,17 +90,12 @@ const MeasurementUnitsPage = () => {
     try {
       const { data, error } = await supabase
         .from('measurement_units')
-        .select('*')
+        .select()
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      if (!data || data.length === 0) {
-        // If no units exist, show a button to add default units
-        return setMeasurementUnits([]);
-      }
-
-      setMeasurementUnits(data);
+      setMeasurementUnits(data as MeasurementUnit[] || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -114,10 +108,10 @@ const MeasurementUnitsPage = () => {
   };
 
   const handleAddUnit = async () => {
-    if (!newUnit.name || !newUnit.abbreviation || !newUnit.type) {
+    if (!newUnit.name || !newUnit.symbol || !newUnit.type) {
       toast({
         title: "Error",
-        description: "Please fill in all fields",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
@@ -126,24 +120,22 @@ const MeasurementUnitsPage = () => {
     try {
       const { data, error } = await supabase
         .from('measurement_units')
-        .insert([{
-          name: newUnit.name,
-          abbreviation: newUnit.abbreviation,
-          type: newUnit.type
-        }])
+        .insert([newUnit])
         .select()
         .single();
 
       if (error) throw error;
 
-      setMeasurementUnits([...measurementUnits, data]);
-      setNewUnit({ name: '', abbreviation: '', type: 'length', description: '' });
-      setIsAddDialogOpen(false);
-      
-      toast({
-        title: "Success",
-        description: "Measurement unit added successfully",
-      });
+      if (data) {
+        setMeasurementUnits([data as MeasurementUnit, ...measurementUnits]);
+        setNewUnit({ name: '', symbol: '', type: 'length', description: null });
+        setIsAddDialogOpen(false);
+        
+        toast({
+          title: "Success",
+          description: "Measurement unit added successfully",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -158,7 +150,7 @@ const MeasurementUnitsPage = () => {
       const { error } = await supabase
         .from('measurement_units')
         .delete()
-        .eq('id', id);
+        .match({ id });
 
       if (error) throw error;
 
@@ -214,21 +206,39 @@ const MeasurementUnitsPage = () => {
               />
             </div>
             <div>
-              <Label htmlFor="abbreviation">Abbreviation</Label>
+              <Label htmlFor="symbol">Symbol</Label>
               <Input
-                id="abbreviation"
-                value={newUnit.abbreviation}
-                onChange={(e) => setNewUnit(prev => ({ ...prev, abbreviation: e.target.value }))}
+                id="symbol"
+                value={newUnit.symbol}
+                onChange={(e) => setNewUnit(prev => ({ ...prev, symbol: e.target.value }))}
                 placeholder="e.g., m²"
               />
             </div>
             <div>
               <Label htmlFor="type">Type</Label>
-              <Input
-                id="type"
+              <Select
                 value={newUnit.type}
-                onChange={(e) => setNewUnit(prev => ({ ...prev, type: e.target.value as typeof prev.type }))}
-                placeholder="e.g., area"
+                onValueChange={(value: UnitType) => setNewUnit(prev => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={newUnit.description || ''}
+                onChange={(e) => setNewUnit(prev => ({ ...prev, description: e.target.value || null }))}
+                placeholder="e.g., Standard unit of area measurement"
               />
             </div>
           </div>
@@ -248,7 +258,7 @@ const MeasurementUnitsPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Abbreviation</TableHead>
+                <TableHead>Symbol</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Created At</TableHead>
@@ -259,7 +269,7 @@ const MeasurementUnitsPage = () => {
               {measurementUnits.map((unit) => (
                 <TableRow key={unit.id}>
                   <TableCell>{unit.name}</TableCell>
-                  <TableCell>{unit.abbreviation}</TableCell>
+                  <TableCell>{unit.symbol}</TableCell>
                   <TableCell>{unit.type.charAt(0).toUpperCase() + unit.type.slice(1)}</TableCell>
                   <TableCell>{unit.description}</TableCell>
                   <TableCell>{new Date(unit.created_at).toLocaleDateString()}</TableCell>

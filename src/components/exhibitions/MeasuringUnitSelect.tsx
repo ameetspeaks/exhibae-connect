@@ -6,31 +6,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MeasuringUnit } from '@/types/exhibition-management';
+import { MeasurementUnit } from '@/types/exhibition-management';
 import { Loader2 } from 'lucide-react';
 
-interface MeasuringUnitSelectProps {
-  measuringUnits: MeasuringUnit[];
+interface MeasurementUnitSelectProps {
+  measurementUnits: MeasurementUnit[];
   selectedUnitId: string;
   onUnitSelect: (value: string) => void;
   disabled?: boolean;
   isLoading?: boolean;
 }
 
-const MeasuringUnitSelect: React.FC<MeasuringUnitSelectProps> = ({
-  measuringUnits,
+const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
+  measurementUnits,
   selectedUnitId,
   onUnitSelect,
   disabled = false,
   isLoading
 }) => {
   // Filter to show only length and area units for stall dimensions
-  const filteredUnits = measuringUnits.filter(unit => 
+  const filteredUnits = measurementUnits.filter(unit => 
     unit.type === 'length' || unit.type === 'area'
   );
 
   // Find the selected unit for display
-  const selectedUnit = measuringUnits.find(unit => unit.id === selectedUnitId);
+  const selectedUnit = measurementUnits.find(unit => unit.id === selectedUnitId);
 
   if (isLoading) {
     return (
@@ -80,4 +80,4 @@ const MeasuringUnitSelect: React.FC<MeasuringUnitSelectProps> = ({
   );
 };
 
-export default MeasuringUnitSelect; 
+export default MeasurementUnitSelect; 

@@ -15,12 +15,14 @@ import AuthLayout from "./components/layout/AuthLayout";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import ManagerLayout from "./components/layout/ManagerLayout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import { AuthProvider } from "./integrations/supabase/AuthProvider";
+import { AuthProvider, useAuth } from "./integrations/supabase/AuthProvider";
 import { NotificationProvider } from "./hooks/useNotifications";
 import { SupabaseProvider } from "@/lib/supabase/supabase-provider";
+import { initializeNotifications } from './services/notificationService';
+import { preloadNotificationSounds } from './services/notificationSoundService';
 import ForgotPassword from '@/pages/Auth/ForgotPassword';
 import ResetPassword from '@/pages/Auth/ResetPassword';
-import React, { lazy } from 'react';
+import React, { lazy, useEffect } from 'react';
 
 // Pages
 import Home from "./pages/Home";
@@ -226,6 +228,7 @@ const router = createBrowserRouter(
         <Route path="coupons/create" element={<ManagerCreateCoupon />} />
         <Route path="coupons/:id/edit" element={<ManagerEditCoupon />} />
         <Route path="settings" element={<ManagerSettings />} />
+        <Route path="settings/notifications" element={<NotificationSettings />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="subscriptions" element={<SubscriptionsPage />} />
         <Route path="email" element={<EmailAdmin />} />
@@ -315,6 +318,40 @@ const router = createBrowserRouter(
 );
 
 const App = () => {
+  const { user } = useAuth();
+
+  // Initialize notifications when auth state changes
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Only initialize notifications for logged-in users
+        if (user && 'Notification' in window) {
+          // Initialize notifications
+          await initializeNotifications(true);
+          
+          // Preload sounds
+          await preloadNotificationSounds();
+          
+          // Set up periodic permission check (in case user changes browser settings)
+          const checkInterval = setInterval(() => {
+            if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+              navigator.serviceWorker.ready.then(registration => {
+                registration.active?.postMessage({ type: 'CHECK_NOTIFICATION_STATUS' });
+              });
+            }
+          }, 60000); // Check every minute
+
+          // Cleanup interval on unmount or when user logs out
+          return () => clearInterval(checkInterval);
+        }
+      } catch (error) {
+        console.error('Error initializing notification system:', error);
+      }
+    };
+
+    initializeApp();
+  }, [user]); // Re-run when user auth state changes
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

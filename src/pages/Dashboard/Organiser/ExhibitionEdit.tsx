@@ -32,6 +32,13 @@ import {
   useGenerateLayout,
   useUpdateStallInstance
 } from '@/hooks/useStallsData';
+import { useAuth } from '@/hooks/useAuth';
+import { exhibitionNotificationService } from '@/services/exhibitionNotificationService';
+import { Database } from '@/types/database.types';
+import { supabase } from '@/integrations/supabase/client';
+
+type Exhibition = Database['public']['Tables']['exhibitions']['Row'];
+type ExhibitionUpdate = Database['public']['Tables']['exhibitions']['Update'];
 
 const ExhibitionEdit = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +48,7 @@ const ExhibitionEdit = () => {
   const [editingStall, setEditingStall] = useState<Stall | null>(null);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Fetch exhibition data
   const {
@@ -106,12 +114,36 @@ const ExhibitionEdit = () => {
 
   const handleUpdateExhibition = async (data: ExhibitionFormData) => {
     try {
-      await updateExhibitionMutation.mutateAsync({ ...data, exhibitionId: id || '' });
+      const { measuring_unit_id, ...exhibitionData } = data;
+      const { data: updated, error } = await supabase
+        .from('exhibitions')
+        .update({
+          ...exhibitionData,
+          updated_at: new Date().toISOString()
+        } as ExhibitionUpdate)
+        .eq('id', id)
+        .select()
+        .single()
+        .returns<Exhibition>();
+
+      if (error) throw error;
+
+      // Send notification to managers
+      if (user && updated) {
+        await exhibitionNotificationService.notifyManagerOfExhibitionUpdate(
+          updated.id,
+          updated.title,
+          user.user_metadata?.full_name || user.email || 'Organiser'
+        );
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['exhibition', id] });
+
       toast({
-        title: 'Exhibition updated',
-        description: 'Exhibition details have been saved successfully.',
+        title: 'Success',
+        description: 'Exhibition updated successfully',
       });
-      setActiveTab('stall-setup');
+      navigate('/dashboard/organiser/exhibitions');
     } catch (error) {
       toast({
         title: 'Error',
