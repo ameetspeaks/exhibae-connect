@@ -50,9 +50,9 @@ export const sendTestEmail = async (req: Request, res: Response) => {
     const info = await transporter.sendMail({
       from: SMTP_FROM,
       to,
-      subject: 'ExhiBae Test Email',
-      text: 'This is a test email from ExhiBae',
-      html: '<b>This is a test email from ExhiBae</b>',
+      subject: 'Exhibae Test Email',
+      text: 'This is a test email from Exhibae',
+      html: '<b>This is a test email from Exhibae</b>',
     });
 
     return res.status(200).json({
@@ -110,7 +110,7 @@ export const sendTemplateEmail = async (req: Request, res: Response) => {
     const info = await transporter.sendMail({
       from: from || SMTP_FROM,
       to,
-      subject: data.subject || `ExhiBae: ${templateId}`,
+      subject: data.subject || `Exhibae: ${templateId}`,
       html,
     });
 

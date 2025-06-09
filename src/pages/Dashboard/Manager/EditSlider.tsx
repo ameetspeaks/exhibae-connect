@@ -1,40 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useSupabase } from '@/lib/supabase/supabase-provider';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { toast } from 'sonner';
-import { Loader2, ArrowLeft } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useNavigate, useParams } from 'react-router-dom';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, Upload, ArrowLeft, Smartphone, Monitor } from 'lucide-react';
 
 interface HeroSlider {
   id: string;
   title: string | null;
   description: string | null;
-  image_url: string;
+  mobile_image_url: string | null;
+  desktop_image_url: string | null;
   link_url: string | null;
   order_index: number;
   is_active: boolean;
+  image_dimensions: {
+    mobile: { width: number; height: number };
+    desktop: { width: number; height: number };
+  };
 }
 
-const STORAGE_BUCKET = 'sliders';
-
 const EditSlider = () => {
+  const { id } = useParams<{ id: string }>();
   const { supabase } = useSupabase();
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [slider, setSlider] = useState<HeroSlider | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<{
+    mobile?: File;
+    desktop?: File;
+  }>({});
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    link_url: '',
+    is_active: true,
+  });
 
   useEffect(() => {
     const fetchSlider = async () => {
       try {
-        if (!id) return;
-
         const { data, error } = await supabase
           .from('hero_sliders')
           .select('*')
@@ -43,9 +56,18 @@ const EditSlider = () => {
 
         if (error) throw error;
         setSlider(data);
+        setFormData({
+          title: data.title || '',
+          description: data.description || '',
+          link_url: data.link_url || '',
+          is_active: data.is_active,
+        });
       } catch (error) {
-        console.error('Error fetching slider:', error);
-        toast.error('Failed to load slider');
+        toast({
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Failed to fetch slider',
+          variant: 'destructive',
+        });
         navigate('/dashboard/manager/sliders');
       } finally {
         setLoading(false);
@@ -53,107 +75,109 @@ const EditSlider = () => {
     };
 
     fetchSlider();
-  }, [id, navigate, supabase]);
+  }, [id, supabase, navigate, toast]);
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const file = event.target.files?.[0];
-      if (!file || !slider) return;
-
-      setUploading(true);
-
-      // Delete old image if it exists
-      if (slider.image_url) {
-        const oldFileName = slider.image_url.split('/').pop();
-        if (oldFileName) {
-          await supabase.storage
-            .from(STORAGE_BUCKET)
-            .remove([oldFileName]);
-        }
-      }
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-      // Upload new image
-      const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
+  const handleFileChange = (type: 'mobile' | 'desktop', e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please select an image file',
+          variant: 'destructive',
         });
-
-      if (uploadError) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
+        return;
       }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(fileName);
-
-      setSlider({ ...slider, image_url: publicUrl });
-      toast.success('Image uploaded successfully');
-    } catch (error: any) {
-      console.error('Error uploading image:', error);
-      toast.error(error.message || 'Failed to upload image');
-    } finally {
-      setUploading(false);
+      setSelectedFiles(prev => ({ ...prev, [type]: file }));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setIsUploading(true);
+
     try {
-      if (!slider) return;
+      const updates: any = {
+        title: formData.title,
+        description: formData.description,
+        link_url: formData.link_url || null,
+        is_active: formData.is_active,
+      };
 
-      const { error } = await supabase
+      // Upload new images if selected
+      if (selectedFiles.mobile) {
+        const mobileFileName = `hero-sliders/${Date.now()}-mobile.${selectedFiles.mobile.name.split('.').pop()}`;
+        const { error: mobileError } = await supabase.storage
+          .from('public')
+          .upload(mobileFileName, selectedFiles.mobile);
+
+        if (mobileError) throw mobileError;
+        updates.mobile_image_url = supabase.storage.from('public').getPublicUrl(mobileFileName).data.publicUrl;
+      }
+
+      if (selectedFiles.desktop) {
+        const desktopFileName = `hero-sliders/${Date.now()}-desktop.${selectedFiles.desktop.name.split('.').pop()}`;
+        const { error: desktopError } = await supabase.storage
+          .from('public')
+          .upload(desktopFileName, selectedFiles.desktop);
+
+        if (desktopError) throw desktopError;
+        updates.desktop_image_url = supabase.storage.from('public').getPublicUrl(desktopFileName).data.publicUrl;
+      }
+
+      // Update database
+      const { error: updateError } = await supabase
         .from('hero_sliders')
-        .update({
-          title: slider.title,
-          description: slider.description,
-          image_url: slider.image_url,
-          link_url: slider.link_url,
-          is_active: slider.is_active,
-        })
-        .eq('id', slider.id);
+        .update(updates)
+        .eq('id', id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      toast.success('Slider updated successfully');
+      toast({
+        title: 'Success',
+        description: 'Hero slider updated successfully',
+      });
+
       navigate('/dashboard/manager/sliders');
     } catch (error) {
-      console.error('Error updating slider:', error);
-      toast.error('Failed to update slider');
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update slider',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  if (loading) {
+  if (loading || !slider) {
     return (
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="p-6">
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  if (!slider) {
-    return null;
-  }
-
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto py-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="space-y-1.5">
             <Button
               variant="ghost"
-              size="icon"
+              className="mb-2"
               onClick={() => navigate('/dashboard/manager/sliders')}
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Sliders
             </Button>
-            <CardTitle>Edit Slider</CardTitle>
+            <CardTitle>Edit Hero Slider</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -161,82 +185,113 @@ const EditSlider = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="title">Title</Label>
+                  <Label>Mobile Image (9:16)</Label>
+                  <div className="mt-2">
                   <Input
-                    id="title"
-                    value={slider.title || ''}
-                    onChange={(e) => setSlider({ ...slider, title: e.target.value })}
-                    placeholder="Enter slider title"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange('mobile', e)}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="link_url">Link URL</Label>
-                  <Input
-                    id="link_url"
-                    value={slider.link_url || ''}
-                    onChange={(e) => setSlider({ ...slider, link_url: e.target.value })}
-                    placeholder="Enter link URL"
-                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended size: 640x960px
+                  </p>
                 </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={slider.description || ''}
-                    onChange={(e) => setSlider({ ...slider, description: e.target.value })}
-                    placeholder="Enter slider description"
+                <AspectRatio ratio={9/16} className="bg-muted rounded-lg overflow-hidden">
+                  <img
+                    src={slider.mobile_image_url || ''}
+                    alt={`${slider.title} - mobile`}
+                    className="w-full h-full object-cover"
                   />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is_active"
-                    checked={slider.is_active}
-                    onCheckedChange={(checked) => setSlider({ ...slider, is_active: checked })}
-                  />
-                  <Label htmlFor="is_active">Active</Label>
-                </div>
+                </AspectRatio>
               </div>
+              
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="image">Image</Label>
+                  <Label>Desktop Image (16:9)</Label>
+                  <div className="mt-2">
                   <Input
-                    id="image"
                     type="file"
                     accept="image/*"
-                    onChange={handleImageUpload}
-                    className="flex-1"
+                      onChange={(e) => handleFileChange('desktop', e)}
                   />
-                  {uploading && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm text-gray-500">Uploading...</span>
                     </div>
-                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended size: 1920x1080px
+                  </p>
                 </div>
-                {slider.image_url && (
-                  <div className="mt-4">
-                    <Label>Current Image</Label>
-                    <div className="mt-2 relative aspect-video rounded-lg overflow-hidden border">
+                <AspectRatio ratio={16/9} className="bg-muted rounded-lg overflow-hidden">
                       <img
-                        src={slider.image_url}
-                        alt="Preview"
+                    src={slider.desktop_image_url || ''}
+                    alt={`${slider.title} - desktop`}
                         className="w-full h-full object-cover"
                       />
+                </AspectRatio>
                     </div>
                   </div>
-                )}
+
+            <div className="space-y-4">
+              <div>
+                <Label>Title</Label>
+                <Input
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Enter slider title"
+                />
+              </div>
+              
+              <div>
+                <Label>Description (optional)</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter slider description"
+                />
+              </div>
+              
+              <div>
+                <Label>Link URL (optional)</Label>
+                <Input
+                  value={formData.link_url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, link_url: e.target.value }))}
+                  placeholder="Enter link URL"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={formData.is_active}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                  id="is-active"
+                />
+                <Label htmlFor="is-active">Active</Label>
               </div>
             </div>
+
             <div className="flex justify-end gap-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => navigate('/dashboard/manager/sliders')}
+                disabled={isUploading}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={uploading}>
-                Save Changes
+              <Button
+                type="submit"
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Update Slider
+                  </>
+                )}
               </Button>
             </div>
           </form>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,35 +17,52 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, Pencil, Users, Calendar } from 'lucide-react';
+import { Loader2, Pencil, Users, Calendar, Upload, X } from 'lucide-react';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Profile } from '@/types/profile';
+import { Database } from '@/types/database.types';
+import { PostgrestSingleResponse } from '@supabase/supabase-js';
+
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
 const formSchema = z.object({
-  full_name: z.string().min(2, 'Name must be at least 2 characters'),
+  full_name: z.string().min(2, 'Full name must be at least 2 characters'),
   company_name: z.string().min(2, 'Company name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
   description: z.string().optional(),
-  website_url: z.string().url('Please enter a valid URL').or(z.string().length(0)).optional(),
-  facebook_url: z.string().url('Please enter a valid URL').or(z.string().length(0)).optional(),
+  website_url: z.string().url('Invalid URL').optional().or(z.literal('')),
+  facebook_url: z.string().url('Invalid URL').optional().or(z.literal('')),
   avatar_url: z.string().optional(),
+  banner_url: z.string().optional(),
+  portfolio_url: z.string().optional(),
+  gallery_images: z.array(z.string()).optional(),
 });
 
-type FormData = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
 const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [profileData, setProfileData] = React.useState<FormData & { followers_count?: number, attendees_hosted?: number } | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileData, setProfileData] = React.useState<Profile | null>(null);
   const [avatarFile, setAvatarFile] = React.useState<File | null>(null);
+  const [bannerFile, setBannerFile] = React.useState<File | null>(null);
+  const [portfolioFile, setPortfolioFile] = React.useState<File | null>(null);
+  const [galleryFiles, setGalleryFiles] = React.useState<File[]>([]);
   const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [bannerPreview, setBannerPreview] = React.useState<string | null>(null);
+  const [portfolioPreview, setPortfolioPreview] = React.useState<string | null>(null);
+  const avatarInputRef = React.useRef<HTMLInputElement>(null);
+  const bannerInputRef = React.useRef<HTMLInputElement>(null);
+  const portfolioInputRef = React.useRef<HTMLInputElement>(null);
+  const galleryInputRef = React.useRef<HTMLInputElement>(null);
 
-  const form = useForm<FormData>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       full_name: '',
@@ -56,141 +73,326 @@ const Settings = () => {
       website_url: '',
       facebook_url: '',
       avatar_url: '',
+      banner_url: '',
+      portfolio_url: '',
+      gallery_images: [],
     },
   });
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+  const fetchProfile = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-        if (error) throw error;
-        if (data) {
-          const formData = {
-            full_name: data.full_name || '',
-            company_name: data.company_name || '',
-            email: data.email || '',
-            phone: data.phone || '',
-            description: data.description || '',
-            website_url: data.website_url || '',
-            facebook_url: data.facebook_url || '',
-            avatar_url: data.avatar_url || '',
-            followers_count: data.followers_count || 0,
-            attendees_hosted: data.attendees_hosted || 0,
-          };
-          setProfileData(formData);
-          form.reset(formData);
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load profile data',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setProfileData(data as Profile);
+        form.reset(data as FormValues);
       }
-    };
-
-    fetchData();
-  }, [user, form, toast]);
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setAvatarFile(file);
-    const preview = URL.createObjectURL(file);
-    setAvatarPreview(preview);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load profile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const uploadAvatar = async () => {
-    if (!avatarFile || !user) return null;
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
-    try {
-      const fileExt = avatarFile.name.split('.').pop();
-      const filePath = `avatars/${user.id}.${fileExt}`;
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner' | 'portfolio' | 'gallery') => {
+    const files = e.target.files;
+    if (!files) return;
+
+    if (type === 'gallery') {
+      // Validate each file
+      const validFiles = Array.from(files).filter(file => {
+        const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+        if (!isValidSize) {
+          toast({
+            title: 'Error',
+            description: `File ${file.name} is too large. Maximum size is 5MB.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+        return true;
+      });
+
+      setGalleryFiles(prev => [...prev, ...validFiles]);
+
+      // Create preview URLs for gallery images
+      validFiles.forEach(file => {
+        const preview = URL.createObjectURL(file);
+        setProfileData(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            gallery_images: [...(prev.gallery_images || []), preview],
+          };
+        });
+      });
+    } else {
+      const file = files[0];
       
+      // Validate file size
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'Error',
+          description: 'File is too large. Maximum size is 5MB.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const preview = URL.createObjectURL(file);
+
+      switch (type) {
+        case 'avatar':
+          setAvatarFile(file);
+          setAvatarPreview(preview);
+          break;
+        case 'banner':
+          setBannerFile(file);
+          setBannerPreview(preview);
+          break;
+        case 'portfolio':
+          setPortfolioFile(file);
+          setPortfolioPreview(preview);
+          break;
+      }
+    }
+  };
+
+  const uploadFile = async (folder: string, file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${folder}/${fileName}`;
+
       const { error: uploadError } = await supabase.storage
-        .from('profiles')
-        .upload(filePath, avatarFile, { upsert: true });
+        .from('organiser-assets')
+        .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('profiles')
+      const { data: { publicUrl } } = supabase.storage
+        .from('organiser-assets')
         .getPublicUrl(filePath);
 
-      return urlData.publicUrl;
+      return publicUrl;
     } catch (error) {
-      console.error('Error uploading avatar:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to upload avatar',
-        variant: 'destructive',
-      });
+      console.error('Error uploading file:', error);
       return null;
     }
   };
 
-  const onSubmit = async (data: FormData) => {
-    if (!user) return;
+  const onSubmit = async (data: FormValues) => {
+    if (!profileData?.id) return;
+    
     try {
-      let avatarUrl = data.avatar_url;
-      
-      if (avatarFile) {
-        const newAvatarUrl = await uploadAvatar();
-        if (newAvatarUrl) {
-          avatarUrl = newAvatarUrl;
-        }
-      }
+      setIsLoading(true);
 
-      // Get the attendees_hosted value from the form if editing
-      const attendeesHosted = isEditing ? 
-        Number((document.getElementById('attendees-hosted-input') as HTMLInputElement)?.value || profileData?.attendees_hosted || 0) : 
-        profileData?.attendees_hosted || 0;
+      // Upload new files if they exist
+      const newAvatarUrl = avatarFile ? await uploadFile('avatars', avatarFile) : null;
+      const newBannerUrl = bannerFile ? await uploadFile('banners', bannerFile) : null;
+      const newPortfolioUrl = portfolioFile ? await uploadFile('portfolios', portfolioFile) : null;
+      
+      // Upload gallery files
+      const newGalleryUrls = await Promise.all(
+        galleryFiles.map(file => uploadFile('gallery', file))
+      );
+
+      // Update form data with new URLs
+      const updateData = {
+        ...data,
+        avatar_url: newAvatarUrl || data.avatar_url,
+        banner_url: newBannerUrl || data.banner_url,
+        portfolio_url: newPortfolioUrl || data.portfolio_url,
+        gallery_images: [
+          ...(profileData.gallery_images || []),
+          ...newGalleryUrls.filter(Boolean) as string[],
+        ],
+      };
 
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: data.full_name,
-          company_name: data.company_name,
-          email: data.email,
-          phone: data.phone,
-          description: data.description,
-          website_url: data.website_url,
-          facebook_url: data.facebook_url,
-          avatar_url: avatarUrl,
-          attendees_hosted: attendeesHosted,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+        .update(updateData as Profile)
+        .eq('id', profileData.id);
 
       if (error) throw error;
 
-      setProfileData({
-        ...data,
-        avatar_url: avatarUrl,
-        followers_count: profileData?.followers_count,
-        attendees_hosted: attendeesHosted,
-      });
-      setIsEditing(false);
-      setAvatarFile(null);
       toast({
         title: 'Success',
         description: 'Profile updated successfully',
       });
+
+      // Reset file states
+      setAvatarFile(null);
+      setBannerFile(null);
+      setPortfolioFile(null);
+      setGalleryFiles([]);
+      
+      // Reset preview states
+      setAvatarPreview(null);
+      setBannerPreview(null);
+      setPortfolioPreview(null);
+
+      // Exit edit mode
+      setIsEditing(false);
+
+      // Refresh profile data
+      await fetchProfile();
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
         title: 'Error',
         description: 'Failed to update profile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const removeGalleryImage = async (index: number, imageUrl?: string) => {
+    if (!profileData) return;
+
+    // If it's a newly added file (not yet uploaded)
+    if (!imageUrl) {
+      setGalleryFiles(prev => prev.filter((_, i) => i !== index));
+      setProfileData(prev => {
+        if (!prev) return prev;
+        const newGalleryImages = [...(prev.gallery_images || [])];
+        newGalleryImages.splice(index, 1);
+        return {
+          ...prev,
+          gallery_images: newGalleryImages,
+        };
+      });
+      return;
+    }
+
+    // If it's an existing image
+    try {
+      // Extract file path from URL
+      const urlParts = imageUrl.split('/');
+      const filePath = urlParts[urlParts.length - 2] + '/' + urlParts[urlParts.length - 1];
+
+      // Delete from storage
+      const { error: deleteError } = await supabase.storage
+        .from('organiser-assets')
+        .remove([filePath]);
+
+      if (deleteError) throw deleteError;
+
+      // Update profile data
+      const newGalleryImages = [...(profileData.gallery_images || [])];
+      newGalleryImages.splice(index, 1);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ gallery_images: newGalleryImages })
+        .eq('id', profileData.id);
+
+      if (updateError) throw updateError;
+
+      setProfileData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          gallery_images: newGalleryImages,
+        };
+      });
+
+      toast({
+        title: 'Success',
+        description: 'Image deleted successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete image',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const removeImage = async (type: 'banner' | 'portfolio', imageUrl?: string) => {
+    if (!profileData || !imageUrl) return;
+
+    try {
+      // Get the full path after the bucket name
+      const bucketPath = imageUrl.split('organiser-assets/')[1];
+      if (!bucketPath) {
+        throw new Error('Invalid file path');
+      }
+
+      // Delete from storage
+      const { error: deleteError } = await supabase.storage
+        .from('organiser-assets')
+        .remove([bucketPath]);
+
+      if (deleteError) {
+        console.error('Storage delete error:', deleteError);
+        throw new Error('Failed to delete image from storage');
+      }
+
+      // Update profile data
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          [type === 'banner' ? 'banner_url' : 'portfolio_url']: null
+        })
+        .eq('id', profileData.id);
+
+      if (updateError) {
+        console.error('Database update error:', updateError);
+        throw new Error('Failed to update profile');
+      }
+
+      // Update local state
+      setProfileData(prev => {
+        if (!prev) return prev;
+        const updated = { ...prev };
+        if (type === 'banner') {
+          updated.banner_url = null;
+        } else {
+          updated.portfolio_url = null;
+        }
+        return updated;
+      });
+
+      // Clear preview and file state
+      if (type === 'banner') {
+        setBannerPreview(null);
+        setBannerFile(null);
+      } else {
+        setPortfolioPreview(null);
+        setPortfolioFile(null);
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Image deleted successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete image',
         variant: 'destructive',
       });
     }
@@ -208,18 +410,18 @@ const Settings = () => {
 
   return (
     <SettingsLayout basePath="/dashboard/organiser/settings">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Profile Settings</h1>
-            <p className="text-gray-600">Manage your organiser profile details</p>
+            <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
+            <p className="text-muted-foreground">
+              Manage your profile settings and preferences
+            </p>
           </div>
           {!isEditing && (
             <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
               onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2"
             >
               <Pencil className="h-4 w-4" />
               Edit Profile
@@ -227,110 +429,262 @@ const Settings = () => {
           )}
         </div>
 
-        {/* Profile Overview Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Public Profile</CardTitle>
-            <CardDescription>This is how others will see your profile</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row md:items-start gap-6">
-              <div className="flex flex-col items-center gap-3">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={profileData?.avatar_url || ''} />
-                  <AvatarFallback className="text-xl font-semibold">
-                    {profileData?.full_name?.charAt(0) || profileData?.company_name?.charAt(0) || 'O'}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex gap-6 text-sm mt-2">
-                  <div className="flex flex-col items-center">
-                    <span className="font-bold">{profileData?.attendees_hosted || 0}</span>
-                    <span className="text-muted-foreground">Attendees</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex-1 space-y-3">
-                <div>
-                  <h3 className="text-xl font-semibold">{profileData?.full_name}</h3>
-                  <p className="text-gray-500">{profileData?.company_name}</p>
-                </div>
-                
-                <p className="text-sm text-gray-600">
-                  {profileData?.description || 'No description provided'}
-                </p>
-                
-                <div className="flex flex-wrap gap-3 mt-4">
-                  {profileData?.website_url && (
-                    <a 
-                      href={profileData.website_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-gray-600 hover:text-gray-800 flex items-center gap-1"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="2" y1="12" x2="22" y2="12"></line>
-                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                      </svg>
-                      Website
-                    </a>
-                  )}
-                  
-                  {profileData?.facebook_url && (
-                    <a 
-                      href={profileData.facebook_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-                      </svg>
-                      Facebook
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {isEditing ? (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              {/* Upload Forms Section */}
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Upload Images</h3>
+                <div className="space-y-6">
+                  {/* Banner Upload */}
+                  <FormField
+                    control={form.control}
+                    name="banner_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Banner Image</FormLabel>
+                        <div className="relative aspect-[3.2/1] w-full overflow-hidden rounded-lg border border-gray-200">
+                          {(bannerPreview || profileData?.banner_url) ? (
+                            <div className="relative h-full">
+                              <img
+                                src={bannerPreview || profileData?.banner_url}
+                                alt="Banner"
+                                className="h-full w-full object-cover"
+                              />
+                              <div className="absolute top-2 right-2 flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full"
+                                  onClick={() => removeImage('banner', profileData?.banner_url)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full"
+                                  onClick={() => bannerInputRef.current?.click()}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex h-full items-center justify-center bg-gray-50">
+                              <Upload className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileChange(e, 'banner')}
+                            ref={bannerInputRef}
+                            className="hidden"
+                          />
+                          {!bannerPreview && !profileData?.banner_url && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="absolute bottom-2 right-2"
+                              onClick={() => bannerInputRef.current?.click()}
+                            >
+                              Upload Banner
+                            </Button>
+                          )}
+                        </div>
+                        <FormDescription>
+                          Recommended size: 1920x600px (3.2:1 aspect ratio). Maximum file size: 5MB
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-        {/* Edit Form Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Organiser Information</CardTitle>
-            <CardDescription>Your organiser profile details</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isEditing ? (
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="flex flex-col items-center mb-6">
-                    <Avatar className="h-24 w-24 mb-4">
-                      <AvatarImage src={avatarPreview || profileData?.avatar_url || ''} />
-                      <AvatarFallback className="text-xl font-semibold">
-                        {profileData?.full_name?.charAt(0) || profileData?.company_name?.charAt(0) || 'O'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarChange}
-                      ref={fileInputRef}
-                      className="hidden"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      Change Avatar
-                    </Button>
-                  </div>
-                  
+                  {/* Avatar Upload */}
+                  <FormField
+                    control={form.control}
+                    name="avatar_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Logo</FormLabel>
+                        <div className="flex flex-col items-center">
+                          <Avatar className="h-24 w-24 mb-4">
+                            <AvatarImage src={avatarPreview || profileData?.avatar_url || ''} />
+                            <AvatarFallback className="text-xl font-semibold">
+                              {profileData?.full_name?.charAt(0) || profileData?.company_name?.charAt(0) || 'O'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileChange(e, 'avatar')}
+                            ref={avatarInputRef}
+                            className="hidden"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => avatarInputRef.current?.click()}
+                          >
+                            Change Logo
+                          </Button>
+                        </div>
+                        <FormDescription>
+                          Square image recommended. Maximum file size: 5MB
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Portfolio Upload */}
+                  <FormField
+                    control={form.control}
+                    name="portfolio_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Portfolio Image</FormLabel>
+                        <div className="relative aspect-[1.4/1] w-full overflow-hidden rounded-lg border border-gray-200">
+                          {(portfolioPreview || profileData?.portfolio_url) ? (
+                            <div className="relative h-full">
+                              <img
+                                src={portfolioPreview || profileData?.portfolio_url}
+                                alt="Portfolio"
+                                className="h-full w-full object-cover"
+                              />
+                              <div className="absolute top-2 right-2 flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full"
+                                  onClick={() => removeImage('portfolio', profileData?.portfolio_url)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-full"
+                                  onClick={() => portfolioInputRef.current?.click()}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex h-full items-center justify-center bg-gray-50">
+                              <Upload className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileChange(e, 'portfolio')}
+                            ref={portfolioInputRef}
+                            className="hidden"
+                          />
+                          {!portfolioPreview && !profileData?.portfolio_url && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="absolute bottom-2 right-2"
+                              onClick={() => portfolioInputRef.current?.click()}
+                            >
+                              Upload Portfolio
+                            </Button>
+                          )}
+                        </div>
+                        <FormDescription>
+                          Recommended size: 1400x1000px. Maximum file size: 5MB
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Gallery Upload */}
+                  <FormField
+                    control={form.control}
+                    name="gallery_images"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gallery Images</FormLabel>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {/* Existing Images */}
+                          {profileData?.gallery_images?.map((url, index) => (
+                            <div key={url} className="relative aspect-[16/9]">
+                              <img
+                                src={url}
+                                alt={`Gallery ${index + 1}`}
+                                className="h-full w-full object-cover rounded-lg"
+                              />
+                              <div className="absolute top-2 right-2 flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="icon"
+                                  className="h-6 w-6 rounded-full"
+                                  onClick={() => removeGalleryImage(index, url)}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-6 w-6 rounded-full"
+                                  onClick={() => galleryInputRef.current?.click()}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {/* Upload Button */}
+                          <div className="aspect-[16/9] flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg hover:border-gray-300 cursor-pointer">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => handleFileChange(e, 'gallery')}
+                              ref={galleryInputRef}
+                              className="hidden"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => galleryInputRef.current?.click()}
+                            >
+                              Add Images
+                            </Button>
+                          </div>
+                        </div>
+                        <FormDescription>
+                          Recommended size: 1920x1080px (16:9 aspect ratio). Maximum file size: 5MB per image
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </Card>
+
+              {/* Profile Information Form */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Organiser Information</CardTitle>
+                  <CardDescription>Your organiser profile details</CardDescription>
+                </CardHeader>
+                <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
@@ -339,15 +693,13 @@ const Settings = () => {
                         <FormItem>
                           <FormLabel>Full Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter your full name" {...field} />
+                            <Input {...field} />
                           </FormControl>
-                          <FormDescription>
-                            This is your public display name
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={form.control}
                       name="company_name"
@@ -355,39 +707,13 @@ const Settings = () => {
                         <FormItem>
                           <FormLabel>Company Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter your company name" {...field} />
+                            <Input {...field} />
                           </FormControl>
-                          <FormDescription>
-                            The name of your organization
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Tell visitors about your organization..." 
-                            className="min-h-[100px]"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          A brief description of your organization that will be displayed on your profile
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
                     <FormField
                       control={form.control}
                       name="email"
@@ -395,34 +721,27 @@ const Settings = () => {
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter your email" type="email" {...field} />
+                            <Input {...field} type="email" />
                           </FormControl>
-                          <FormDescription>
-                            Your contact email address
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={form.control}
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Phone Number</FormLabel>
+                          <FormLabel>Phone</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter your phone number" type="tel" {...field} />
+                            <Input {...field} type="tel" />
                           </FormControl>
-                          <FormDescription>
-                            Your contact phone number (optional)
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
                     <FormField
                       control={form.control}
                       name="website_url"
@@ -430,15 +749,13 @@ const Settings = () => {
                         <FormItem>
                           <FormLabel>Website URL</FormLabel>
                           <FormControl>
-                            <Input placeholder="https://your-website.com" {...field} />
+                            <Input {...field} type="url" />
                           </FormControl>
-                          <FormDescription>
-                            Your organization's website (optional)
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={form.control}
                       name="facebook_url"
@@ -446,105 +763,188 @@ const Settings = () => {
                         <FormItem>
                           <FormLabel>Facebook URL</FormLabel>
                           <FormControl>
-                            <Input placeholder="https://facebook.com/your-page" {...field} />
+                            <Input {...field} type="url" />
                           </FormControl>
-                          <FormDescription>
-                            Your organization's Facebook page (optional)
-                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                  
-                  <div className="form-item">
-                    <FormLabel>Attendees</FormLabel>
-                    <FormControl>
-                      <Input 
-                        id="attendees-hosted-input"
-                        placeholder="Attendees count" 
-                        type="number" 
-                        defaultValue={profileData?.attendees_hosted || 0} 
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Total number of attendees hosted at your exhibitions
-                    </FormDescription>
-                  </div>
-                  
-                  <div className="flex gap-4">
+
+                  <div className="flex justify-end gap-4 mt-6">
                     <Button type="submit">Save Changes</Button>
-                    <Button type="button" variant="outline" onClick={() => {
-                      setIsEditing(false);
-                      form.reset(profileData || undefined);
-                      setAvatarPreview(null);
-                      setAvatarFile(null);
-                    }}>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsEditing(false);
+                        form.reset(profileData || undefined);
+                        setAvatarPreview(null);
+                        setBannerPreview(null);
+                        setPortfolioPreview(null);
+                        setAvatarFile(null);
+                        setBannerFile(null);
+                        setPortfolioFile(null);
+                        setGalleryFiles([]);
+                      }}
+                    >
                       Cancel
                     </Button>
                   </div>
-                </form>
-              </Form>
-            ) : (
-              <div className="space-y-6">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Full Name</p>
-                  <p className="text-base">{profileData?.full_name}</p>
+                </CardContent>
+              </Card>
+            </form>
+          </Form>
+        ) : (
+          <>
+            {/* View Mode */}
+            {/* Current Images Preview Section */}
+            {(profileData?.banner_url || profileData?.avatar_url || profileData?.portfolio_url || (profileData?.gallery_images && profileData.gallery_images.length > 0)) && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Current Images</h3>
+                <div className="space-y-6">
+                  {/* Banner Preview */}
+                  {profileData?.banner_url && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Banner Image</h4>
+                      <div className="relative aspect-[3.2/1] w-full overflow-hidden rounded-lg border border-gray-200">
+                        <img
+                          src={profileData.banner_url}
+                          alt="Banner"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Logo/Avatar Preview */}
+                  {profileData?.avatar_url && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Logo</h4>
+                      <div className="relative h-24 w-24 overflow-hidden rounded-full border border-gray-200">
+                        <img
+                          src={profileData.avatar_url}
+                          alt="Logo"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Portfolio Preview */}
+                  {profileData?.portfolio_url && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Portfolio Image</h4>
+                      <div className="relative aspect-[1.4/1] max-w-2xl overflow-hidden rounded-lg border border-gray-200">
+                        <img
+                          src={profileData.portfolio_url}
+                          alt="Portfolio"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Gallery Preview */}
+                  {profileData?.gallery_images && profileData.gallery_images.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Gallery Images</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {profileData.gallery_images.map((image, index) => (
+                          <div key={index} className="relative aspect-[16/9] overflow-hidden rounded-lg border border-gray-200">
+                            <img
+                              src={image}
+                              alt={`Gallery ${index + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Company Name</p>
-                  <p className="text-base">{profileData?.company_name}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Description</p>
-                  <p className="text-base">{profileData?.description || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Email</p>
-                  <p className="text-base">{profileData?.email}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Phone Number</p>
-                  <p className="text-base">{profileData?.phone || '-'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Website</p>
-                  <p className="text-base">
-                    {profileData?.website_url ? (
-                      <a 
-                        href={profileData.website_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {profileData.website_url}
-                      </a>
-                    ) : '-'}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Facebook</p>
-                  <p className="text-base">
-                    {profileData?.facebook_url ? (
-                      <a 
-                        href={profileData.facebook_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {profileData.facebook_url}
-                      </a>
-                    ) : '-'}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">Attendees Hosted</p>
-                  <p className="text-base">{profileData?.attendees_hosted || 0}</p>
-                </div>
-              </div>
+              </Card>
             )}
-          </CardContent>
-        </Card>
+
+            {/* Profile Information View */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Organiser Information</CardTitle>
+                <CardDescription>Your organiser profile details</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-500">Full Name</p>
+                      <p className="text-base">{profileData?.full_name}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-500">Company Name</p>
+                      <p className="text-base">{profileData?.company_name}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-500">Email</p>
+                      <p className="text-base">{profileData?.email}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-500">Phone</p>
+                      <p className="text-base">{profileData?.phone || '-'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-500">Website</p>
+                      <p className="text-base">
+                        {profileData?.website_url ? (
+                          <a 
+                            href={profileData.website_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            {profileData.website_url}
+                          </a>
+                        ) : '-'}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-gray-500">Facebook</p>
+                      <p className="text-base">
+                        {profileData?.facebook_url ? (
+                          <a 
+                            href={profileData.facebook_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            {profileData.facebook_url}
+                          </a>
+                        ) : '-'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-500">Description</p>
+                    <p className="text-base">{profileData?.description || '-'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
     </SettingsLayout>
   );

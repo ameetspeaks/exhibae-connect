@@ -1,121 +1,146 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSupabase } from '@/lib/supabase/supabase-provider';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { toast } from 'sonner';
-import { Loader2, ArrowLeft } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useNavigate } from 'react-router-dom';
-
-interface NewSlider {
-  title: string;
-  description: string;
-  image_url: string;
-  link_url: string;
-  is_active: boolean;
-}
-
-const STORAGE_BUCKET = 'sliders';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, Upload, ArrowLeft } from 'lucide-react';
 
 const CreateSlider = () => {
   const { supabase } = useSupabase();
   const navigate = useNavigate();
-  const [uploading, setUploading] = useState(false);
-  const [slider, setSlider] = useState<NewSlider>({
+  const { toast } = useToast();
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<{
+    mobile?: File;
+    desktop?: File;
+  }>({});
+  const [formData, setFormData] = useState({
     title: '',
     description: '',
-    image_url: '',
     link_url: '',
-    is_active: true,
   });
+  const [previewUrls, setPreviewUrls] = useState<{
+    mobile?: string;
+    desktop?: string;
+  }>({});
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const file = event.target.files?.[0];
-      if (!file) return;
-
-      setUploading(true);
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-      // Upload image to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
+  const handleFileChange = (type: 'mobile' | 'desktop', e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please select an image file',
+          variant: 'destructive',
         });
-
-      if (uploadError) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
+        return;
       }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(fileName);
-
-      setSlider({ ...slider, image_url: publicUrl });
-      toast.success('Image uploaded successfully');
-    } catch (error: any) {
-      console.error('Error uploading image:', error);
-      toast.error(error.message || 'Failed to upload image');
-    } finally {
-      setUploading(false);
+      setSelectedFiles(prev => ({ ...prev, [type]: file }));
+      setPreviewUrls(prev => ({ ...prev, [type]: URL.createObjectURL(file) }));
     }
+  };
+
+  const getNextOrderIndex = async () => {
+    const { data, error } = await supabase
+      .from('hero_sliders')
+      .select('order_index')
+      .order('order_index', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    return data && data.length > 0 ? data[0].order_index + 1 : 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!selectedFiles.mobile || !selectedFiles.desktop) {
+      toast({
+        title: 'Missing files',
+        description: 'Please select both mobile and desktop images',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
     try {
-      if (!slider.image_url) {
-        toast.error('Image is required');
-        return;
-      }
+      // Get next order index
+      const nextOrderIndex = await getNextOrderIndex();
 
-      // Get the current highest order_index
-      const { data: existingSliders } = await supabase
+      // Upload mobile image
+      const mobileFileName = `hero-sliders/${Date.now()}-mobile.${selectedFiles.mobile.name.split('.').pop()}`;
+      const { error: mobileError } = await supabase.storage
+        .from('sliders')
+        .upload(mobileFileName, selectedFiles.mobile);
+
+      if (mobileError) throw mobileError;
+
+      // Upload desktop image
+      const desktopFileName = `hero-sliders/${Date.now()}-desktop.${selectedFiles.desktop.name.split('.').pop()}`;
+      const { error: desktopError } = await supabase.storage
+        .from('sliders')
+        .upload(desktopFileName, selectedFiles.desktop);
+
+      if (desktopError) throw desktopError;
+
+      // Get public URLs
+      const mobileUrl = supabase.storage.from('sliders').getPublicUrl(mobileFileName).data.publicUrl;
+      const desktopUrl = supabase.storage.from('sliders').getPublicUrl(desktopFileName).data.publicUrl;
+
+      // Insert into database
+      const { error: dbError } = await supabase
         .from('hero_sliders')
-        .select('order_index')
-        .order('order_index', { ascending: false })
-        .limit(1);
+        .insert({
+          title: formData.title,
+          description: formData.description,
+          link_url: formData.link_url || null,
+          mobile_image_url: mobileUrl,
+          desktop_image_url: desktopUrl,
+          image_url: desktopUrl,
+          order_index: nextOrderIndex,
+          is_active: true,
+        });
 
-      const nextOrderIndex = existingSliders?.[0]?.order_index 
-        ? existingSliders[0].order_index + 1 
-        : 1;
+      if (dbError) throw dbError;
 
-      const { error } = await supabase
-        .from('hero_sliders')
-        .insert([{ ...slider, order_index: nextOrderIndex }]);
+      toast({
+        title: 'Success',
+        description: 'Hero slider created successfully',
+      });
 
-      if (error) throw error;
-
-      toast.success('Slider created successfully');
       navigate('/dashboard/manager/sliders');
-    } catch (error: any) {
-      console.error('Error creating slider:', error);
-      toast.error(error.message || 'Failed to create slider');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to create slider',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto py-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="space-y-1.5">
             <Button
               variant="ghost"
-              size="icon"
+              className="mb-2"
               onClick={() => navigate('/dashboard/manager/sliders')}
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Sliders
             </Button>
-            <CardTitle>Create New Slider</CardTitle>
+            <CardTitle>Create New Hero Slider</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -123,82 +148,108 @@ const CreateSlider = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={slider.title}
-                    onChange={(e) => setSlider({ ...slider, title: e.target.value })}
-                    placeholder="Enter slider title"
-                  />
+                  <Label>Mobile Image (9:16)</Label>
+                  <div className="mt-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange('mobile', e)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended size: 640x960px
+                  </p>
                 </div>
-                <div>
-                  <Label htmlFor="link_url">Link URL</Label>
-                  <Input
-                    id="link_url"
-                    value={slider.link_url}
-                    onChange={(e) => setSlider({ ...slider, link_url: e.target.value })}
-                    placeholder="Enter link URL"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={slider.description}
-                    onChange={(e) => setSlider({ ...slider, description: e.target.value })}
-                    placeholder="Enter slider description"
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is_active"
-                    checked={slider.is_active}
-                    onCheckedChange={(checked) => setSlider({ ...slider, is_active: checked })}
-                  />
-                  <Label htmlFor="is_active">Active</Label>
-                </div>
+                {previewUrls.mobile && (
+                  <AspectRatio ratio={9/16} className="bg-muted rounded-lg overflow-hidden">
+                    <img
+                      src={previewUrls.mobile}
+                      alt="Mobile preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </AspectRatio>
+                )}
               </div>
+              
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="image">Image</Label>
-                  <Input
-                    id="image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="flex-1"
-                  />
-                  {uploading && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm text-gray-500">Uploading...</span>
-                    </div>
-                  )}
-                </div>
-                {slider.image_url && (
-                  <div className="mt-4">
-                    <Label>Preview</Label>
-                    <div className="mt-2 relative aspect-video rounded-lg overflow-hidden border">
-                      <img
-                        src={slider.image_url}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                  <Label>Desktop Image (16:9)</Label>
+                  <div className="mt-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange('desktop', e)}
+                    />
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended size: 1920x1080px
+                  </p>
+                </div>
+                {previewUrls.desktop && (
+                  <AspectRatio ratio={16/9} className="bg-muted rounded-lg overflow-hidden">
+                    <img
+                      src={previewUrls.desktop}
+                      alt="Desktop preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </AspectRatio>
                 )}
               </div>
             </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label>Title</Label>
+                <Input
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Enter slider title"
+                />
+              </div>
+              
+              <div>
+                <Label>Description (optional)</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter slider description"
+                />
+              </div>
+              
+              <div>
+                <Label>Link URL (optional)</Label>
+                <Input
+                  value={formData.link_url}
+                  onChange={(e) => setFormData(prev => ({ ...prev, link_url: e.target.value }))}
+                  placeholder="Enter link URL"
+                />
+              </div>
+            </div>
+
             <div className="flex justify-end gap-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => navigate('/dashboard/manager/sliders')}
+                disabled={isUploading}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={uploading}>
-                Create Slider
+              <Button
+                type="submit"
+                disabled={isUploading || !selectedFiles.mobile || !selectedFiles.desktop}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Create Slider
+                  </>
+                )}
               </Button>
             </div>
           </form>

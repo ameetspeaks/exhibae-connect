@@ -1,34 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useSupabase } from '@/lib/supabase/supabase-provider';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useNavigate, useParams } from 'react-router-dom';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, Pencil, Smartphone, Monitor } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface HeroSlider {
   id: string;
   title: string | null;
   description: string | null;
-  image_url: string;
+  mobile_image_url: string | null;
+  desktop_image_url: string | null;
   link_url: string | null;
   order_index: number;
   is_active: boolean;
+  image_dimensions: {
+    mobile: { width: number; height: number };
+    desktop: { width: number; height: number };
+  };
 }
 
 const ViewSlider = () => {
+  const { id } = useParams<{ id: string }>();
   const { supabase } = useSupabase();
   const navigate = useNavigate();
-  const { id } = useParams();
-  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   const [slider, setSlider] = useState<HeroSlider | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchSlider = async () => {
       try {
-        if (!id) return;
-
         const { data, error } = await supabase
           .from('hero_sliders')
           .select('*')
@@ -38,8 +43,11 @@ const ViewSlider = () => {
         if (error) throw error;
         setSlider(data);
       } catch (error) {
-        console.error('Error fetching slider:', error);
-        toast.error('Failed to load slider');
+        toast({
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Failed to fetch slider',
+          variant: 'destructive',
+        });
         navigate('/dashboard/manager/sliders');
       } finally {
         setLoading(false);
@@ -47,33 +55,36 @@ const ViewSlider = () => {
     };
 
     fetchSlider();
-  }, [id, navigate, supabase]);
+  }, [id, supabase, navigate, toast]);
 
-  if (loading) {
+  if (loading || !slider) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="container mx-auto py-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  if (!slider) {
-    return null;
-  }
-
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto py-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="space-y-1.5">
             <Button
               variant="ghost"
-              size="icon"
+              className="mb-2"
               onClick={() => navigate('/dashboard/manager/sliders')}
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Sliders
             </Button>
-            <CardTitle>View Slider</CardTitle>
+            <CardTitle>View Hero Slider</CardTitle>
           </div>
           <Button
             onClick={() => navigate(`/dashboard/manager/sliders/${id}/edit`)}
@@ -82,61 +93,74 @@ const ViewSlider = () => {
             Edit Slider
           </Button>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Image Section */}
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Preview</h3>
-              <div className="aspect-video rounded-lg overflow-hidden border">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Smartphone className="w-4 h-4" />
+                <span>Mobile View</span>
+              </div>
+              <AspectRatio ratio={9/16} className="bg-muted rounded-lg overflow-hidden">
                 <img
-                  src={slider.image_url}
-                  alt={slider.title || 'Slider preview'}
+                  src={slider.mobile_image_url || ''}
+                  alt={`${slider.title} - mobile`}
                   className="w-full h-full object-cover"
                 />
+              </AspectRatio>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Monitor className="w-4 h-4" />
+                <span>Desktop View</span>
               </div>
+              <AspectRatio ratio={16/9} className="bg-muted rounded-lg overflow-hidden">
+                <img
+                  src={slider.desktop_image_url || ''}
+                  alt={`${slider.title} - desktop`}
+                  className="w-full h-full object-cover"
+                />
+              </AspectRatio>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+              <Badge variant={slider.is_active ? "default" : "secondary"} className="mt-1">
+                {slider.is_active ? 'Active' : 'Inactive'}
+              </Badge>
             </div>
 
-            {/* Details Section */}
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-semibold mb-2">Status</h3>
-                <Badge variant={slider.is_active ? "default" : "secondary"}>
-                  {slider.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Title</h3>
+              <p className="mt-1 text-lg">{slider.title || '-'}</p>
+            </div>
 
+            {slider.description && (
               <div>
-                <h3 className="font-semibold mb-2">Order Index</h3>
-                <p className="text-gray-600">{slider.order_index}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+                <p className="mt-1">{slider.description}</p>
               </div>
+            )}
 
+            {slider.link_url && (
               <div>
-                <h3 className="font-semibold mb-2">Title</h3>
-                <p className="text-gray-600">{slider.title || '-'}</p>
+                <h3 className="text-sm font-medium text-muted-foreground">Link URL</h3>
+                <a
+                  href={slider.link_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 text-primary hover:underline"
+                >
+                  {slider.link_url}
+                </a>
               </div>
+            )}
 
-              <div>
-                <h3 className="font-semibold mb-2">Description</h3>
-                <p className="text-gray-600 whitespace-pre-wrap">
-                  {slider.description || '-'}
-                </p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold mb-2">Link URL</h3>
-                {slider.link_url ? (
-                  <a
-                    href={slider.link_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline break-all"
-                  >
-                    {slider.link_url}
-                  </a>
-                ) : (
-                  <p className="text-gray-600">-</p>
-                )}
-              </div>
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Order Index</h3>
+              <p className="mt-1">{slider.order_index}</p>
             </div>
           </div>
         </CardContent>

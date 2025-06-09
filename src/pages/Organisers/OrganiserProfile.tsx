@@ -10,40 +10,43 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Building2, Calendar, Globe, Mail, MapPin, Phone, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { getInitials } from '@/lib/utils';
+import { Database } from '@/types/database.types';
 
-interface OrganiserProfile {
-  id: string;
-  full_name: string;
-  email: string;
-  company_name: string | null;
-  phone: string | null;
+type Tables = Database['public']['Tables'];
+type Profile = Tables['profiles']['Row'];
+type Exhibition = Tables['exhibitions']['Row'];
+type UserRole = Database['public']['Enums']['user_role'];
+
+interface OrganiserProfile extends Omit<Profile, 'role'> {
+  role: Extract<UserRole, 'organiser'>;
   description: string | null;
   website_url: string | null;
-  avatar_url: string | null;
-  cover_image_url: string | null;
-  attendees_hosted: number;
-  created_at: string;
-  role: string;
+  facebook_url: string | null;
+  followers_count: number | null;
+  attendees_hosted: number | null;
 }
 
-interface Exhibition {
-  id: string;
-  title: string;
-  description: string;
-  start_date: string;
-  end_date: string;
-  address: string;
-  city: string;
-  state: string;
-  status: string;
-  banner_url?: string;
-}
+interface ExhibitionData extends Pick<Exhibition, 
+  'id' | 
+  'title' | 
+  'description' | 
+  'start_date' | 
+  'end_date' | 
+  'start_time' | 
+  'end_time' | 
+  'address' | 
+  'city' | 
+  'state' | 
+  'country' | 
+  'postal_code' | 
+  'status'
+> {}
 
 export default function OrganiserProfile() {
   const { organiserId } = useParams<{ organiserId: string }>();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<OrganiserProfile | null>(null);
-  const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
+  const [exhibitions, setExhibitions] = useState<ExhibitionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -56,7 +59,7 @@ export default function OrganiserProfile() {
         // Fetch organiser profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select()
           .eq('id', organiserId)
           .eq('role', 'organiser')
           .single();
@@ -79,18 +82,7 @@ export default function OrganiserProfile() {
         // Now fetch exhibitions for this organiser
         const { data: exhibitionsData, error: exhibitionsError } = await supabase
           .from('exhibitions')
-          .select(`
-            id,
-            title,
-            description,
-            start_date,
-            end_date,
-            address,
-            city,
-            state,
-            status,
-            banner_url
-          `)
+          .select()
           .eq('organiser_id', organiserId)
           .eq('status', 'published')
           .order('start_date', { ascending: false });
@@ -102,8 +94,8 @@ export default function OrganiserProfile() {
 
         console.log('Found Exhibitions:', exhibitionsData);
 
-        setProfile(profileData);
-        setExhibitions(exhibitionsData || []);
+        setProfile(profileData as OrganiserProfile);
+        setExhibitions(exhibitionsData as ExhibitionData[]);
       } catch (error) {
         console.error('Error fetching organiser profile:', error);
       } finally {
@@ -147,10 +139,10 @@ export default function OrganiserProfile() {
     <div className="min-h-screen bg-[#F5E4DA]">
       {/* Hero Section */}
       <div className="relative h-[300px] bg-gradient-to-r from-[#4B1E25] to-[#4B1E25]/80">
-        {profile.cover_image_url && (
+        {profile?.avatar_url && (
           <img
-            src={profile.cover_image_url}
-            alt={profile.company_name || profile.full_name}
+            src={profile.avatar_url}
+            alt={profile.company_name || profile.full_name || ''}
             className="w-full h-full object-cover opacity-50"
           />
         )}
@@ -159,12 +151,12 @@ export default function OrganiserProfile() {
           <div className="container mx-auto">
             <div className="flex items-center gap-6">
               <Avatar className="w-24 h-24 border-4 border-white">
-                <AvatarImage src={profile.avatar_url || undefined} alt={profile.company_name || profile.full_name} />
-                <AvatarFallback>{getInitials(profile.company_name || profile.full_name)}</AvatarFallback>
+                <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.company_name || profile?.full_name || ''} />
+                <AvatarFallback>{getInitials(profile?.company_name || profile?.full_name || '')}</AvatarFallback>
               </Avatar>
               <div className="text-white">
-                <h1 className="text-3xl font-bold">{profile.company_name || profile.full_name}</h1>
-                <p className="text-lg opacity-90">{profile.company_name ? profile.full_name : 'Organiser'}</p>
+                <h1 className="text-3xl font-bold">{profile?.company_name || profile?.full_name}</h1>
+                <p className="text-lg opacity-90">{profile?.company_name ? profile.full_name : 'Organiser'}</p>
               </div>
             </div>
           </div>
@@ -181,17 +173,17 @@ export default function OrganiserProfile() {
                 <CardTitle>About</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {profile.description && (
+                {profile?.description && (
                   <p className="text-muted-foreground">{profile.description}</p>
                 )}
                 <div className="pt-4 space-y-4">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    <span>{profile.attendees_hosted} attendees hosted</span>
+                    <span>{profile?.attendees_hosted || 0} attendees hosted</span>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Calendar className="h-4 w-4" />
-                    <span>Joined {format(new Date(profile.created_at), 'MMMM yyyy')}</span>
+                    <span>Joined {format(new Date(profile?.created_at || ''), 'MMMM yyyy')}</span>
                   </div>
                 </div>
               </CardContent>
@@ -202,19 +194,19 @@ export default function OrganiserProfile() {
                 <CardTitle>Contact Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {profile.email && (
+                {profile?.email && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Mail className="h-4 w-4" />
                     <span>{profile.email}</span>
                   </div>
                 )}
-                {profile.phone && (
+                {profile?.phone && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Phone className="h-4 w-4" />
                     <span>{profile.phone}</span>
                   </div>
                 )}
-                {profile.website_url && (
+                {profile?.website_url && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Globe className="h-4 w-4" />
                     <a
@@ -246,46 +238,26 @@ export default function OrganiserProfile() {
                       onClick={() => navigate(`/exhibitions/${exhibition.id}`)}
                     >
                       <CardContent className="p-4">
-                        <div className="aspect-video relative rounded-lg overflow-hidden mb-4">
-                          {exhibition.banner_url ? (
-                            <img
-                              src={exhibition.banner_url}
-                              alt={exhibition.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-[#4B1E25]/10 flex items-center justify-center">
-                              <Building2 className="h-8 w-8 text-[#4B1E25]/20" />
-                            </div>
-                          )}
-                        </div>
                         <h3 className="font-semibold mb-2">{exhibition.title}</h3>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
                             <span>
-                              {format(new Date(exhibition.start_date), 'MMM d')} - {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
+                              {format(new Date(exhibition.start_date), 'MMM d, yyyy')} -{' '}
+                              {format(new Date(exhibition.end_date), 'MMM d, yyyy')}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4" />
-                            <span>{exhibition.city}, {exhibition.state}</span>
+                            <span>
+                              {exhibition.city}, {exhibition.state}
+                            </span>
                           </div>
+                          <Badge variant="secondary">{exhibition.status}</Badge>
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className="mt-4 bg-[#4B1E25]/5 text-[#4B1E25] hover:bg-[#4B1E25]/10"
-                        >
-                          {exhibition.status.charAt(0).toUpperCase() + exhibition.status.slice(1)}
-                        </Badge>
                       </CardContent>
                     </Card>
                   ))}
-                  {exhibitions.length === 0 && (
-                    <div className="col-span-2 text-center py-8 text-muted-foreground">
-                      No exhibitions available at the moment.
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>

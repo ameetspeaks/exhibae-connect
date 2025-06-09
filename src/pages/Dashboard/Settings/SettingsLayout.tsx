@@ -15,18 +15,21 @@ const SettingsLayout = ({ children, basePath }: SettingsLayoutProps) => {
   const { user } = useAuth();
   const userRole = user?.user_metadata?.role?.toLowerCase() || '';
 
+  // Normalize the basePath by removing any trailing slashes
+  const normalizedBasePath = basePath.replace(/\/+$/, '');
+
   const getSettingsNavItems = () => {
     const baseItems = [
       {
         title: 'Profile',
         icon: User,
-        href: basePath,
+        href: normalizedBasePath,
         exact: true
       },
       {
         title: 'Notifications',
         icon: Bell,
-        href: `${basePath}/notifications`
+        href: `${normalizedBasePath}/notifications`
       }
     ];
 
@@ -35,7 +38,7 @@ const SettingsLayout = ({ children, basePath }: SettingsLayoutProps) => {
       baseItems.splice(1, 0, {
         title: 'Payment Details',
         icon: Wallet,
-        href: `${basePath}/payment`
+        href: `${normalizedBasePath}/payment`
       });
     }
 

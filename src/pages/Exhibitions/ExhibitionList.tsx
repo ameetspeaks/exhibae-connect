@@ -36,7 +36,7 @@ export default function ExhibitionList() {
   const { data: exhibitions = [], isLoading: isLoadingExhibitions, refetch: refetchExhibitions } = usePublishedExhibitions();
   const { data: eventTypes = [], isLoading: isLoadingEventTypes } = useEventTypes();
   const { data: venueTypes = [], isLoading: isLoadingVenueTypes } = useVenueTypes();
-  const { toggleFavorite: toggleFavoriteAction, isSubmitting: isFavoriteSubmitting } = useExhibitionFavorite(currentExhibitionId || '');
+  const { toggleFavorite: toggleFavoriteAction, isSubmitting: isFavoriteSubmitting } = useExhibitionFavorite(currentExhibitionId ?? '');
 
   // Reset page when filters change
   useEffect(() => {
@@ -140,6 +140,8 @@ export default function ExhibitionList() {
         description: "Failed to update favorite status. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setCurrentExhibitionId(null);
     }
   };
 

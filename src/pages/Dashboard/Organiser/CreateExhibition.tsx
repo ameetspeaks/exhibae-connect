@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ExhibitionForm from '@/components/exhibitions/ExhibitionForm';
 import StallForm from '@/components/exhibitions/StallForm';
@@ -291,19 +291,19 @@ const CreateExhibition = () => {
           />
         </TabsContent>
 
-        <TabsContent value="stall-setup" className="space-y-4">
-          <div className="max-w-5xl mx-auto space-y-8">
-            {/* Stall Configuration Section */}
+        <TabsContent value="stall-setup">
+          <div className="max-w-[800px] mx-auto">
             <Card>
               <CardHeader>
-                <CardTitle>Stall Configuration</CardTitle>
-                {exhibition?.measuring_unit && (
+                <CardTitle>Stall Setup</CardTitle>
+                <CardDescription>Configure your exhibition stalls</CardDescription>
+                {exhibition?.measuring_unit_id && measuringUnits.length > 0 && (
                   <p className="text-sm text-muted-foreground">
-                    All dimensions are in {exhibition.measuring_unit.name} ({exhibition.measuring_unit.symbol})
+                    All dimensions are in {measuringUnits.find(unit => unit.id === exhibition.measuring_unit_id)?.name} ({measuringUnits.find(unit => unit.id === exhibition.measuring_unit_id)?.symbol})
                   </p>
                 )}
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
                 {isLoadingUnits ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -314,84 +314,71 @@ const CreateExhibition = () => {
                     No measuring units available. Please contact the administrator.
                   </div>
                 ) : (
-                  <StallForm 
-                    onSubmit={handleCreateStall}
-                    initialData={editingStall || undefined}
-                    amenities={amenities}
-                    measuringUnits={measuringUnits}
-                    isLoading={createStallMutation.isPending || isLoadingAmenities}
-                  />
+                  <div className="space-y-8">
+                    <StallForm
+                      onSubmit={handleCreateStall}
+                      initialData={editingStall || undefined}
+                      amenities={amenities}
+                      measuringUnits={measuringUnits}
+                      isLoading={isLoadingUnits}
+                      lockedUnitId={exhibition?.measuring_unit_id}
+                      existingStalls={stalls}
+                    />
+
+                    {isLoadingStalls ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-muted-foreground">Loading stalls...</span>
+                      </div>
+                    ) : stalls.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No stalls added yet. Use the configuration form to add stalls.
+                      </div>
+                    ) : (
+                      <StallList
+                        stalls={stalls}
+                        onEdit={handleEditStall}
+                        onDelete={handleDeleteStall}
+                        isLoading={isLoadingStalls}
+                      />
+                    )}
+
+                    {stalls.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-lg font-semibold">Layout Generation</h3>
+                          <Button
+                            onClick={handleGenerateLayout}
+                            variant="default"
+                            size="default"
+                            disabled={isLoadingStalls}
+                            className="w-[200px]"
+                          >
+                            <Grid className="h-4 w-4 mr-2" />
+                            Generate Layout
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {showLayout && stallInstances.length > 0 && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">Layout Preview</h3>
+                        <div className="border rounded-lg p-4 overflow-x-auto">
+                          <StallLayout
+                            stallInstances={stallInstances}
+                            selectedInstanceId={selectedInstanceId}
+                            onStallSelect={handleStallSelect}
+                            isEditable={true}
+                            userRole="organiser"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
-
-            {/* All Stalls Section */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>All Stalls</CardTitle>
-                  {stalls.length > 0 && !showLayout && (
-                    <Button onClick={handleGenerateLayout}>
-                      <Grid className="h-4 w-4 mr-2" />
-                      Generate Layout
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isLoadingStalls ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : stalls.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No stalls added yet. Use the configuration form above to add stalls.
-                  </div>
-                ) : (
-                  <StallList 
-                    stalls={stalls} 
-                    onEdit={handleEditStall}
-                    onDelete={handleDeleteStall}
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Layout Upload Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Exhibition Layout</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LayoutUpload
-                  exhibitionId={createdExhibitionId || ''}
-                  existingImages={galleryImages}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Stall Layout Section */}
-            {showLayout && stalls && stalls.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Stall Layout</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <StallLayout 
-                    stallInstances={stallInstances}
-                    onStallSelect={handleStallSelect}
-                    selectedInstanceId={selectedInstanceId}
-                    isEditable={true}
-                  />
-                </CardContent>
-              </Card>
-            )}
-          </div>
-          
-          <div className="flex justify-end mt-8">
-            <Button onClick={() => setActiveTab('gallery-images')} disabled={stalls.length === 0}>
-              Continue to Gallery
-            </Button>
           </div>
         </TabsContent>
 

@@ -10,28 +10,20 @@ import { MeasurementUnit } from '@/types/exhibition-management';
 import { Loader2 } from 'lucide-react';
 
 interface MeasurementUnitSelectProps {
-  measurementUnits: MeasurementUnit[];
-  selectedUnitId: string;
+  measurementUnits?: MeasurementUnit[];
+  selectedUnitId?: string;
   onUnitSelect: (value: string) => void;
   disabled?: boolean;
   isLoading?: boolean;
 }
 
 const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
-  measurementUnits,
-  selectedUnitId,
+  measurementUnits = [], // Provide default empty array
+  selectedUnitId = '',
   onUnitSelect,
   disabled = false,
-  isLoading
+  isLoading = false
 }) => {
-  // Filter to show only length and area units for stall dimensions
-  const filteredUnits = measurementUnits.filter(unit => 
-    unit.type === 'length' || unit.type === 'area'
-  );
-
-  // Find the selected unit for display
-  const selectedUnit = measurementUnits.find(unit => unit.id === selectedUnitId);
-
   if (isLoading) {
     return (
       <div className="flex items-center gap-2">
@@ -40,6 +32,14 @@ const MeasurementUnitSelect: React.FC<MeasurementUnitSelectProps> = ({
       </div>
     );
   }
+
+  // Filter to show only length and area units for stall dimensions
+  const filteredUnits = measurementUnits.filter(unit => 
+    unit.type === 'length' || unit.type === 'area'
+  );
+
+  // Find the selected unit for display
+  const selectedUnit = selectedUnitId ? measurementUnits.find(unit => unit.id === selectedUnitId) : undefined;
 
   if (filteredUnits.length === 0) {
     return (

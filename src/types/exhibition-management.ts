@@ -1,62 +1,43 @@
-export interface ExhibitionCategory {
-  id: string;
-  name: string;
-  description?: string;
-}
+import { Database } from './database.types';
 
-export interface VenueType {
-  id: string;
-  name: string;
-  description?: string;
-}
+type Tables = Database['public']['Tables'];
+type ExhibitionRow = Tables['exhibitions']['Row'];
+type ExhibitionInsert = Tables['exhibitions']['Insert'];
+type ExhibitionUpdate = Tables['exhibitions']['Update'];
+type ExhibitionCategoryRow = Tables['exhibition_categories']['Row'];
+type VenueTypeRow = Tables['venue_types']['Row'];
+type EventTypeRow = Tables['event_types']['Row'];
+type MeasurementUnitRow = Tables['measurement_units']['Row'];
 
-export interface MeasurementUnit {
-  id: string;
-  name: string;
-  symbol: string;
+export interface MeasurementUnit extends MeasurementUnitRow {
   type: 'length' | 'area' | 'volume' | 'weight' | 'temperature' | 'other';
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-  created_by?: string;
 }
 
-export interface Amenity {
+export interface ExhibitionCategory extends ExhibitionCategoryRow {}
+
+export interface VenueType extends VenueTypeRow {}
+
+export interface EventType extends EventTypeRow {}
+
+export interface GalleryImage {
   id: string;
-  name: string;
-  description?: string;
-  icon?: string;
+  image_url: string;
+  image_type: string;
+  caption?: string;
+  created_at: string;
 }
 
-export interface Exhibition {
-  id: string;
-  title: string;
-  description: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  postal_code: string;
-  organiser_id: string;
-  status: string;
-  start_date: string;
-  end_date: string;
-  start_time: string;
-  end_time: string;
-  created_at: string;
-  updated_at: string;
-  category_id?: string;
-  venue_type_id?: string;
-  event_type_id?: string;
-  measuring_unit_id?: string;
-  price_range?: string;
-  stalls?: Stall[];
-  category?: ExhibitionCategory;
-  venue_type?: VenueType;
-  event_type?: EventType;
-  measuring_unit?: MeasurementUnit;
+export type ExhibitionWithRelations = ExhibitionRow & {
+  category?: ExhibitionCategoryRow | null;
+  venue_type?: VenueTypeRow | null;
+  event_type?: EventTypeRow | null;
+  measurement_unit?: MeasurementUnitRow | null;
   gallery_images?: GalleryImage[];
-}
+};
+
+export type Exhibition = ExhibitionWithRelations;
+
+export type ExhibitionFormData = Omit<ExhibitionInsert, 'id' | 'created_at' | 'updated_at'>;
 
 export interface Stall {
   id: string;
@@ -84,46 +65,11 @@ export interface StallAmenity {
   updated_at?: string;
 }
 
-export interface GalleryImage {
-  id: string;
-  exhibition_id: string;
-  image_url: string;
-  image_type: 'banner' | 'layout' | 'gallery';
-  type?: 'banner' | 'layout' | 'gallery';
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface EventType {
+export interface Amenity {
   id: string;
   name: string;
   description?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// The form data interfaces can use Date objects for better UI handling
-export interface ExhibitionFormData {
-  id?: string;
-  title: string;
-  description: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  postal_code: string;
-  organiser_id: string;
-  status: string;
-  start_date: string;
-  end_date: string;
-  start_time: string;
-  end_time: string;
-  category_id?: string;
-  venue_type_id?: string;
-  event_type_id?: string;
-  measuring_unit_id?: string;
-  created_at?: string;
-  updated_at?: string;
+  icon?: string;
 }
 
 export interface StallFormData {

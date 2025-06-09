@@ -181,7 +181,7 @@ export default function Contact() {
                     <Phone className="h-6 w-6 text-[#4B1E25]" />
                     <div>
                       <h3 className="font-semibold text-gray-900">Phone</h3>
-                      <p className="text-gray-600">+91 (800) 123-4567</p>
+                      <p className="text-gray-600">+91 9871130866</p>
                     </div>
                   </CardContent>
                 </Card>

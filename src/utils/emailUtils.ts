@@ -18,7 +18,7 @@ Thank you for your enquiry!
 [Your response here]
 
 Best regards,
-ExhiBae Support Team
+Exhibae Support Team
 
 ----- Original Message -----
 From: ${message.name} (${message.email})

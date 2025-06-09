@@ -34,7 +34,7 @@ export function useExhibitionFavorite(exhibitionId: string) {
 
       return !!data;
     },
-    enabled: !!user,
+    enabled: !!user && !!exhibitionId,
   });
 
   // Get favorites count
@@ -53,6 +53,7 @@ export function useExhibitionFavorite(exhibitionId: string) {
 
       return count || 0;
     },
+    enabled: !!exhibitionId,
   });
 
   // Ensure user has a profile record
@@ -166,6 +167,11 @@ export function useExhibitionFavorite(exhibitionId: string) {
 
   // Toggle favorite
   const toggleFavorite = () => {
+    if (!exhibitionId) {
+      console.error('Cannot toggle favorite: exhibition ID is missing');
+      return;
+    }
+    
     withAuth(() => {
       if (isFavorite) {
         removeFavorite.mutate();

@@ -15,6 +15,28 @@ interface GalleryUploadProps {
   description?: string;
 }
 
+// Maximum file size: 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+// Image dimensions requirements
+const IMAGE_REQUIREMENTS = {
+  banner: {
+    width: 1920,
+    height: 600,
+    aspectRatio: 3.2, // 1920:600
+    tolerance: 0.1 // 10% tolerance for aspect ratio
+  },
+  gallery: {
+    width: 1920,
+    height: 1080,
+    minWidth: 1280,
+    minHeight: 720,
+    aspectRatio: 16/9,
+    tolerance: 0.1, // 10% tolerance for aspect ratio
+    maxSize: '5MB'
+  }
+};
+
 const GalleryUpload: React.FC<GalleryUploadProps> = ({
   exhibitionId,
   imageType,
@@ -30,9 +52,60 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({
   const uploadMutation = useUploadGalleryImage(exhibitionId, imageType);
   const deleteMutation = useDeleteGalleryImage(exhibitionId);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const validateImageDimensions = (file: File): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const img = document.createElement('img');
+      img.onload = () => {
+        if (imageType === 'banner') {
+          const aspectRatio = img.width / img.height;
+          const targetRatio = IMAGE_REQUIREMENTS.banner.aspectRatio;
+          const withinTolerance = Math.abs(aspectRatio - targetRatio) <= IMAGE_REQUIREMENTS.banner.tolerance;
+          
+          if (!withinTolerance) {
+            toast({
+              title: 'Invalid image dimensions',
+              description: `Banner image should be ${IMAGE_REQUIREMENTS.banner.width}x${IMAGE_REQUIREMENTS.banner.height}px (3.2:1 aspect ratio)`,
+              variant: 'destructive',
+            });
+            resolve(false);
+            return;
+          }
+        } else if (imageType === 'gallery') {
+          const aspectRatio = img.width / img.height;
+          const targetRatio = IMAGE_REQUIREMENTS.gallery.aspectRatio;
+          const withinTolerance = Math.abs(aspectRatio - targetRatio) <= IMAGE_REQUIREMENTS.gallery.tolerance;
+
+          if (img.width < IMAGE_REQUIREMENTS.gallery.minWidth || img.height < IMAGE_REQUIREMENTS.gallery.minHeight) {
+            toast({
+              title: 'Image too small',
+              description: `Gallery images should be at least ${IMAGE_REQUIREMENTS.gallery.minWidth}x${IMAGE_REQUIREMENTS.gallery.minHeight}px`,
+              variant: 'destructive',
+            });
+            resolve(false);
+            return;
+          }
+
+          if (!withinTolerance) {
+            toast({
+              title: 'Invalid aspect ratio',
+              description: `Gallery images should have a 16:9 aspect ratio (e.g. ${IMAGE_REQUIREMENTS.gallery.width}x${IMAGE_REQUIREMENTS.gallery.height}px)`,
+              variant: 'destructive',
+            });
+            resolve(false);
+            return;
+          }
+        }
+        resolve(true);
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Validate file type
       if (!file.type.startsWith('image/')) {
         toast({
           title: 'Invalid file type',
@@ -41,6 +114,23 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({
         });
         return;
       }
+
+      // Validate file size
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          title: 'File too large',
+          description: `Maximum file size is ${IMAGE_REQUIREMENTS.gallery.maxSize}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Validate image dimensions
+      const isValidDimensions = await validateImageDimensions(file);
+      if (!isValidDimensions) {
+        return;
+      }
+
       setSelectedImage(file);
       const previewUrl = URL.createObjectURL(file);
       setPreviewImage(previewUrl);
@@ -87,12 +177,21 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({
 
   const filteredImages = existingImages.filter(img => img.image_type === imageType);
 
+  const getImageRequirements = () => {
+    if (imageType === 'banner') {
+      return `Banner image should be ${IMAGE_REQUIREMENTS.banner.width}x${IMAGE_REQUIREMENTS.banner.height}px (3.2:1 aspect ratio). Maximum file size: ${IMAGE_REQUIREMENTS.gallery.maxSize}`;
+    }
+    return `Gallery images should be 16:9 aspect ratio (recommended: ${IMAGE_REQUIREMENTS.gallery.width}x${IMAGE_REQUIREMENTS.gallery.height}px), minimum ${IMAGE_REQUIREMENTS.gallery.minWidth}x${IMAGE_REQUIREMENTS.gallery.minHeight}px. Maximum file size: ${IMAGE_REQUIREMENTS.gallery.maxSize}`;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium">{title}</h3>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+          <p className="text-sm text-muted-foreground">
+            {description || getImageRequirements()}
+          </p>
         </div>
         
         <Button 
@@ -108,8 +207,8 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({
             </>
           ) : (
             <>
-          <Upload className="h-4 w-4" />
-          Upload
+              <Upload className="h-4 w-4" />
+              Upload
             </>
           )}
           <input 
@@ -128,25 +227,25 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({
             <Card key={image.id} className="relative group overflow-hidden">
               <CardContent className="p-2">
                 <div className="aspect-square relative">
-                <img 
-                  src={image.image_url} 
-                  alt={`${imageType} image`} 
+                  <img 
+                    src={image.image_url} 
+                    alt={`${imageType} image`} 
                     className="w-full h-full object-cover rounded transition-transform duration-200 group-hover:scale-105"
-                />
+                  />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Button
-                  variant="destructive"
-                  size="icon"
+                    <Button
+                      variant="destructive"
+                      size="icon"
                       className="transition-transform duration-200 scale-75 group-hover:scale-100"
-                  onClick={() => handleDeleteImage(image)}
+                      onClick={() => handleDeleteImage(image)}
                       disabled={deleteMutation.isPending}
-                >
+                    >
                       {deleteMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                  <X className="h-4 w-4" />
+                        <X className="h-4 w-4" />
                       )}
-                </Button>
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -172,11 +271,11 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({
           <div className="space-y-4">
             {previewImage && (
               <div className="relative border rounded overflow-hidden">
-              <img 
-                src={previewImage} 
-                alt="Preview" 
+                <img 
+                  src={previewImage} 
+                  alt="Preview" 
                   className="w-full h-64 object-contain"
-              />
+                />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent pointer-events-none" />
               </div>
             )}
@@ -185,9 +284,9 @@ const GalleryUpload: React.FC<GalleryUploadProps> = ({
               <Button 
                 variant="outline" 
                 onClick={() => {
-                setIsDialogOpen(false);
-                setSelectedImage(null);
-                setPreviewImage(null);
+                  setIsDialogOpen(false);
+                  setSelectedImage(null);
+                  setPreviewImage(null);
                 }}
                 disabled={uploadMutation.isPending}
               >

@@ -43,12 +43,15 @@ const ProfileDropdown = ({ onLogout }: ProfileDropdownProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string>('');
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>('organiser');
   
   useEffect(() => {
     if (user) {
       setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || 'User');
-      setUserRole(user.user_metadata?.role?.toLowerCase() || null);
+      const role = user.user_metadata?.role?.toLowerCase();
+      if (role && Object.values(UserRole).map(r => r.toLowerCase()).includes(role)) {
+        setUserRole(role);
+      }
     }
   }, [user]);
 
@@ -104,56 +107,6 @@ const ProfileDropdown = ({ onLogout }: ProfileDropdownProps) => {
 
     // Role-specific menu items
     switch(userRole) {
-      case UserRole.SHOPPER.toLowerCase():
-        return [
-          ...commonItems,
-          {
-            label: 'My Exhibitions',
-            icon: <Calendar className="mr-2 h-4 w-4" />,
-            path: `${dashboardPath}/my-exhibitions`,
-          },
-          {
-            label: 'My Favorites',
-            icon: <Heart className="mr-2 h-4 w-4 text-red-500" />,
-            path: `${dashboardPath}/favorites`,
-          },
-          {
-            label: 'Recommended',
-            icon: <Heart className="mr-2 h-4 w-4" />,
-            path: `${dashboardPath}/recommended`,
-          },
-          {
-            label: 'Find Exhibitions',
-            icon: <Compass className="mr-2 h-4 w-4" />,
-            path: `${dashboardPath}/find`,
-          }
-        ];
-      
-      case UserRole.BRAND.toLowerCase():
-        return [
-          ...commonItems,
-          {
-            label: 'My Stalls',
-            icon: <Store className="mr-2 h-4 w-4" />,
-            path: `${dashboardPath}/stalls`,
-          },
-          {
-            label: 'My Applications',
-            icon: <List className="mr-2 h-4 w-4" />,
-            path: `${dashboardPath}/applications`,
-          },
-          {
-            label: 'My Interests',
-            icon: <Heart className="mr-2 h-4 w-4" />,
-            path: `${dashboardPath}/interests`,
-          },
-          {
-            label: 'Find Exhibitions',
-            icon: <Search className="mr-2 h-4 w-4" />,
-            path: `${dashboardPath}/find`,
-          }
-        ];
-      
       case UserRole.ORGANISER.toLowerCase():
         return [
           ...commonItems,
@@ -178,9 +131,69 @@ const ProfileDropdown = ({ onLogout }: ProfileDropdownProps) => {
             path: `${dashboardPath}/interest-inquiries`,
           },
           {
+            label: 'Favorites',
+            icon: <Heart className="mr-2 h-4 w-4 text-red-500" />,
+            path: `${dashboardPath}/favorites`,
+          },
+          {
             label: 'Coupons',
             icon: <Ticket className="mr-2 h-4 w-4" />,
             path: `${dashboardPath}/coupons`,
+          }
+        ];
+      
+      case UserRole.BRAND.toLowerCase():
+        return [
+          ...commonItems,
+          {
+            label: 'My Stalls',
+            icon: <Store className="mr-2 h-4 w-4" />,
+            path: `${dashboardPath}/stalls`,
+          },
+          {
+            label: 'My Applications',
+            icon: <List className="mr-2 h-4 w-4" />,
+            path: `${dashboardPath}/applications`,
+          },
+          {
+            label: 'My Interests',
+            icon: <Heart className="mr-2 h-4 w-4" />,
+            path: `${dashboardPath}/interests`,
+          },
+          {
+            label: 'Favorites',
+            icon: <Heart className="mr-2 h-4 w-4 text-red-500" />,
+            path: `${dashboardPath}/favorites`,
+          },
+          {
+            label: 'Find Exhibitions',
+            icon: <Search className="mr-2 h-4 w-4" />,
+            path: `${dashboardPath}/find`,
+          }
+        ];
+      
+      case UserRole.SHOPPER.toLowerCase():
+        return [
+          ...commonItems,
+          {
+            label: 'My Exhibitions',
+            icon: <Calendar className="mr-2 h-4 w-4" />,
+            path: `${dashboardPath}/my-exhibitions`,
+          },
+          {
+            label: 'My Favorites',
+            icon: <Heart className="mr-2 h-4 w-4 text-red-500" />,
+            path: `${dashboardPath}/favorites`,
+          },
+          {
+            label: 'Recommended',
+            icon: <Star className="mr-2 h-4 w-4" />,
+            path: `${dashboardPath}/recommended`,
+          },
+          {
+            label: 'Find Exhibitions',
+            icon: <Search className="mr-2 h-4 w-4" />,
+            path: `${dashboardPath}/find`,
           }
         ];
       

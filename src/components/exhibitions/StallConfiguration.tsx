@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
 
+type StallStatus = 'available' | 'pending' | 'reserved' | 'booked' | 'under_maintenance';
+
 interface StallConfigurationProps {
   stalls: Stall[];
   stallInstances: any[];
@@ -19,7 +21,7 @@ interface StallConfigurationProps {
   onDeleteStall: (id: string) => Promise<void>;
   onGenerateLayout?: () => Promise<void>;
   onUpdatePrice?: (instanceId: string, newPrice: number) => Promise<void>;
-  onUpdateStatus?: (instanceId: string, newStatus: string) => Promise<void>;
+  onUpdateStatus?: (instanceId: string, newStatus: StallStatus) => Promise<void>;
   isLoading?: boolean;
   exhibitionMeasuringUnitId?: string;
 }
@@ -112,17 +114,6 @@ const StallConfiguration: React.FC<StallConfigurationProps> = ({
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">All Stalls</h3>
           <div className="flex gap-2">
-            {stalls.length > 0 && onGenerateLayout && (
-              <Button
-                onClick={onGenerateLayout}
-                variant="outline"
-                size="sm"
-                disabled={isLoading}
-              >
-                <Grid className="h-4 w-4 mr-2" />
-                Generate Layout
-              </Button>
-            )}
             <Button
               onClick={handleAddMore}
               variant="outline"
@@ -142,6 +133,24 @@ const StallConfiguration: React.FC<StallConfigurationProps> = ({
           isLoading={isLoading}
         />
       </div>
+
+      {stalls.length > 0 && onGenerateLayout && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Layout Generation</h3>
+            <Button
+              onClick={onGenerateLayout}
+              variant="default"
+              size="default"
+              disabled={isLoading}
+              className="w-[200px]"
+            >
+              <Grid className="h-4 w-4 mr-2" />
+              Generate Layout
+            </Button>
+          </div>
+        </div>
+      )}
 
       {stallInstances && stallInstances.length > 0 && (
         <div className="space-y-4">

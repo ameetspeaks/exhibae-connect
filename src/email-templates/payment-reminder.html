@@ -2,99 +2,31 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Reminder: {{exhibition_name}}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .header {
-            background: #f59e0b;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        .content {
-            padding: 30px;
-            color: #333333;
-        }
-        .footer {
-            background: #f8f8f8;
-            padding: 20px;
-            text-align: center;
-            font-size: 12px;
-            color: #666666;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #f59e0b;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-        .button:hover {
-            background-color: #d97706;
-        }
-        .payment-details {
-            background-color: #fffbeb;
-            border: 1px solid #fbbf24;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        .deadline {
-            color: #b91c1c;
-            font-weight: bold;
-        }
-    </style>
+    <title>Payment Reminder</title>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Payment Reminder</h1>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Dear {{name}},</h2>
+        <p>This is a friendly reminder about your pending payment for {{exhibition_name}}.</p>
+        
+        <div style="margin: 20px 0;">
+            <h3>Exhibition Details:</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li><strong>Exhibition:</strong> {{exhibition_name}}</li>
+                <li><strong>Dates:</strong> {{exhibition_dates}}</li>
+                <li><strong>Venue:</strong> {{venue}}</li>
+                <li><strong>Stall Number:</strong> {{stall_number}}</li>
+            </ul>
         </div>
-        <div class="content">
-            <p>Dear {{name}},</p>
-            
-            <p>This is a friendly reminder that payment is due for your approved stall at <strong>{{exhibition_name}}</strong>.</p>
-            
-            <div class="payment-details">
-                <h3>Exhibition Details:</h3>
-                <p><strong>Exhibition:</strong> {{exhibition_name}}</p>
-                <p><strong>Dates:</strong> {{exhibition_dates}}</p>
-                <p><strong>Venue:</strong> {{venue}}</p>
-                <p><strong>Your Stall Number:</strong> {{stall_number}}</p>
-                <p><strong>Payment Deadline:</strong> <span class="deadline">{{payment_deadline}}</span></p>
-            </div>
-            
-            <p>To secure your spot at the exhibition, please complete your payment by clicking the button below:</p>
-            
-            <a href="{{payment_link}}" class="button">Complete Payment Now</a>
-            
-            <p>If you have any questions or need assistance with your payment, please don't hesitate to contact our support team.</p>
-            
-            <p>Looking forward to seeing you at the exhibition!</p>
-            
-            <p>Best regards,<br>The ExhiBae Team</p>
-        </div>
-        <div class="footer">
-            <p>© 2024 ExhiBae. All rights reserved.</p>
-            <p>If you have any questions, please contact us at support@exhibae.com</p>
-        </div>
+
+        <p>To secure your spot, please complete the payment as soon as possible. Your reservation will expire if payment is not received within the next 24 hours.</p>
+        
+        <p>If you have already made the payment, please disregard this message.</p>
+
+        <p>If you have any questions or need assistance with the payment process, please don't hesitate to contact us.</p>
+        
+        <p>Best regards,<br>
+        The Exhibae Team</p>
     </div>
 </body>
 </html> 

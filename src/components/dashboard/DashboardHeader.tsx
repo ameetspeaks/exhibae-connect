@@ -67,7 +67,7 @@ const DashboardHeader = ({ role, title }: DashboardHeaderProps) => {
         <h1 className={cn("text-2xl font-semibold", colorScheme.text)}>{title}</h1>
         
         <div className="flex items-center space-x-4">
-          {role !== UserRole.BRAND && (
+          {role !== UserRole.BRAND && role !== UserRole.ORGANISER && (
             <div className="relative hidden md:block">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
               <Input

@@ -1,6 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { MeasurementUnit } from '@/types/exhibition-management';
+import { Amenity, MeasurementUnit } from '@/types/exhibition-management';
+import { Database } from '@/types/database.types';
+
+type Tables = Database['public']['Tables']
+type AmenityRow = Tables['amenities']['Row'];
+type StallAmenityRow = Tables['stall_amenities']['Row'];
 
 export const useAmenities = () => {
   return useQuery({
@@ -13,7 +18,12 @@ export const useAmenities = () => {
       if (error) {
         throw new Error(error.message);
       }
-      return data;
+      return ((data as unknown) as AmenityRow[]).map(amenity => ({
+        id: amenity.id,
+        name: amenity.name,
+        description: amenity.description || undefined,
+        icon: amenity.icon || undefined
+      })) as Amenity[];
     }
   });
 };
@@ -24,12 +34,22 @@ export const useStallAmenities = (stallId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('stall_amenities')
-        .select('*')
+        .select('*, amenity:amenities(*)')
         .match({ stall_id: stallId });
       if (error) {
         throw new Error(error.message);
       }
-      return data;
+      return ((data as unknown) as (StallAmenityRow & { amenity: AmenityRow })[]).map(row => ({
+        id: row.id,
+        stall_id: row.stall_id,
+        amenity_id: row.amenity_id,
+        amenity: {
+          id: row.amenity.id,
+          name: row.amenity.name,
+          description: row.amenity.description || undefined,
+          icon: row.amenity.icon || undefined
+        }
+      }));
     }
   });
 };

@@ -6,7 +6,8 @@ const WhatsAppSupport = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
-  const whatsappNumber = '+919899648866';
+  const [message, setMessage] = useState('');
+  const whatsappNumber = '+919871130866';
 
   // Get user role from metadata
   const userRole = user?.user_metadata?.role?.toLowerCase() || '';

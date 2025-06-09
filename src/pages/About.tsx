@@ -9,7 +9,7 @@ const About = () => {
       <section className="py-20 bg-exhibae-light-gray">
         <div className="container mx-auto px-6">
           <h1 className="text-4xl md:text-5xl font-bold text-exhibae-navy text-center mb-6">
-            About ExhiBae
+            About Exhibae
           </h1>
           <p className="text-xl text-gray-600 text-center max-w-3xl mx-auto">
             Connecting Exhibition Organizers, Brands, and Shoppers in one seamless platform.
@@ -24,7 +24,7 @@ const About = () => {
             <div>
               <h2 className="text-3xl font-bold text-exhibae-navy mb-6">Our Mission</h2>
               <p className="text-gray-600 mb-4">
-                At ExhiBae, we're revolutionizing the exhibition industry by creating a digital ecosystem that brings together organizers, brands, and shoppers. Our platform simplifies the exhibition management process while enhancing the experience for all stakeholders.
+                At Exhibae, we're revolutionizing the exhibition industry by creating a digital ecosystem that brings together organizers, brands, and shoppers. Our platform simplifies the exhibition management process while enhancing the experience for all stakeholders.
               </p>
               <p className="text-gray-600">
                 We believe in the power of physical exhibitions and their ability to create meaningful connections between brands and customers. Our goal is to enhance these connections through technology.
@@ -87,7 +87,7 @@ const About = () => {
         <div className="container mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold text-exhibae-navy mb-6">Ready to Get Started?</h2>
           <p className="text-xl text-gray-600 mb-8">
-            Join ExhiBae today and transform your exhibition experience.
+            Join Exhibae today and transform your exhibition experience.
           </p>
           <div className="flex justify-center gap-4">
             <Button className="bg-exhibae-navy hover:bg-opacity-90" asChild>

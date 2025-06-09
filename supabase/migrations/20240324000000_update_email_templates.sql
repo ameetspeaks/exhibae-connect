@@ -89,7 +89,7 @@ SET template = '<!DOCTYPE html>
             <a href="{{dashboard_link}}" class="button">View Dashboard</a>
         </div>
         <div class="footer">
-            <p>© 2024 ExhiBae. All rights reserved.</p>
+            <p>© 2024 Exhibae. All rights reserved.</p>
             <p>If you have any questions, please contact us at support@exhibae.com</p>
         </div>
     </div>
@@ -175,7 +175,7 @@ SET template = '<!DOCTYPE html>
             <p>Limited spots available. Apply early to secure your place.</p>
         </div>
         <div class="footer">
-            <p>© 2024 ExhiBae. All rights reserved.</p>
+            <p>© 2024 Exhibae. All rights reserved.</p>
             <p>If you have any questions, please contact us at support@exhibae.com</p>
         </div>
     </div>

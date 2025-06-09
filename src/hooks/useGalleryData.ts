@@ -1,13 +1,17 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GalleryImage } from '@/types/exhibition-management';
 import { v4 as uuidv4 } from '@lukeed/uuid';
+import { Database } from '@/types/database.types';
+
+type GalleryImageRow = Database['public']['Tables']['gallery_images']['Row'];
+type GalleryImageInsert = Database['public']['Tables']['gallery_images']['Insert'];
 
 export const useGalleryImages = (exhibitionId: string) => {
   return useQuery({
     queryKey: ['galleryImages', exhibitionId],
     queryFn: async () => {
+      console.log('Fetching gallery images for exhibition:', exhibitionId);
       const { data, error } = await supabase
         .from('gallery_images')
         .select('*')
@@ -15,10 +19,14 @@ export const useGalleryImages = (exhibitionId: string) => {
         .order('created_at');
       
       if (error) {
+        console.error('Error fetching gallery images:', error);
         throw new Error(error.message);
       }
       
-      return data as GalleryImage[];
+      const images = data as GalleryImageRow[];
+      console.log('Raw gallery images data:', images);
+      console.log('Gallery images with layout type:', images.filter(img => img.image_type === 'layout'));
+      return images;
     },
     enabled: !!exhibitionId
   });
@@ -35,6 +43,13 @@ export const useUploadGalleryImage = (exhibitionId: string, imageType: string) =
       const fileName = `${uuidv4()}.${fileExt}`;
       const filePath = `${exhibitionId}/${fileName}`;
       
+      console.log('Uploading gallery image:', {
+        exhibitionId,
+        imageType,
+        fileName,
+        filePath
+      });
+      
       // Upload file to storage
       const { error: uploadError } = await supabase
         .storage
@@ -42,6 +57,7 @@ export const useUploadGalleryImage = (exhibitionId: string, imageType: string) =
         .upload(filePath, file);
       
       if (uploadError) {
+        console.error('Error uploading file:', uploadError);
         throw new Error(uploadError.message);
       }
       
@@ -51,22 +67,29 @@ export const useUploadGalleryImage = (exhibitionId: string, imageType: string) =
         .from('exhibition-images')
         .getPublicUrl(filePath);
       
+      console.log('Got public URL:', publicUrlData.publicUrl);
+      
       // Save record in gallery_images table
+      const newImage: GalleryImageInsert = {
+        exhibition_id: exhibitionId,
+        image_url: publicUrlData.publicUrl,
+        image_type: imageType
+      };
+      
       const { data, error } = await supabase
         .from('gallery_images')
-        .insert([{
-          exhibition_id: exhibitionId,
-          image_url: publicUrlData.publicUrl,
-          image_type: imageType
-        }])
+        .insert([newImage])
         .select()
         .single();
       
       if (error) {
+        console.error('Error saving gallery image record:', error);
         throw new Error(error.message);
       }
       
-      return data as GalleryImage;
+      const savedImage = data as GalleryImageRow;
+      console.log('Successfully saved gallery image:', savedImage);
+      return savedImage;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['galleryImages', exhibitionId] });
@@ -104,6 +127,52 @@ export const useDeleteGalleryImage = (exhibitionId: string) => {
       }
       
       return image.id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['galleryImages', exhibitionId] });
+    }
+  });
+};
+
+export const useUpdateGalleryImageTypes = (exhibitionId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async () => {
+      console.log('Updating gallery image types for exhibition:', exhibitionId);
+      
+      // First, get all gallery images for this exhibition
+      const { data: images, error: fetchError } = await supabase
+        .from('gallery_images')
+        .select('*')
+        .eq('exhibition_id', exhibitionId);
+      
+      if (fetchError) {
+        console.error('Error fetching gallery images:', fetchError);
+        throw new Error(fetchError.message);
+      }
+      
+      if (!images || images.length === 0) {
+        console.log('No gallery images found for this exhibition');
+        return [];
+      }
+      
+      console.log('Found gallery images:', images);
+      
+      // Update all images to have image_type = 'layout'
+      const { data: updatedImages, error: updateError } = await supabase
+        .from('gallery_images')
+        .update({ image_type: 'layout' })
+        .eq('exhibition_id', exhibitionId)
+        .select();
+      
+      if (updateError) {
+        console.error('Error updating gallery images:', updateError);
+        throw new Error(updateError.message);
+      }
+      
+      console.log('Successfully updated gallery images:', updatedImages);
+      return updatedImages as GalleryImageRow[];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['galleryImages', exhibitionId] });

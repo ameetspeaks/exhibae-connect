@@ -200,11 +200,6 @@ export default function DashboardSidebar({ role, onLogout }: DashboardSidebarPro
             icon: <Heart className="w-5 h-5 text-red-500" />,
           },
           {
-            name: 'Find Exhibitions',
-            path: `/dashboard/organiser/find-exhibitions`,
-            icon: <Search className="w-5 h-5" />,
-          },
-          {
             name: 'Coupons',
             path: `/dashboard/${role}/coupons`,
             icon: <Ticket className="w-5 h-5" />,

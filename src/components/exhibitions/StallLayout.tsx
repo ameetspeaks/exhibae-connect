@@ -16,6 +16,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { StallInstance, StallApplication } from '@/types/exhibition-management';
 import { unifiedNotificationService } from '@/services/unifiedNotificationService';
 
+type StallStatus = 'available' | 'pending' | 'reserved' | 'booked' | 'under_maintenance';
+
 interface StallLayoutProps {
   stallInstances: StallInstance[];
   onStallSelect?: (instance: StallInstance) => void;
@@ -23,7 +25,7 @@ interface StallLayoutProps {
   isEditable?: boolean;
   userRole?: 'organiser' | 'brand';
   onUpdatePrice?: (instanceId: string, newPrice: number) => Promise<void>;
-  onUpdateStatus?: (instanceId: string, newStatus: string) => Promise<void>;
+  onUpdateStatus?: (instanceId: string, newStatus: StallStatus) => Promise<void>;
   onDeleteStall?: (instanceId: string) => Promise<void>;
   onApplyForStall?: (instanceId: string) => Promise<void>;
   onCreatePayment?: (applicationId: string, data: { amount: number; payment_method: string; reference_number?: string }) => Promise<void>;
@@ -81,14 +83,18 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
     );
   }
 
-  const getStallStatusColor = (status: string) => {
+  const getStallStatusColor = (status: StallStatus) => {
     switch (status) {
       case 'available':
         return 'bg-blue-50 border-blue-200 hover:bg-blue-100';
       case 'pending':
         return 'bg-yellow-50 border-yellow-200';
+      case 'reserved':
+        return 'bg-orange-50 border-orange-200';
       case 'booked':
         return 'bg-red-50 border-red-200';
+      case 'under_maintenance':
+        return 'bg-gray-50 border-gray-200';
       default:
         return 'bg-gray-50 border-gray-200';
     }
@@ -163,90 +169,29 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
     }
   };
 
-  const handleStatusUpdate = async (instanceId: string, newStatus: string) => {
-    console.log('StallLayout: Updating status:', { instanceId, newStatus, currentStatus: selectedStall?.status });
+  const handleStatusUpdate = async (instanceId: string, newStatus: StallStatus) => {
     if (!onUpdateStatus) return;
 
     try {
       await onUpdateStatus(instanceId, newStatus);
       
-      // If the stall is being marked as booked, update the application status
-      if (newStatus === 'booked' && selectedStall?.application?.id) {
-        // Get application details first
-        const { data: applicationData, error: fetchError } = await supabase
-          .from('stall_applications')
-          .select(`
-            id,
-            brand:profiles(full_name, email),
-            exhibition:exhibitions(title)
-          `)
-          .eq('id', selectedStall.application.id)
-          .single<ApplicationData>();
-
-        if (fetchError) {
-          console.error('Error fetching application details:', fetchError);
-          throw fetchError;
-        }
-
-        const { error: applicationError } = await supabase
-          .from('stall_applications')
-          .update({
-            status: 'booked',
-            payment_status: 'completed',
-            payment_date: new Date().toISOString(),
-            booking_confirmed: true
-          })
-          .eq('id', selectedStall.application.id);
-
-        if (applicationError) {
-          console.error('Error updating application:', applicationError);
-          throw applicationError;
-        }
-
-        // Send notifications
-        if (applicationData?.brand && applicationData?.exhibition) {
-          await unifiedNotificationService.notifyStallApproved(
-            instanceId,
-            applicationData.brand.full_name,
-            applicationData.exhibition.title,
-            applicationData.brand.email
-          );
-        }
-      }
-      
-      // Update local state immediately
-      if (selectedStall && selectedStall.id === instanceId) {
-        setSelectedStall(prev => {
-          if (!prev) return null;
-          
-          let updatedApplication = prev.application;
-          if (updatedApplication && newStatus === 'booked') {
-            updatedApplication = {
-              ...updatedApplication,
-              status: 'booked',
-              // Only add these properties if application is a full application type
-              ...(('payment_status' in updatedApplication) ? { payment_status: 'completed' } : {}),
-              ...(('booking_confirmed' in updatedApplication) ? { booking_confirmed: true } : {})
-            };
-          }
-          
-          return { 
-            ...prev, 
-            status: newStatus,
-            application: updatedApplication
-          };
+      // Update local state
+      if (selectedStall) {
+        setSelectedStall({
+          ...selectedStall,
+          status: newStatus
         });
       }
-      
+
       toast({
         title: 'Status updated',
-        description: 'Stall status has been updated successfully.'
+        description: 'The stall status has been updated successfully.'
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating stall status:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update stall status',
+        description: error instanceof Error ? error.message : 'Failed to update status',
         variant: 'destructive'
       });
     }
@@ -361,7 +306,7 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
                   {userRole === 'organiser' ? (
                     <Select
                       value={selectedStall.status}
-                      onValueChange={(value) => handleStatusUpdate(selectedStall.id, value)}
+                      onValueChange={(value: StallStatus) => handleStatusUpdate(selectedStall.id, value)}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -369,7 +314,9 @@ export const StallLayout: React.FC<StallLayoutProps> = ({
                       <SelectContent>
                         <SelectItem value="available">Available</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="reserved">Reserved</SelectItem>
                         <SelectItem value="booked">Booked</SelectItem>
+                        <SelectItem value="under_maintenance">Under Maintenance</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (

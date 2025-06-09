@@ -5,11 +5,22 @@ import {
   ExhibitionFormData, 
   ExhibitionCategory, 
   VenueType,
-  MeasuringUnit,
+  MeasurementUnit,
   EventType
 } from '@/types/exhibition-management';
 import { format } from 'date-fns';
 import { useAuth } from '@/integrations/supabase/AuthProvider';
+import { Database } from '@/types/database.types';
+import { PostgrestSingleResponse } from '@supabase/supabase-js';
+
+type Tables = Database['public']['Tables']
+type MeasurementUnitRow = Tables['measurement_units']['Row'];
+type ExhibitionCategoryRow = Tables['exhibition_categories']['Row'];
+type VenueTypeRow = Tables['venue_types']['Row'];
+type EventTypeRow = Tables['event_types']['Row'];
+type ExhibitionRow = Tables['exhibitions']['Row'];
+type ExhibitionInsert = Tables['exhibitions']['Insert'];
+type ExhibitionUpdate = Tables['exhibitions']['Update'];
 
 export const useCategories = () => {
   return useQuery({
@@ -24,7 +35,11 @@ export const useCategories = () => {
         throw new Error(error.message);
       }
       
-      return data as ExhibitionCategory[];
+      return ((data as unknown) as ExhibitionCategoryRow[]).map(category => ({
+        id: category.id,
+        name: category.name,
+        description: category.description || undefined
+      })) as ExhibitionCategory[];
     }
   });
 };
@@ -42,7 +57,11 @@ export const useVenueTypes = () => {
         throw new Error(error.message);
       }
       
-      return data as VenueType[];
+      return ((data as unknown) as VenueTypeRow[]).map(type => ({
+        id: type.id,
+        name: type.name,
+        description: type.description || undefined
+      })) as VenueType[];
     }
   });
 };
@@ -53,8 +72,8 @@ export const useMeasuringUnits = () => {
     queryFn: async () => {
       console.log('Fetching measuring units...');
       const { data, error } = await supabase
-        .from('measurement_units')
-        .select('id, name, symbol, type, description')
+        .from('measurement_units')  // Using measurement_units to match the dashboard
+        .select('id, name, symbol, type, description, created_at, updated_at')
         .order('name');
       
       if (error) {
@@ -62,16 +81,23 @@ export const useMeasuringUnits = () => {
         throw new Error(error.message);
       }
 
+      if (!data || data.length === 0) {
+        console.warn('No measuring units found in the database');
+        return [];
+      }
+
       console.log('Received measuring units:', data);
 
-      // Transform the data to match the MeasuringUnit type
-      const transformedData = data?.map(unit => ({
+      // Transform the data to match the MeasurementUnit type
+      const transformedData = ((data as unknown) as MeasurementUnitRow[]).map(unit => ({
         id: unit.id,
         name: unit.name,
         symbol: unit.symbol,
-        type: unit.type as MeasuringUnit['type'],
-        description: unit.description
-      })) || [];
+        type: unit.type,
+        description: unit.description,
+        created_at: unit.created_at,
+        updated_at: unit.updated_at
+      })) as MeasurementUnit[];
 
       console.log('Transformed measuring units:', transformedData);
       
@@ -147,32 +173,27 @@ export const useExhibition = (id: string) => {
   return useQuery({
     queryKey: ['exhibition', id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: rawData, error } = await supabase
         .from('exhibitions')
         .select(`
           *,
           category:exhibition_categories(*),
           venue_type:venue_types(*),
-          event_type:event_types(*)
+          event_type:event_types(*),
+          measurement_unit:measurement_units(*)
         `)
         .eq('id', id)
-        .single();
+        .single() as PostgrestSingleResponse<Exhibition>;
       
       if (error) {
         throw new Error(error.message);
       }
 
-      // Transform the data to ensure IDs are correctly set
-      const transformedData = {
-        ...data,
-        venue_type_id: data.venue_type_id || data.venue_type?.id,
-        event_type_id: data.event_type_id || data.event_type?.id,
-        category_id: data.category_id || data.category?.id
-      };
-      
-      console.log('Transformed exhibition data:', transformedData);
-      
-      return transformedData as Exhibition;
+      if (!rawData) {
+        throw new Error('Exhibition not found');
+      }
+
+      return rawData;
     },
     enabled: !!id
   });
@@ -187,26 +208,46 @@ export const useCreateExhibition = () => {
       if (!user) throw new Error('User must be authenticated to create an exhibition');
       
       const formattedData = {
-        ...exhibitionData,
-        organiser_id: user.id,
-        status: 'draft',
+        title: exhibitionData.title,
+        description: exhibitionData.description,
+        address: exhibitionData.address,
+        city: exhibitionData.city,
+        state: exhibitionData.state,
+        country: exhibitionData.country,
+        postal_code: exhibitionData.postal_code,
+        category_id: exhibitionData.category_id,
+        venue_type_id: exhibitionData.venue_type_id,
+        event_type_id: exhibitionData.event_type_id,
+        measuring_unit_id: exhibitionData.measuring_unit_id,
         start_date: exhibitionData.start_date,
         end_date: exhibitionData.end_date,
-        start_time: exhibitionData.start_time || '11:00',
-        end_time: exhibitionData.end_time || '17:00'
-      };
+        start_time: exhibitionData.start_time || '11:00:00',
+        end_time: exhibitionData.end_time || '17:00:00',
+        organiser_id: user.id,
+        status: 'draft'
+      } satisfies ExhibitionInsert;
       
       const { data, error } = await supabase
         .from('exhibitions')
         .insert(formattedData)
-        .select()
-        .single();
+        .select(`
+          *,
+          category:exhibition_categories(*),
+          venue_type:venue_types(*),
+          event_type:event_types(*),
+          measurement_unit:measurement_units(*)
+        `)
+        .single() as PostgrestSingleResponse<Exhibition>;
       
       if (error) {
         throw new Error(error.message);
       }
       
-      return data as Exhibition;
+      if (!data) {
+        throw new Error('Failed to create exhibition');
+      }
+      
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exhibitions'] });
@@ -223,34 +264,23 @@ export const useUpdateExhibition = () => {
 
       console.log('Updating exhibition with data:', { exhibitionId, data });
 
-      // Format dates properly and exclude measuring_unit_id
-      const { measuring_unit_id, ...restData } = data;
       const formattedData = {
-        ...restData,
-        title: restData.title,
-        description: restData.description,
-        address: restData.address || '',
-        city: restData.city || '',
-        state: restData.state || '',
-        country: restData.country || '',
-        postal_code: restData.postal_code || '',
-        category_id: restData.category_id || null,
-        venue_type_id: restData.venue_type_id || null,
-        event_type_id: restData.event_type_id || null,
-        start_date: typeof restData.start_date === 'object' ? (restData.start_date as Date).toISOString() : restData.start_date,
-        end_date: typeof restData.end_date === 'object' ? (restData.end_date as Date).toISOString() : restData.end_date,
-        start_time: restData.start_time || '11:00',
-        end_time: restData.end_time || '17:00'
-      };
-
-      // Remove any undefined values
-      Object.keys(formattedData).forEach(key => {
-        if (formattedData[key] === undefined) {
-          delete formattedData[key];
-        }
-      });
-
-      console.log('Formatted data for update:', formattedData);
+        title: data.title,
+        description: data.description,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        country: data.country,
+        postal_code: data.postal_code,
+        category_id: data.category_id,
+        venue_type_id: data.venue_type_id,
+        event_type_id: data.event_type_id,
+        measuring_unit_id: data.measuring_unit_id,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        start_time: data.start_time || '11:00:00',
+        end_time: data.end_time || '17:00:00'
+      } satisfies ExhibitionUpdate;
 
       try {
         const { data: updatedData, error } = await supabase
@@ -261,13 +291,18 @@ export const useUpdateExhibition = () => {
             *,
             category:exhibition_categories(*),
             venue_type:venue_types(*),
-            event_type:event_types(*)
+            event_type:event_types(*),
+            measurement_unit:measurement_units(*)
           `)
-          .single();
+          .single() as PostgrestSingleResponse<Exhibition>;
 
         if (error) {
           console.error('Error updating exhibition:', error);
           throw error;
+        }
+
+        if (!updatedData) {
+          throw new Error('Failed to update exhibition');
         }
 
         console.log('Successfully updated exhibition:', updatedData);

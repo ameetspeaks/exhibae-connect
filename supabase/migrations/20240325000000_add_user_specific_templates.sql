@@ -64,7 +64,7 @@ INSERT INTO public.email_templates (type, subject, template) VALUES
         </div>
         <div class="content">
             <p>Dear {{organizer_name}},</p>
-            <p>Your exhibition has been successfully created and is now live on ExhiBae!</p>
+            <p>Your exhibition has been successfully created and is now live on Exhibae!</p>
             <div class="exhibition-details">
                 <h2>{{exhibition_title}}</h2>
                 <p><strong>Date:</strong> {{exhibition_date}}</p>
@@ -78,7 +78,7 @@ INSERT INTO public.email_templates (type, subject, template) VALUES
             <p>Need help? Check out our organizer guide or contact support.</p>
         </div>
         <div class="footer">
-            <p>© 2024 ExhiBae. All rights reserved.</p>
+            <p>© 2024 Exhibae. All rights reserved.</p>
             <p>If you have any questions, please contact us at support@exhibae.com</p>
         </div>
     </div>
@@ -163,7 +163,7 @@ INSERT INTO public.email_templates (type, subject, template) VALUES
             <a href="{{review_link}}" class="button">Review Application</a>
         </div>
         <div class="footer">
-            <p>© 2024 ExhiBae. All rights reserved.</p>
+            <p>© 2024 Exhibae. All rights reserved.</p>
             <p>If you have any questions, please contact us at support@exhibae.com</p>
         </div>
     </div>
@@ -171,12 +171,12 @@ INSERT INTO public.email_templates (type, subject, template) VALUES
 </html>'),
 
 -- Brand Templates
-('brand_welcome', 'Welcome to ExhiBae!', '<!DOCTYPE html>
+('brand_welcome', 'Welcome to Exhibae!', '<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to ExhiBae</title>
+    <title>Welcome to Exhibae</title>
     <style>
         /* Include base styles */
         body {
@@ -225,11 +225,11 @@ INSERT INTO public.email_templates (type, subject, template) VALUES
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to ExhiBae!</h1>
+            <h1>Welcome to Exhibae!</h1>
         </div>
         <div class="content">
             <p>Dear {{brand_name}},</p>
-            <p>Welcome to ExhiBae! We''re excited to have you join our community of brands and organizers.</p>
+            <p>Welcome to Exhibae! We''re excited to have you join our community of brands and organizers.</p>
             <p>Here''s what you can do next:</p>
             <ul>
                 <li>Complete your brand profile</li>
@@ -241,7 +241,7 @@ INSERT INTO public.email_templates (type, subject, template) VALUES
             <p>Need help getting started? Check out our brand guide or contact support.</p>
         </div>
         <div class="footer">
-            <p>© 2024 ExhiBae. All rights reserved.</p>
+            <p>© 2024 Exhibae. All rights reserved.</p>
             <p>If you have any questions, please contact us at support@exhibae.com</p>
         </div>
     </div>
@@ -326,7 +326,7 @@ INSERT INTO public.email_templates (type, subject, template) VALUES
             <p>Share this exhibition with your friends and family!</p>
         </div>
         <div class="footer">
-            <p>© 2024 ExhiBae. All rights reserved.</p>
+            <p>© 2024 Exhibae. All rights reserved.</p>
             <p>If you have any questions, please contact us at support@exhibae.com</p>
         </div>
     </div>

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useExhibition } from '@/hooks/useExhibitionsData';
-import { useGalleryImages } from '@/hooks/useGalleryData';
+import { useGalleryImages, useUpdateGalleryImageTypes } from '@/hooks/useGalleryData';
 import { useStalls } from '@/hooks/useStallsData';
 import { useStallInstances } from '@/hooks/useStallsData';
 import { useStallInstanceOperations } from '@/hooks/useStallInstanceOperations';
 import { useExhibitionAttendance } from '@/hooks/useExhibitionAttendance';
 import { useExhibitionFavorite } from '@/hooks/useExhibitionFavorite';
 import { format } from 'date-fns';
-import { Loader2, MapPin, Calendar, Tag, Info, Users, Heart, ImageIcon } from 'lucide-react';
+import { Loader2, MapPin, Calendar, Tag, Info, Users, Heart, ImageIcon, CreditCard, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,28 @@ import type { StallInstance, Exhibition } from '@/types/exhibition-management';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { sendStallApplicationEmail, sendStallApplicationStatusEmail } from '@/lib/emailNotifications';
+import { Database } from '@/types/database.types';
+import { PostgrestError } from '@supabase/supabase-js';
+import { dbOperations, handleSupabaseError, isPostgrestError } from '@/lib/supabase-helpers';
+
+type Tables = Database['public']['Tables'];
+type ExhibitionInterest = Tables['exhibition_interests']['Row'];
+type ExhibitionInterestInsert = Omit<ExhibitionInterest, 'id' | 'created_at'>;
+type OrganiserFollower = Tables['organiser_followers']['Row'];
+type OrganiserFollowerInsert = Omit<OrganiserFollower, 'id' | 'created_at'>;
+type Profile = Tables['profiles']['Row'];
+
+interface OrganiserProfile {
+  id: string;
+  full_name: string;
+  company_name?: string;
+  avatar_url?: string;
+  description?: string;
+  website_url?: string;
+  facebook_url?: string;
+  followers_count?: number;
+  attendees_hosted?: number;
+}
 
 export default function ExhibitionDetail() {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +81,9 @@ export default function ExhibitionDetail() {
   const [organiser, setOrganiser] = useState<any>(null);
   const [isLoadingOrganiser, setIsLoadingOrganiser] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
+  const { mutate: updateImageTypes } = useUpdateGalleryImageTypes(id!);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // Function to check if user is a brand
   const isBrand = () => {
@@ -147,7 +172,7 @@ export default function ExhibitionDetail() {
         toast({
           title: 'Application submitted',
           description: 'Your application was submitted, but there was an issue sending email notifications. The organizer will still be notified through the system.',
-          variant: 'warning',
+          variant: 'destructive',
         });
       }
 
@@ -171,63 +196,31 @@ export default function ExhibitionDetail() {
     }
   };
 
-  // Function to handle interest registration
-  const handleRegisterInterest = async () => {
-    if (!user || !isBrand()) return;
-
-    setIsSubmitting(true);
-    try {
-      const { data, error } = await supabase
-        .from('exhibition_interests')
-        .insert([
-          {
-            exhibition_id: id,
-            brand_id: user.id,
-            notes: '' // Optional notes can be added later if needed
-          }
-        ])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setHasRegisteredInterest(true);
-      toast({
-        title: "Interest Registered",
-        description: "Your interest has been registered successfully.",
-      });
-    } catch (error: any) {
-      console.error('Error registering interest:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to register interest",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   // Check if user has already registered interest
   useEffect(() => {
     const checkInterestStatus = async () => {
-      if (!user || !isBrand()) return;
-
+      if (!user) return;
+      
       try {
-        const { data, error } = await supabase
-          .from('exhibition_interests')
-          .select('*')
-          .eq('exhibition_id', id)
-          .eq('brand_id', user.id)
-          .single();
+        const { data, error } = await dbOperations.checkExhibitionInterest(
+          supabase,
+          id!,
+          user.id
+        );
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-          throw error;
+        if (error && isPostgrestError(error)) {
+          console.error('Error checking interest status:', error.message);
+          toast({
+            title: "Error",
+            description: "Failed to check interest status. Please try again.",
+            variant: "destructive"
+          });
+          return;
         }
-
+        
         setHasRegisteredInterest(!!data);
       } catch (error) {
-        console.error('Error checking interest status:', error);
+        console.error('Error checking interest status:', handleSupabaseError(error));
       }
     };
 
@@ -253,7 +246,7 @@ export default function ExhibitionDetail() {
           followers_count,
           attendees_hosted
         `)
-        .eq('id', exhibition.organiser_id)
+        .match({ id: exhibition.organiser_id } as Partial<Profile>)
         .single();
 
       console.log('Organiser query result:', { data, error });
@@ -262,7 +255,7 @@ export default function ExhibitionDetail() {
         console.error('Error fetching organiser details:', error);
       } else {
         console.log('Found organiser:', data);
-        setOrganiser(data);
+        setOrganiser(data as OrganiserProfile);
       }
       setIsLoadingOrganiser(false);
     };
@@ -275,20 +268,25 @@ export default function ExhibitionDetail() {
       if (!user || !organiser) return;
       
       try {
-        const { data, error } = await supabase
-          .from('organiser_followers')
-          .select('*')
-          .eq('organiser_id', organiser.id)
-          .eq('follower_id', user.id)
-          .single();
-        
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-          throw error;
+        const { data, error } = await dbOperations.checkOrganiserFollower(
+          supabase,
+          organiser.id,
+          user.id
+        );
+
+        if (error && isPostgrestError(error)) {
+          console.error('Error checking follow status:', error.message);
+          toast({
+            title: "Error",
+            description: "Failed to check follow status. Please try again.",
+            variant: "destructive"
+          });
+          return;
         }
         
         setIsFollowing(!!data);
       } catch (error) {
-        console.error('Error checking follow status:', error);
+        console.error('Error checking follow status:', handleSupabaseError(error));
       }
     };
     
@@ -320,48 +318,120 @@ export default function ExhibitionDetail() {
       setIsSubmitting(true);
       
       if (isFollowing) {
-        // Unfollow
-        const { error } = await supabase
-          .from('organiser_followers')
-          .delete()
-          .eq('organiser_id', organiser.id)
-          .eq('follower_id', user.id);
+        const { error } = await dbOperations.removeOrganiserFollower(
+          supabase,
+          organiser.id,
+          user.id
+        );
           
-        if (error) throw error;
+        if (error && isPostgrestError(error)) throw error;
         
         setIsFollowing(false);
         toast({
           title: "Unfollowed",
-          description: `You no longer follow ${organiser.full_name || organiser.company_name}`
+          description: `You no longer follow ${organiser.full_name || organiser.company_name}`,
+          variant: "default"
         });
       } else {
-        // Follow
-        const { error } = await supabase
-          .from('organiser_followers')
-          .insert({
+        const { error } = await dbOperations.insertOrganiserFollower(
+          supabase,
+          {
             organiser_id: organiser.id,
-            follower_id: user.id,
-            created_at: new Date().toISOString()
-          });
+            follower_id: user.id
+          }
+        );
           
-        if (error) throw error;
+        if (error && isPostgrestError(error)) throw error;
         
         setIsFollowing(true);
         toast({
           title: "Following",
-          description: `You are now following ${organiser.full_name || organiser.company_name}`
+          description: `You are now following ${organiser.full_name || organiser.company_name}`,
+          variant: "default"
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error following/unfollowing:', error);
       toast({
         title: "Error",
-        description: error.message || "An error occurred while processing your request.",
+        description: handleSupabaseError(error),
         variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Handle interest registration
+  const handleRegisterInterest = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to register interest.",
+        variant: "destructive"
+      });
+      navigate('/auth');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      if (hasRegisteredInterest) {
+        const { error } = await dbOperations.removeExhibitionInterest(
+          supabase,
+          id!,
+          user.id
+        );
+          
+        if (error && isPostgrestError(error)) throw error;
+        
+        setHasRegisteredInterest(false);
+        toast({
+          title: "Interest Removed",
+          description: "You have removed your interest in this exhibition.",
+          variant: "default"
+        });
+      } else {
+        const { error } = await dbOperations.insertExhibitionInterest(
+          supabase,
+          {
+            exhibition_id: id!,
+            brand_id: user.id,
+            notes: null
+          }
+        );
+          
+        if (error && isPostgrestError(error)) throw error;
+        
+        setHasRegisteredInterest(true);
+        toast({
+          title: "Interest Registered",
+          description: "You have registered your interest in this exhibition.",
+          variant: "default"
+        });
+      }
+    } catch (error) {
+      console.error('Error registering interest:', error);
+      toast({
+        title: "Error",
+        description: handleSupabaseError(error),
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Remove references to price_range if it's not in the exhibition type
+  const renderPriceRange = () => {
+    if (!exhibition) return null;
+    return (
+      <div className="flex items-center gap-2 text-sm text-font-color-muted">
+        <CreditCard className="h-4 w-4" />
+        <span>Contact organiser for pricing details</span>
+      </div>
+    );
   };
 
   if (isLoadingExhibition) {
@@ -390,261 +460,382 @@ export default function ExhibitionDetail() {
   const galleryPhotos = galleryImages?.filter(img => img.image_type === 'gallery') || [];
 
   return (
-    <div className="min-h-screen bg-[#F5E4DA]">
-      {/* Hero Banner Section */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="container mx-auto px-4 py-8">
-        <div className="relative h-[350px] bg-[#F5E4DA] rounded-2xl overflow-hidden shadow-lg border border-[#4B1E25]/10">
-          {bannerImage ? (
-            <img
-              src={bannerImage}
-              alt={exhibition.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-[#F5E4DA] flex items-center justify-center">
-              <ImageIcon className="h-16 w-16 text-[#4B1E25]/20" />
+        <div className="max-w-5xl mx-auto">
+          {/* Hero Section */}
+          <div className="relative mb-8 group">
+            <AspectRatio ratio={21/9}>
+              <img 
+                src={bannerImage || '/placeholder-banner.jpg'} 
+                alt={exhibition.title}
+                className="w-full h-full object-cover rounded-2xl shadow-lg transition-transform duration-300 group-hover:scale-[1.01] cursor-pointer"
+                onClick={() => setIsImageModalOpen(true)}
+              />
+            </AspectRatio>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent rounded-2xl" />
+            
+            {/* Favorite Button */}
+            <div className="absolute top-4 right-4 z-10">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="bg-white/95 hover:bg-white shadow-lg border-0 backdrop-blur-sm flex items-center gap-2 px-4 rounded-full transition-all duration-300 hover:scale-105"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleFavorite();
+                }}
+                disabled={isFavoriteSubmitting}
+              >
+                {isFavoriteSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <Heart className={`h-4 w-4 transition-all duration-300 ${isFavorite ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-700 hover:scale-110'}`} />
+                )}
+                <span className="text-sm font-medium text-gray-700">
+                  {isFavorite ? 'Favorited' : 'Add to Favorites'}
+                </span>
+              </Button>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-8 bg-[#F5E4DA]">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Details */}
-          <div className="lg:col-span-2">
-            <Tabs defaultValue="about" className="space-y-6">
-              <TabsList className="bg-[#F5E4DA] border border-[#4B1E25]/10">
-                <TabsTrigger value="about">About</TabsTrigger>
-                {galleryImages && galleryImages.length > 0 && (
-                  <TabsTrigger value="gallery">Gallery</TabsTrigger>
-                )}
-                {stallInstances && stallInstances.length > 0 && isBrand() && (
-                  <TabsTrigger value="stalls">Stall Layout</TabsTrigger>
-                )}
-              </TabsList>
+          {/* Image Modal */}
+          <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+            <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-auto">
+              <div className="relative w-full h-full flex items-center justify-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 z-50 bg-black/50 hover:bg-black/70 text-white"
+                  onClick={() => setIsImageModalOpen(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <img
+                  src={selectedImage || bannerImage || '/placeholder-banner.jpg'}
+                  alt={exhibition.title}
+                  className="max-w-full max-h-[95vh] w-auto h-auto object-contain"
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
 
-              <TabsContent value="about" className="space-y-6">
-                <Card className="border-0 shadow-lg">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-3xl font-bold text-[#4B1E25]">{exhibition.title}</CardTitle>
-                      <div className="flex items-center gap-2">
-                        {isShopper() && (
+          {/* Main Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Details */}
+            <div className="lg:col-span-2">
+              <Tabs defaultValue="about" className="space-y-6">
+                <TabsList className="bg-[#F5E4DA] border border-[#4B1E25]/10">
+                  <TabsTrigger value="about">About</TabsTrigger>
+                  {galleryImages && galleryImages.length > 0 && (
+                    <TabsTrigger value="gallery">Gallery</TabsTrigger>
+                  )}
+                  {stallInstances && stallInstances.length > 0 && isBrand() && (
+                    <TabsTrigger value="stalls">Stall Layout</TabsTrigger>
+                  )}
+                </TabsList>
+
+                <TabsContent value="about" className="space-y-6">
+                  <Card className="border-0 shadow-lg">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-3xl font-bold text-[#4B1E25]">{exhibition.title}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          {isShopper() && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "bg-white/80 hover:bg-white/90 border-[#4B1E25]/10",
+                                isAttending && "bg-[#4B1E25] text-[#F5E4DA] hover:bg-[#4B1E25]/90"
+                              )}
+                              onClick={() => {
+                                if (!user) {
+                                  navigate('/auth/login');
+                                  return;
+                                }
+                                toggleAttendance();
+                              }}
+                              disabled={isAttendanceSubmitting}
+                            >
+                              {isAttendanceSubmitting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  {isAttending ? 'Going' : 'Love to go'}
+                                </>
+                              )}
+                            </Button>
+                          )}
                           <Button
-                            variant="outline"
-                            size="sm"
-                            className={cn(
-                              "bg-white/80 hover:bg-white/90 border-[#4B1E25]/10",
-                              isAttending && "bg-[#4B1E25] text-[#F5E4DA] hover:bg-[#4B1E25]/90"
-                            )}
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 bg-white/80 hover:bg-white/90 rounded-full"
                             onClick={() => {
                               if (!user) {
                                 navigate('/auth/login');
                                 return;
                               }
-                              toggleAttendance();
+                              toggleFavorite();
                             }}
-                            disabled={isAttendanceSubmitting}
+                            disabled={isFavoriteSubmitting}
                           >
-                            {isAttendanceSubmitting ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                            {isFavoriteSubmitting ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
                             ) : (
-                              <>
-                                {isAttending ? 'Going' : 'Love to go'}
-                              </>
+                              <Heart className={`h-5 w-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-[#4B1E25]'}`} />
                             )}
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-10 w-10 bg-white/80 hover:bg-white/90 rounded-full"
-                          onClick={() => {
-                            if (!user) {
-                              navigate('/auth/login');
-                              return;
-                            }
-                            toggleFavorite();
-                          }}
-                          disabled={isFavoriteSubmitting}
-                        >
-                          {isFavoriteSubmitting ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : (
-                            <Heart className={`h-5 w-5 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-[#4B1E25]'}`} />
-                          )}
-                        </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-lg text-muted-foreground leading-relaxed">
+                        {exhibition.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {galleryImages && galleryImages.length > 0 && (
+                  <TabsContent value="gallery" className="space-y-6">
+                    <Card className="border-0 shadow-lg">
+                      <CardHeader>
+                        <CardTitle>Gallery</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {(() => {
+                          const galleryOnlyImages = galleryImages.filter(img => img.image_type === 'gallery');
+                          
+                          if (galleryOnlyImages.length === 0) {
+                            return (
+                              <div className="text-center py-8 text-muted-foreground">
+                                No gallery images available
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <Carousel>
+                              <CarouselContent>
+                                {galleryOnlyImages.map((image, index) => (
+                                  <CarouselItem key={index}>
+                                    <AspectRatio ratio={16/9}>
+                                      <img
+                                        src={image.image_url}
+                                        alt={`Exhibition gallery ${index + 1}`}
+                                        className="w-full h-full object-cover rounded-lg cursor-pointer"
+                                        onClick={() => {
+                                          setSelectedImage(image.image_url);
+                                          setIsImageModalOpen(true);
+                                        }}
+                                      />
+                                    </AspectRatio>
+                                  </CarouselItem>
+                                ))}
+                              </CarouselContent>
+                              <CarouselPrevious />
+                              <CarouselNext />
+                            </Carousel>
+                          );
+                        })()}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                )}
+
+                {stallInstances && stallInstances.length > 0 && isBrand() && (
+                  <TabsContent value="stalls" className="space-y-6">
+                    <Card className="border-0 shadow-lg">
+                      <CardHeader>
+                        <CardTitle>Stall Layout</CardTitle>
+                        <CardDescription>
+                          Click on available stalls to view details and apply
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        {/* Layout Images Section */}
+                        {(() => {
+                          console.log('Stall Layout Section - Conditions:');
+                          console.log('stallInstances:', stallInstances?.length);
+                          console.log('isBrand():', isBrand());
+                          console.log('All Gallery Images:', galleryImages?.map(img => ({
+                            id: img.id,
+                            type: img.image_type,
+                            url: img.image_url
+                          })));
+                          const layoutImages = galleryImages?.filter(img => {
+                            const imageType = (img.image_type || '').toLowerCase().trim();
+                            console.log(`Image ${img.id} type:`, imageType, 'matches layout?:', imageType.includes('layout'));
+                            return imageType.includes('layout');
+                          });
+                          console.log('Filtered Layout Images:', layoutImages?.map(img => ({
+                            id: img.id,
+                            type: img.image_type,
+                            url: img.image_url
+                          })));
+                          return (
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-semibold">Exhibition Layout</h3>
+                                {isOrganiserOrManager() && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => updateImageTypes()}
+                                  >
+                                    Update Layout Images
+                                  </Button>
+                                )}
+                              </div>
+                              {layoutImages && layoutImages.length > 0 ? (
+                                <div className="space-y-2">
+                                  {layoutImages.map(image => {
+                                    console.log('Rendering layout image:', image.image_url);
+                                    return (
+                                      <div key={image.id} className="rounded-lg overflow-hidden">
+                                        <img 
+                                          src={image.image_url} 
+                                          alt="Layout" 
+                                          className="w-full h-auto"
+                                          onError={(e) => {
+                                            console.error('Image failed to load:', image.image_url);
+                                            e.currentTarget.style.display = 'none';
+                                          }}
+                                          onLoad={() => console.log('Image loaded successfully:', image.image_url)}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="text-muted-foreground text-sm mb-4">
+                                  No layout images available
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        
+                        {/* Stall Layout Component */}
+                        <div className="mt-6">
+                          <h3 className="text-lg font-semibold mb-4">Available Stalls</h3>
+                          <StallLayout
+                            stallInstances={stallInstances}
+                            onStallSelect={handleStallSelect}
+                            userRole="brand"
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                )}
+              </Tabs>
+            </div>
+
+            {/* Right Column - Additional Info */}
+            <div className="space-y-6">
+              <Card className="border-[#4B1E25]/10">
+                <CardHeader>
+                  <CardTitle>Exhibition Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">Date & Time</h3>
+                    <div className="flex items-center text-muted-foreground">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <div>
+                        <p>Start: {format(new Date(exhibition.start_date), 'MMMM d, yyyy')}</p>
+                        <p>End: {format(new Date(exhibition.end_date), 'MMMM d, yyyy')}</p>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-lg text-muted-foreground leading-relaxed">
-                      {exhibition.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {galleryImages && galleryImages.length > 0 && (
-                <TabsContent value="gallery" className="space-y-6">
-                  <Card className="border-0 shadow-lg">
-                    <CardHeader>
-                      <CardTitle>Gallery</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Carousel>
-                        <CarouselContent>
-                          {galleryImages.map((image, index) => (
-                            <CarouselItem key={index}>
-                              <AspectRatio ratio={16/9}>
-                                <img
-                                  src={image.image_url}
-                                  alt={`Exhibition gallery ${index + 1}`}
-                                  className="w-full h-full object-cover rounded-lg"
-                                />
-                              </AspectRatio>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious />
-                        <CarouselNext />
-                      </Carousel>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              )}
-
-              {stallInstances && stallInstances.length > 0 && isBrand() && (
-                <TabsContent value="stalls" className="space-y-6">
-                  <Card className="border-0 shadow-lg">
-                    <CardHeader>
-                      <CardTitle>Stall Layout</CardTitle>
-                      <CardDescription>
-                        Click on available stalls to view details and apply
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <StallLayout
-                        stallInstances={stallInstances}
-                        onStallSelect={handleStallSelect}
-                        userRole="brand"
-                      />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              )}
-            </Tabs>
-          </div>
-
-          {/* Right Column - Additional Info */}
-          <div className="space-y-6">
-            <Card className="border-[#4B1E25]/10">
-              <CardHeader>
-                <CardTitle>Exhibition Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Date & Time</h3>
-                  <div className="flex items-center text-muted-foreground">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    <div>
-                      <p>Start: {format(new Date(exhibition.start_date), 'MMMM d, yyyy')}</p>
-                      <p>End: {format(new Date(exhibition.end_date), 'MMMM d, yyyy')}</p>
-                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Location</h3>
-                  <div className="flex items-center text-muted-foreground">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    <p>{exhibition.address}</p>
-                  </div>
-                </div>
-
-                {exhibition.category && (
                   <div className="space-y-2">
-                    <h3 className="font-semibold">Categories</h3>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge className="bg-[#4B1E25]/5 text-[#4B1E25] border-[#4B1E25]/10 px-3 py-1">
-                        <Tag className="h-4 w-4 mr-2" />
-                        {exhibition.category.name}
-                      </Badge>
+                    <h3 className="font-semibold">Location</h3>
+                    <div className="flex items-center text-muted-foreground">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      <p>{exhibition.address}</p>
                     </div>
                   </div>
-                )}
 
-                {exhibition.price_range && (
-                  <div className="space-y-2">
-                    <h3 className="font-semibold">Price Range</h3>
-                    <p className="text-muted-foreground">
-                      ₹{exhibition.price_range} onwards
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <h3 className="font-semibold">People Attending</h3>
-                  <div className="flex items-center text-muted-foreground">
-                    <Users className="h-4 w-4 mr-2" />
-                    <p>{attendanceCount + (favoritesCount || 0)} people interested</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Organiser Info */}
-            {organiser && !isLoadingOrganiser && (
-              <Card className="border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle>Organiser</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Button
-                    variant="ghost"
-                    className="w-full flex items-center gap-4 hover:bg-[#4B1E25]/5"
-                    onClick={() => navigate(`/organisers/${organiser.id}`)}
-                  >
-                    {organiser.avatar_url && (
-                      <img
-                        src={organiser.avatar_url}
-                        alt={organiser.company_name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    )}
-                    <div className="text-left">
-                      <h3 className="font-semibold">{organiser.company_name}</h3>
-                      <p className="text-sm text-muted-foreground">{organiser.full_name}</p>
+                  {exhibition.category && (
+                    <div className="space-y-2">
+                      <h3 className="font-semibold">Categories</h3>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge className="bg-[#4B1E25]/5 text-[#4B1E25] border-[#4B1E25]/10 px-3 py-1">
+                          <Tag className="h-4 w-4 mr-2" />
+                          {exhibition.category.name}
+                        </Badge>
+                      </div>
                     </div>
-                  </Button>
-                  
-                  {organiser.description && (
-                    <p className="text-sm text-muted-foreground">{organiser.description}</p>
                   )}
 
-                  <div className="flex gap-4">
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => navigate(`/organisers/${organiser.id}`)}
-                    >
-                      View Profile
-                    </Button>
-                    {user && !isOrganiserOrManager() && (
-                      <Button
-                        variant={isFollowing ? "outline" : "default"}
-                        className="w-full"
-                        onClick={handleFollow}
-                        disabled={isSubmitting}
-                      >
-                        {isFollowing ? 'Following' : 'Follow'}
-                      </Button>
-                    )}
+                  {renderPriceRange()}
+
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">People Attending</h3>
+                    <div className="flex items-center text-muted-foreground">
+                      <Users className="h-4 w-4 mr-2" />
+                      <p>{attendanceCount + (favoritesCount || 0)} people interested</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            )}
+
+              {/* Organiser Info */}
+              {organiser && !isLoadingOrganiser && (
+                <Card className="border-0 shadow-lg">
+                  <CardHeader>
+                    <CardTitle>Organiser</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Button
+                      variant="ghost"
+                      className="w-full flex items-center gap-4 hover:bg-[#4B1E25]/5"
+                      onClick={() => navigate(`/organisers/${organiser.id}`)}
+                    >
+                      {organiser.avatar_url && (
+                        <img
+                          src={organiser.avatar_url}
+                          alt={organiser.company_name}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      )}
+                      <div className="text-left">
+                        <h3 className="font-semibold">{organiser.company_name}</h3>
+                        <p className="text-sm text-muted-foreground">{organiser.full_name}</p>
+                      </div>
+                    </Button>
+                    
+                    {organiser.description && (
+                      <p className="text-sm text-muted-foreground">{organiser.description}</p>
+                    )}
+
+                    <div className="flex gap-4">
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => navigate(`/organisers/${organiser.id}`)}
+                      >
+                        View Profile
+                      </Button>
+                      {user && !isOrganiserOrManager() && (
+                        <Button
+                          variant={isFollowing ? "outline" : "default"}
+                          className="w-full"
+                          onClick={handleFollow}
+                          disabled={isSubmitting}
+                        >
+                          {isFollowing ? 'Following' : 'Follow'}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
         </div>
       </div>

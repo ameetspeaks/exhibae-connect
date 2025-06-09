@@ -11,7 +11,7 @@ const Terms = () => {
             Terms and Conditions
           </h1>
           <p className="text-xl text-gray-600 text-center max-w-3xl mx-auto">
-            Please read these terms carefully before using ExhiBae.
+            Please read these terms carefully before using Exhibae.
           </p>
         </div>
       </section>
@@ -22,7 +22,7 @@ const Terms = () => {
           <div className="prose prose-lg max-w-none">
             <h2 className="text-2xl font-bold text-exhibae-navy mb-6">1. Acceptance of Terms</h2>
             <p className="text-gray-600 mb-8">
-              By accessing and using ExhiBae, you accept and agree to be bound by the terms and provision of this agreement.
+              By accessing and using Exhibae, you accept and agree to be bound by the terms and provision of this agreement.
             </p>
 
             <h2 className="text-2xl font-bold text-exhibae-navy mb-6">2. User Accounts</h2>
@@ -38,7 +38,7 @@ const Terms = () => {
 
             <h2 className="text-2xl font-bold text-exhibae-navy mb-6">3. Exhibition Listings</h2>
             <p className="text-gray-600 mb-8">
-              Organizers are responsible for ensuring all exhibition information is accurate and up-to-date. ExhiBae reserves the right to remove any listing that violates our policies.
+              Organizers are responsible for ensuring all exhibition information is accurate and up-to-date. Exhibae reserves the right to remove any listing that violates our policies.
             </p>
 
             <h2 className="text-2xl font-bold text-exhibae-navy mb-6">4. Payments and Refunds</h2>
@@ -53,17 +53,17 @@ const Terms = () => {
 
             <h2 className="text-2xl font-bold text-exhibae-navy mb-6">5. Intellectual Property</h2>
             <p className="text-gray-600 mb-8">
-              All content on ExhiBae, including but not limited to text, graphics, logos, and software, is the property of ExhiBae and protected by intellectual property laws.
+              All content on Exhibae, including but not limited to text, graphics, logos, and software, is the property of Exhibae and protected by intellectual property laws.
             </p>
 
             <h2 className="text-2xl font-bold text-exhibae-navy mb-6">6. Limitation of Liability</h2>
             <p className="text-gray-600 mb-8">
-              ExhiBae shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the platform.
+              Exhibae shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the platform.
             </p>
 
             <h2 className="text-2xl font-bold text-exhibae-navy mb-6">7. Privacy Policy</h2>
             <p className="text-gray-600 mb-4">
-              Your use of ExhiBae is also governed by our Privacy Policy. Please review our{' '}
+              Your use of Exhibae is also governed by our Privacy Policy. Please review our{' '}
               <Link to="/privacy" className="text-exhibae-coral hover:underline">
                 Privacy Policy
               </Link>
@@ -72,7 +72,7 @@ const Terms = () => {
 
             <h2 className="text-2xl font-bold text-exhibae-navy mb-6">8. Changes to Terms</h2>
             <p className="text-gray-600 mb-8">
-              ExhiBae reserves the right to modify these terms at any time. We will notify users of any material changes via email or through the platform.
+              Exhibae reserves the right to modify these terms at any time. We will notify users of any material changes via email or through the platform.
             </p>
 
             <h2 className="text-2xl font-bold text-exhibae-navy mb-6">9. Contact Information</h2>

@@ -88,7 +88,6 @@ import PaymentSettings from "./pages/Dashboard/Organiser/PaymentSettings";
 import MyInterests from "./pages/Dashboard/Brand/MyInterests";
 import InterestInquiries from "./pages/Dashboard/Organiser/InterestInquiries";
 import { default as OrganiserMyFavorites } from "./pages/Dashboard/Organiser/MyFavorites";
-import { default as OrganiserFindExhibitions } from "./pages/Dashboard/Organiser/FindExhibitions";
 
 // Brand Pages
 import { default as BrandApplications } from "./pages/Dashboard/Brand/Applications";
@@ -101,7 +100,7 @@ import BrandNotificationSettings from "./pages/Dashboard/Brand/NotificationSetti
 import { default as BrandMyFavorites } from "./pages/Dashboard/Brand/MyFavorites";
 
 // Static Pages
-import About from "./pages/Static/About";
+import About from "./pages/About";
 import Terms from "./pages/Static/Terms";
 import Privacy from "./pages/Static/Privacy";
 import Contact from "./pages/Static/Contact";
@@ -187,8 +186,14 @@ const router = createBrowserRouter(
         element={
           <ProtectedRoute allowedRoles={[UserRole.MANAGER, UserRole.ORGANISER, UserRole.BRAND, UserRole.SHOPPER]}>
             {({ user, userRole }) => {
-              const role = userRole || user?.user_metadata?.role || 'brand';
-              return <Navigate to={`/dashboard/${role.toLowerCase()}`} replace />;
+              const validRoles = Object.values(UserRole).map(r => r.toLowerCase());
+              const role = user?.user_metadata?.role?.toLowerCase();
+              const defaultRole = 'organiser';
+              
+              // Use the role from metadata if it's valid, otherwise use default
+              const finalRole = (role && validRoles.includes(role)) ? role : defaultRole;
+              
+              return <Navigate to={`/dashboard/${finalRole}`} replace />;
             }}
           </ProtectedRoute>
         }
@@ -260,7 +265,6 @@ const router = createBrowserRouter(
           <Route path="payment" element={<PaymentSettings />} />
         </Route>
         <Route path="favorites" element={<OrganiserMyFavorites />} />
-        <Route path="find-exhibitions" element={<OrganiserFindExhibitions />} />
       </Route>
       
       {/* Brand Dashboard */}

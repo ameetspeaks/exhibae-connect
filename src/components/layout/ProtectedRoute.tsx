@@ -6,14 +6,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types/auth';
 
 interface ProtectedRouteProps {
-  children: React.ReactNode | ((props: { user: any; userRole: string | null }) => React.ReactNode);
+  children: React.ReactNode | ((props: { user: any; userRole: string }) => React.ReactNode);
   allowedRoles?: UserRole[];
 }
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdminAuth();
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>('organiser'); // Set default role
   const [roleLoading, setRoleLoading] = useState(true);
   const location = useLocation();
 
@@ -21,8 +21,8 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     const fetchUserRole = async () => {
       if (user) {
         // First check user_metadata for role
-        const metadataRole = user.user_metadata?.role;
-        if (metadataRole) {
+        const metadataRole = user.user_metadata?.role?.toLowerCase();
+        if (metadataRole && Object.values(UserRole).map(r => r.toLowerCase()).includes(metadataRole)) {
           setUserRole(metadataRole);
           setRoleLoading(false);
           return;
@@ -35,8 +35,11 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
           .eq('id', user.id)
           .single();
 
-        if (!error && data) {
-          setUserRole(data.role);
+        if (!error && data?.role) {
+          const profileRole = data.role.toLowerCase();
+          if (Object.values(UserRole).map(r => r.toLowerCase()).includes(profileRole)) {
+            setUserRole(profileRole);
+          }
         }
       }
       setRoleLoading(false);
@@ -69,7 +72,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   }
 
   // For role-based routes, redirect to appropriate login page if role doesn't match
-  if (allowedRoles && userRole && !allowedRoles.includes(userRole as UserRole)) {
+  if (allowedRoles && !allowedRoles.includes(userRole as UserRole)) {
     const roleToLoginMap = {
       [UserRole.MANAGER]: '/auth/manager/login',
       [UserRole.ORGANISER]: '/auth/login',

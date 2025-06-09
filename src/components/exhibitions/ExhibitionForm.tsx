@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -25,7 +25,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
-import { ExhibitionFormData, ExhibitionCategory, VenueType, MeasuringUnit, EventType } from '@/types/exhibition-management';
+import { ExhibitionFormData, ExhibitionCategory, VenueType, MeasurementUnit, EventType } from '@/types/exhibition-management';
+import { useIndianStates, useIndianCities } from '@/services/locationService';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -34,7 +35,10 @@ const formSchema = z.object({
   city: z.string().min(1, 'City is required'),
   state: z.string().min(1, 'State is required'),
   country: z.string().min(1, 'Country is required'),
-  postal_code: z.string().min(1, 'Postal code is required'),
+  postal_code: z.string()
+    .min(6, 'Postal code must be 6 digits')
+    .max(6, 'Postal code must be 6 digits')
+    .regex(/^\d+$/, 'Postal code must contain only digits'),
   organiser_id: z.string(),
   status: z.string(),
   start_date: z.string(),
@@ -54,7 +58,7 @@ export interface ExhibitionFormProps {
   categories: ExhibitionCategory[];
   venueTypes: VenueType[];
   eventTypes: EventType[];
-  measuringUnits: MeasuringUnit[];
+  measuringUnits: MeasurementUnit[];
   isLoading: boolean;
   initialData?: ExhibitionFormData;
 }
@@ -68,6 +72,10 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
   isLoading,
   initialData 
 }) => {
+  const { states, loading: loadingStates, error: statesError } = useIndianStates();
+  const [selectedStateCode, setSelectedStateCode] = useState<string>('');
+  const { cities, loading: loadingCities, error: citiesError } = useIndianCities(selectedStateCode);
+
   console.log('Event types in form:', eventTypes);
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -77,7 +85,7 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
       address: '',
       city: '',
       state: '',
-      country: '',
+      country: 'India',
       postal_code: '',
       organiser_id: '',
       status: 'draft',
@@ -101,13 +109,19 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
         event_type_id: initialData.event_type_id
       });
 
+      // Find state code for the initial state
+      const stateData = states.find(s => s.name === initialData.state);
+      if (stateData) {
+        setSelectedStateCode(stateData.state_code);
+      }
+
       form.reset({
         title: initialData.title,
         description: initialData.description,
         address: initialData.address || '',
         city: initialData.city || '',
         state: initialData.state || '',
-        country: initialData.country || '',
+        country: 'India',
         postal_code: initialData.postal_code || '',
         organiser_id: initialData.organiser_id,
         status: initialData.status,
@@ -120,8 +134,11 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
         event_type_id: initialData.event_type_id || '',
         measuring_unit_id: initialData.measuring_unit_id || ''
       });
+    } else {
+      // Set default country for new forms
+      form.setValue('country', 'India');
     }
-  }, [initialData, form]);
+  }, [initialData, form, states]);
 
   const handleSubmit = async (data: FormData) => {
     await onSubmit(data as ExhibitionFormData);
@@ -176,13 +193,42 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField
               control={form.control}
-              name="city"
+              name="state"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>City</FormLabel>
-                  <FormControl>
-                    <Input placeholder="City" {...field} />
-                  </FormControl>
+                  <FormLabel>State</FormLabel>
+                  <Select 
+                    onValueChange={(value) => {
+                      const state = states.find(s => s.state_code === value);
+                      if (state) {
+                        field.onChange(state.name);
+                        setSelectedStateCode(value);
+                        // Reset city when state changes
+                        form.setValue('city', '');
+                      }
+                    }} 
+                    value={states.find(s => s.name === field.value)?.state_code || ''}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue>
+                          {loadingStates ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            states.find(s => s.name === field.value)?.name || "Select state"
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {states.map((state) => (
+                        <SelectItem key={state.state_code} value={state.state_code}>
+                          {state.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {statesError && <p className="text-sm text-red-500">{statesError}</p>}
                   <FormMessage />
                 </FormItem>
               )}
@@ -190,13 +236,35 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
 
             <FormField
               control={form.control}
-              name="state"
+              name="city"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>State</FormLabel>
-                  <FormControl>
-                    <Input placeholder="State" {...field} />
-                  </FormControl>
+                  <FormLabel>City</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value || ''}
+                    disabled={!selectedStateCode || loadingCities}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue>
+                          {loadingCities ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            field.value || "Select city"
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {cities.map((city) => (
+                        <SelectItem key={city.id} value={city.name}>
+                          {city.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {citiesError && <p className="text-sm text-red-500">{citiesError}</p>}
                   <FormMessage />
                 </FormItem>
               )}
@@ -211,7 +279,7 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
                 <FormItem>
                   <FormLabel>Country</FormLabel>
                   <FormControl>
-                    <Input placeholder="Country" {...field} />
+                    <Input value="India" disabled {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -225,7 +293,15 @@ const ExhibitionForm: React.FC<ExhibitionFormProps> = ({
                 <FormItem>
                   <FormLabel>Postal Code</FormLabel>
                   <FormControl>
-                    <Input placeholder="Postal code" {...field} />
+                    <Input 
+                      placeholder="Enter 6-digit postal code" 
+                      maxLength={6}
+                      {...field}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        field.onChange(value);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

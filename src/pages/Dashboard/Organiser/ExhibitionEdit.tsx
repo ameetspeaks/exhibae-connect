@@ -40,6 +40,8 @@ import { supabase } from '@/integrations/supabase/client';
 type Exhibition = Database['public']['Tables']['exhibitions']['Row'];
 type ExhibitionUpdate = Database['public']['Tables']['exhibitions']['Update'];
 
+type StallStatus = 'available' | 'pending' | 'reserved' | 'booked' | 'under_maintenance';
+
 const ExhibitionEdit = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -249,79 +251,42 @@ const ExhibitionEdit = () => {
 
   const handleUpdateStallPrice = async (instanceId: string, newPrice: number) => {
     try {
-      const instance = stallInstances?.find(i => i.id === instanceId);
-      if (!instance) throw new Error('Stall instance not found');
-
-      // Update the stall instance price
       await updateStallInstanceMutation.mutateAsync({
         id: instanceId,
         price: newPrice
       });
-
       toast({
-        title: 'Price updated',
-        description: 'The stall price has been updated successfully.',
+        title: 'Success',
+        description: 'Stall price has been updated successfully.',
       });
-
-      // Refetch instances
-      await queryClient.invalidateQueries({ queryKey: ['stall_instances', id] });
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update price',
+        description: error instanceof Error ? error.message : 'Failed to update stall price',
         variant: 'destructive',
       });
     }
   };
 
-  const handleUpdateStallStatus = async (instanceId: string, newStatus: string) => {
+  const handleUpdateStallStatus = async (instanceId: string, newStatus: StallStatus) => {
     try {
-      console.log('Updating stall status:', { instanceId, newStatus });
-
-      // Update in database
-      const updatedInstance = await updateStallInstanceMutation.mutateAsync({
+      await updateStallInstanceMutation.mutateAsync({
         id: instanceId,
         status: newStatus
       });
-
-      console.log('Updated instance from mutation:', updatedInstance);
-
-      // Update the local state to reflect the change immediately
-      if (stallInstances) {
-        const updatedInstances = stallInstances.map(instance => 
-          instance.id === instanceId 
-            ? { ...instance, status: newStatus }
-            : instance
-        );
-        
-        // Use correct query key
-        queryClient.setQueryData(['stall_instances', id], updatedInstances);
-      }
-
-      // Force a refetch to ensure data is fresh
-      await queryClient.invalidateQueries({ 
-        queryKey: ['stall_instances', id],
-        exact: true,
-        refetchType: 'all'
-      });
-
+      
+      // Refetch stall instances to get updated data
+      await queryClient.invalidateQueries({ queryKey: ['stall_instances', id] });
+      
       toast({
-        title: 'Status updated',
-        description: 'Stall status has been updated successfully.'
-      });
-
-      // Log the current state after update
-      console.log('Status update completed:', {
-        newStatus,
-        instanceId,
-        currentInstances: queryClient.getQueryData(['stall_instances', id])
+        title: 'Success',
+        description: 'Stall status has been updated successfully.',
       });
     } catch (error) {
-      console.error('Error updating stall status:', error);
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to update stall status',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     }
   };
@@ -376,7 +341,7 @@ const ExhibitionEdit = () => {
         </TabsContent>
 
         <TabsContent value="stall-setup">
-          <div className="space-y-6">
+          <div className="max-w-[800px] mx-auto space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Stall Configuration</CardTitle>

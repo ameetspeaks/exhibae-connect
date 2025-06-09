@@ -18,7 +18,7 @@ const ForBrands = () => {
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-exhibae-navy mb-6">
-              Grow Your Brand with ExhiBae
+              Grow Your Brand with Exhibae
             </h1>
             <p className="text-xl text-gray-600 mb-8">
               Find and book exhibition spaces effortlessly. Connect with organizers and showcase your brand to the right audience.

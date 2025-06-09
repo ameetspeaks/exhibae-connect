@@ -22,14 +22,14 @@ import { Logo } from '@/components/ui/logo';
 const Home = () => {
   const { data: exhibitions, isLoading, error } = usePublishedExhibitions(6);
   const [sliderStatus, setSliderStatus] = useState<SliderStatus>({ loading: true, hasSlides: false });
-  const [selectedCity, setSelectedCity] = useState<string>("Noida");
+  const [selectedCity, setSelectedCity] = useState<string>("Delhi");
   const navigate = useNavigate();
 
   // Get unique cities from exhibitions
   const cities = useMemo(() => {
     if (!exhibitions) return [];
     const uniqueCities = Array.from(new Set(exhibitions.map(e => e.city))).filter(Boolean);
-    return ["Noida", ...uniqueCities.filter(city => city !== "Noida")].sort();
+    return ["Delhi", ...uniqueCities.filter(city => city !== "Delhi")].sort();
   }, [exhibitions]);
 
   // Filter exhibitions by selected city

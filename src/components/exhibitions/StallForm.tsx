@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Info } from 'lucide-react';
-import { StallFormData, Stall, Amenity, MeasuringUnit } from '@/types/exhibition-management';
+import { StallFormData, Stall, Amenity, MeasurementUnit } from '@/types/exhibition-management';
 import {
   Card,
   CardContent,
@@ -36,7 +36,7 @@ interface StallFormProps {
   onSubmit: (data: StallFormData) => void;
   initialData?: Stall;
   amenities: Amenity[];
-  measuringUnits: MeasuringUnit[];
+  measuringUnits: MeasurementUnit[];
   isLoading?: boolean;
   lockedUnitId?: string;
   existingStalls?: Stall[];
@@ -232,10 +232,11 @@ const StallForm: React.FC<StallFormProps> = ({
                     </div>
                     <FormControl>
                       <MeasuringUnitSelect
-                        measuringUnits={measuringUnits}
-                        selectedUnitId={lockedUnitId || field.value}
+                        measurementUnits={measuringUnits}
+                        selectedUnitId={field.value}
                         onUnitSelect={field.onChange}
-                        disabled={!!lockedUnitId || existingStalls.length > 0}
+                        disabled={!!lockedUnitId}
+                        isLoading={isLoading}
                       />
                     </FormControl>
                     {!!lockedUnitId && (
